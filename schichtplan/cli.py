@@ -83,8 +83,33 @@ zusatz: {{}}
 soll_stunden: {{}}
 #  kurz_u: 12
 
+# --- Sonderwochen ---
+# modus: manuell   -> der Planer rechnet nichts, er prueft nur, was unter
+#                     'fest' steht, und exportiert es. Fuer Weihnachten und
+#                     aehnliche Wochen. 'neu --manuell' schreibt das Raster gleich mit.
+# regeln_aus:      -> Regeln, die in dieser Woche nicht gelten sollen,
+#                     z. B. [gesamtstunden, kopfzahl, wochenstunden]
+modus: auto
+regeln_aus: []
+
+# Bedarf dieser Woche abweichend vom Normalfall (konfig/bedarf.yaml).
+# Alles optional, nur was hier steht wird ueberschrieben.
+bedarf: {{}}
+#  oeffnung:
+#    mi: {{von: "05:00", bis: "14:00"}}    # Heiligabend
+#  kopfzahl: {{mi: 10}}
+#  frueh_min: {{mi: 6}}
+#  schluss_min: {{mi: 3}}
+#  wochenstunden_gesamt: 300
+
 notiz: ""
 """
+
+RASTER_KOPF = """
+# Handplan: jede Zelle steht hier. Eintragen als Schichtzeit ("6-13:30",
+# beliebige Zeiten erlaubt, nicht nur Katalogschichten), als "frei", oder
+# die Zeile ganz weglassen - dann ist der Tag frei.
+fest:"""
 
 
 def _mitarbeiterliste() -> list[str]:
@@ -144,14 +169,29 @@ def cmd_neu(args) -> int:
                             bis=montag + dt.timedelta(days=5),
                             geschlossen=("[" + ", ".join(feiertage) + "]"
                                          if feiertage else "[]"))
+    if args.manuell:
+        stamm = lade_stammdaten(args.konfig)
+        offen = [t_ for t_ in TAGE if t_ not in feiertage]
+        zeilen = [RASTER_KOPF]
+        for mid, m in stamm.mitarbeiter.items():
+            if not (m.aktiv and m.im_plan):
+                continue
+            zeilen.append(f"  {mid}:".ljust(22) + f"# {m.name}")
+            for tag in offen:
+                zeilen.append(f"    {tag}: frei")
+        inhalt = (inhalt.replace("fest: {}", "\n".join(zeilen))
+                  .replace("modus: auto", "modus: manuell"))
     pfad.write_text(kopf + inhalt, encoding="utf-8")
     print("angelegt:", pfad)
     if feiertage:
         print("Feiertage eingetragen:", ", ".join(
             f"{TAG_LANG[t]} ({n})" for t, n in feiertage.items()))
-    if weihnachten:
+    if weihnachten and not args.manuell:
         print(f"\n  ACHTUNG Sonderwoche: {weihnachten}")
-        print("  Diese Woche von Hand planen - die ueblichen Regeln passen nicht.\n")
+        print("  Empfehlung: neu erzeugen mit --manuell, dann steht das ganze")
+        print("  Raster zum Ausfuellen in der Datei.\n")
+    elif weihnachten:
+        print(f"\n  Sonderwoche {weihnachten} - Handplanraster angelegt.\n")
     print("Mitarbeiterkuerzel:", ", ".join(_mitarbeiterliste()))
     return 0
 
@@ -180,10 +220,17 @@ def cmd_plan(args) -> int:
         montag = dt.date.fromisoformat(vorgabe.datum_von)
     except ValueError:
         montag = None
-    if montag and (sonder := kalender.weihnachtswoche(montag)):
+    handplan = vorgabe.modus == "manuell"
+    if montag and (sonder := kalender.weihnachtswoche(montag)) and not handplan:
         print(f"ACHTUNG Sonderwoche: {sonder}")
         print("Die ueblichen Regeln passen hier nicht - Ergebnis nur als Entwurf "
-              "verwenden.\n")
+              "verwenden, oder die Woche mit 'neu --manuell' von Hand planen.\n")
+    if handplan:
+        print(f"Handplan {vorgabe.woche} - es wird nur geprueft und exportiert, "
+              f"nicht gerechnet.")
+        if vorgabe.regeln_aus:
+            print("Ausgeschaltete Regeln: " + ", ".join(vorgabe.regeln_aus))
+        print()
 
     erg = erzeuge(stamm, vorgabe, vorwochen,
                   iterationen=args.iterationen, neustarts=args.neustarts, seed=args.seed)
@@ -210,7 +257,10 @@ def cmd_plan(args) -> int:
         for tag, eintrag in bewerter.feiertagsumfeld.items():
             felder = ", ".join(f"{k} {v}" for k, v in eintrag.items() if k != "anlass")
             print(f"Feiertagsumfeld {TAG_LANG[tag]}: {eintrag['anlass']} -> {felder}")
-    print(f"\nStrafpunkte: {bew.punkte:.0f}  (Greedy-Start: {erg.startpunkte:.0f})")
+    if handplan:
+        print(f"\nPruefergebnis: {bew.punkte:.0f} Strafpunkte")
+    else:
+        print(f"\nStrafpunkte: {bew.punkte:.0f}  (Greedy-Start: {erg.startpunkte:.0f})")
     _zeige_befunde(bew)
     print("\nGeschrieben:")
     for pfad in dateien:
@@ -383,6 +433,8 @@ def main(argv=None) -> int:
     n.add_argument("woche", help="z. B. 2025-KW42")
     n.add_argument("--ordner", default="wochen")
     n.add_argument("--ueberschreiben", action="store_true")
+    n.add_argument("--manuell", action="store_true",
+                   help="Handplan: Raster mit allen Zellen statt automatischer Planung")
     n.set_defaults(func=cmd_neu)
 
     g = sub.add_parser("plan", help="Plan erzeugen")

@@ -122,13 +122,52 @@ einer Spaetschicht am Donnerstag und einer Fruehschicht am Samstag liegen bei
 einem Feiertagsfreitag 34 Stunden, nicht 10. Genauso unterbricht er die Zaehlung
 der Arbeitstage am Stueck und trennt zwei freie Tage nicht voneinander.
 
-### Weihnachten
+### Weihnachten und andere Sonderwochen
 
-Die Woche mit dem 24.-26.12. und die mit Silvester/Neujahr werden erkannt und
-mit einer Warnung versehen - in `neu` steht sie oben in der Datei, beim Rechnen
-auf der Konsole. Wie diese Wochen genau geplant werden, ist noch nicht
-hinterlegt; bis dahin sind sie Handarbeit oder ein Entwurf, den man ueber
-`fest` durchschreibt.
+Weihnachts- und Silvesterwochen werden erkannt. Sie werden **von Hand geplant** -
+der Planer rechnet dort nicht, er prueft nur und exportiert:
+
+```bash
+python -m schichtplan neu 2025-KW52 --manuell
+```
+
+Das legt `modus: manuell` an und schreibt gleich das ganze Raster mit allen
+Mitarbeitern und Tagen in die Datei:
+
+```yaml
+fest:
+  kurka_j:            # J. Kurka
+    mo: 6-14
+    di: 6-14
+    mi: 5-14          # beliebige Zeiten, nicht nur Katalogschichten
+    sa: 6-14
+```
+
+`python -m schichtplan plan wochen/2025-KW52.yaml` uebernimmt das unveraendert,
+laesst aber alle Pruefungen darueber laufen und schreibt Druckplan und
+e2n-CSVs wie sonst auch. Du bekommst also Handarbeit bei der Verteilung und
+trotzdem die Kontrolle auf Faehigkeiten, Ruhezeiten und Besetzung.
+
+Zwei Dinge helfen dabei:
+
+**Bedarf je Woche uebersteuern** - am Heiligabend ist frueher Schluss und mehr
+Betrieb:
+
+```yaml
+bedarf:
+  oeffnung:
+    mi: {von: "05:00", bis: "14:00"}
+  kopfzahl: {mo: 8, di: 10, mi: 10, sa: 8}
+  frueh_min: {mi: 6}
+```
+
+**Regeln abschalten**, die in der Woche keinen Sinn ergeben:
+
+```yaml
+regeln_aus: [gesamtstunden, wochenstunden, arbeitstage, frueh_spaet_ausgleich]
+```
+
+Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 
 ## Die Wochenmodelle
 

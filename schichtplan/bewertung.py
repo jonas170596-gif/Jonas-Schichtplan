@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .konfig import Stammdaten, Wochenvorgabe
+from .konfig import Stammdaten, Wochenvorgabe, effektiver_bedarf
 from .modelle import TAGE, TAG_LANG, Plan
 
 
@@ -40,7 +40,8 @@ class Bewerter:
         self.vorgabe = vorgabe
         self.vorwochen = vorwochen or []
         self.g = stamm.regeln.gewichte
-        b = stamm.bedarf
+        # Wochenvorgabe darf den Bedarf uebersteuern (Heiligabend & Co.)
+        self.bedarf = b = effektiver_bedarf(stamm.bedarf, vorgabe)
         self.tage = [t for t in b.offene_tage if t not in vorgabe.geschlossen]
         self.slots = {t: list(range(*b.oeffnung[t])) for t in self.tage}
         self.min_kurve = {t: [b.min_am_slot(t, s) for s in self.slots[t]] for t in self.tage}
@@ -72,7 +73,7 @@ class Bewerter:
         mit, weil sonntags ohnehin zu ist."""
         import datetime as dt
         from .feiertage import Kalender
-        regeln = self.stamm.bedarf.feiertagsregeln
+        regeln = self.bedarf.feiertagsregeln
         if not (regeln.vor_feiertag or regeln.nach_feiertag):
             return {}
         try:
@@ -160,8 +161,10 @@ class Bewerter:
         return erg
 
     def _sammler(self, erg: Bewertung, detail: bool):
+        aus = set(self.vorgabe.regeln_aus)
+
         def add(regel: str, faktor: float, text: str = "", schwere: str = "hinweis"):
-            if faktor <= 0:
+            if faktor <= 0 or regel in aus:
                 return
             p = self.g.get(regel, 0.0) * faktor
             erg.punkte += p
@@ -171,7 +174,7 @@ class Bewerter:
 
     # ---- Besetzung ---------------------------------------------------- #
     def _besetzung(self, plan: Plan, add):
-        b = self.stamm.bedarf
+        b = self.bedarf
         for t in self.tage:
             zellen = [r[t] for r in plan.zellen.values() if r[t].arbeitet]
             koepfe = len(zellen)
@@ -357,7 +360,7 @@ class Bewerter:
     # ---- Gesamtstundenbudget -------------------------------------------- #
     def gesamtbudget(self) -> float:
         """Wochenbudget, um ausgefallene Sollstunden (Urlaub) gekuerzt."""
-        b = self.stamm.bedarf
+        b = self.bedarf
         if not b.wochenstunden_gesamt:
             return 0.0
         ausfall = 0.0
@@ -382,7 +385,7 @@ class Bewerter:
         weg = max(0.0, abs(ist - ziel) - self.stamm.bedarf.wochenstunden_gesamt_toleranz)
         add("gesamtstunden", weg,
             f"Gesamt {ist:.1f} h statt {ziel:.1f} h "
-            f"(+/-{self.stamm.bedarf.wochenstunden_gesamt_toleranz:.0f} h, ohne Azubi)"
+            f"(+/-{self.bedarf.wochenstunden_gesamt_toleranz:.0f} h, ohne Azubi)"
             if weg else "", "warnung")
 
     # ---- Arbeitszeit --------------------------------------------------- #

@@ -58,6 +58,23 @@ class Schicht:
         return self.von <= slot < self.bis
 
 
+def schicht_aus_text(text: str) -> Schicht:
+    """'6-13:30' -> Schicht. Fuer handgeschriebene Wochen, in denen Zeiten
+    vorkommen, die nicht im Katalog stehen (Heiligabend und dergleichen)."""
+    import re
+    m = re.fullmatch(r"\s*(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*", text)
+    if not m:
+        raise ValueError(f"Zeitangabe nicht lesbar: {text!r} - erwartet z. B. '6-13:30'")
+    von = zu_index(f"{int(m.group(1)):02d}:{m.group(2) or '00'}")
+    bis = zu_index(f"{int(m.group(3)):02d}:{m.group(4) or '00'}")
+    if bis <= von:
+        raise ValueError(f"Schichtende liegt nicht nach dem Beginn: {text!r}")
+    kategorie = ("frueh" if von <= zu_index("07:00")
+                 else "spaet" if von >= zu_index("11:00") else "mittel")
+    return Schicht(id=f"{zu_text(von)}-{zu_text(bis)}", von=von, bis=bis,
+                   kategorie=kategorie)
+
+
 @dataclass
 class Mitarbeiter:
     id: str

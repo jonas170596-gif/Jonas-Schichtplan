@@ -119,6 +119,36 @@ class Regeln:
     ausgleich_toleranz: int = 2         # erlaubtes Ungleichgewicht im Fenster
 
 
+def effektiver_bedarf(grund: Bedarf, vorgabe) -> Bedarf:
+    """Bedarf der Woche: Stammdaten, ueberschrieben von der Wochenvorgabe.
+
+    Gebraucht fuer Tage, die aus dem Rahmen fallen - Heiligabend schliesst
+    frueher, vor langen Wochenenden steht mehr Personal im Laden."""
+    import dataclasses
+    roh = vorgabe.bedarf
+    if not roh:
+        return grund
+    neu = dataclasses.replace(
+        grund,
+        oeffnung=dict(grund.oeffnung),
+        kopfzahl=dict(grund.kopfzahl),
+        frueh_min=dict(grund.frueh_min),
+        schluss_min=dict(grund.schluss_min),
+        besetzung_min={k: list(v) for k, v in grund.besetzung_min.items()},
+    )
+    for tag, fenster in (roh.get("oeffnung") or {}).items():
+        neu.oeffnung[tag] = (zu_index(fenster["von"]), zu_index(fenster["bis"]))
+    for feld in ("kopfzahl", "frueh_min", "schluss_min"):
+        for tag, wert in (roh.get(feld) or {}).items():
+            getattr(neu, feld)[tag] = int(wert)
+    for tag, fenster in (roh.get("besetzung_min") or {}).items():
+        neu.besetzung_min[tag] = [
+            (zu_index(f["von"]), zu_index(f["bis"]), int(f["min"])) for f in fenster]
+    if roh.get("wochenstunden_gesamt") is not None:
+        neu.wochenstunden_gesamt = float(roh["wochenstunden_gesamt"])
+    return neu
+
+
 @dataclass
 class Stammdaten:
     mitarbeiter: dict[str, Mitarbeiter]
@@ -326,6 +356,9 @@ class Wochenvorgabe:
     zusatz: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     soll_stunden: dict[str, float] = field(default_factory=dict)       # Override
     termine: list[Termin] = field(default_factory=list)
+    modus: str = "auto"                                 # auto | manuell
+    bedarf: dict = field(default_factory=dict)          # Uebersteuerung je Woche
+    regeln_aus: list[str] = field(default_factory=list)  # Regeln, die nicht gelten
     notiz: str = ""
 
 
@@ -365,6 +398,10 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
         if tm.tag not in TAGE:
             raise ValueError(f"Termin {tm.name}: unbekannter Tag {tm.tag!r}")
 
+    modus = roh.get("modus", "auto")
+    if modus not in ("auto", "manuell"):
+        raise ValueError(f"modus muss 'auto' oder 'manuell' sein, nicht {modus!r}")
+
     return Wochenvorgabe(
         woche=roh["woche"],
         datum_von=str(roh["datum_von"]),
@@ -378,5 +415,8 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
         zusatz=zusatz,
         soll_stunden={k: float(v) for k, v in (roh.get("soll_stunden") or {}).items()},
         termine=termine,
+        modus=modus,
+        bedarf=dict(roh.get("bedarf") or {}),
+        regeln_aus=list(roh.get("regeln_aus") or []),
         notiz=roh.get("notiz", ""),
     )

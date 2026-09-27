@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from .bewertung import Bewerter, Bewertung
 from .konfig import Stammdaten, Wochenvorgabe
-from .modelle import Plan, Schicht, Zelle
+from .modelle import Plan, Schicht, Zelle, schicht_aus_text
 
 
 @dataclass
@@ -30,8 +30,22 @@ def _optionen(stamm: Stammdaten, mid: str, tag: str) -> list[Schicht | None]:
     return [None] + erlaubt
 
 
+def _feste_schicht(stamm: Stammdaten, mid: str, tag: str, wert: str) -> Schicht:
+    """Wert aus `fest`: entweder eine Katalog-ID oder eine freie Zeitangabe."""
+    if wert in stamm.schichten:
+        return stamm.schichten[wert]
+    try:
+        return schicht_aus_text(str(wert))
+    except ValueError as fehler:
+        raise ValueError(f"fest[{mid}][{tag}]: {fehler}") from None
+
+
 def grundgeruest(stamm: Stammdaten, vorgabe: Wochenvorgabe) -> Plan:
-    """Plan mit allen harten Vorgaben; freie Zellen stehen auf 'frei'."""
+    """Plan mit allen harten Vorgaben; freie Zellen stehen auf 'frei'.
+
+    Im Modus 'manuell' wird jede Zelle fixiert - der Solver findet dann nichts
+    Bewegliches vor und der Plan bleibt so, wie er in der Vorgabe steht."""
+    handplan = vorgabe.modus == "manuell"
     tage = stamm.bedarf.offene_tage
     zellen: dict[str, dict[str, Zelle]] = {}
     for mid, m in stamm.mitarbeiter.items():
@@ -50,13 +64,12 @@ def grundgeruest(stamm: Stammdaten, vorgabe: Wochenvorgabe) -> Plan:
                 if wert in ("frei", "Frei", False):
                     reihe[t] = Zelle("frei", fixiert=True)
                 else:
-                    if wert not in stamm.schichten:
-                        raise ValueError(f"fest[{mid}][{t}]: unbekannte Schicht {wert!r}")
-                    reihe[t] = Zelle("schicht", stamm.schichten[wert], fixiert=True)
+                    reihe[t] = Zelle("schicht", _feste_schicht(stamm, mid, t, wert),
+                                     fixiert=True)
             elif t in m.feste_freie_tage:
                 reihe[t] = Zelle("frei", fixiert=True)
             else:
-                reihe[t] = Zelle("frei")
+                reihe[t] = Zelle("frei", fixiert=handplan)
             for z in vorgabe.zusatz.get(mid, {}).get(t, []):
                 reihe[t].zusatz.append(z)
         zellen[mid] = reihe
@@ -78,7 +91,7 @@ def _setze(plan: Plan, mid: str, tag: str, schicht: Schicht | None) -> None:
 def _greedy(plan: Plan, stamm: Stammdaten, bewerter: Bewerter, rng: random.Random) -> None:
     """Erst Frueh- und Schlussschichten besetzen, dann auf Kopfzahl auffuellen -
     liefert einen brauchbaren Startpunkt statt reinem Zufall."""
-    b = stamm.bedarf
+    b = bewerter.bedarf
     for tag in bewerter.tage:
         frei = [mid for mid in plan.zellen
                 if not plan.zellen[mid][tag].fixiert

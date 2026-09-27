@@ -449,6 +449,86 @@ class TestBacktest(unittest.TestCase):
             self.assertGreaterEqual(Bewerter(stamm, v).bewerte(plan).punkte, 0)
 
 
+class TestHandplan(unittest.TestCase):
+    """Weihnachtswoche: der Planer rechnet nicht, er prueft und exportiert."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW52.yaml")
+
+    def test_modus_ist_manuell(self):
+        self.assertEqual(self.vorgabe.modus, "manuell")
+
+    def test_solver_aendert_nichts(self):
+        vorher = grundgeruest(self.stamm, self.vorgabe)
+        erg = erzeuge(self.stamm, self.vorgabe, iterationen=5000, seed=3)
+        for mid, reihe in vorher.zellen.items():
+            for tag, z in reihe.items():
+                g = erg.plan.zellen[mid][tag]
+                self.assertEqual(z.art, g.art, f"{mid}/{tag}")
+                if z.arbeitet:
+                    self.assertEqual(z.schicht.label, g.schicht.label, f"{mid}/{tag}")
+
+    def test_alle_zellen_sind_fixiert(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for mid, reihe in plan.zellen.items():
+            for tag, z in reihe.items():
+                self.assertTrue(z.fixiert, f"{mid}/{tag}")
+
+    def test_zeit_ausserhalb_des_katalogs_wird_uebernommen(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        z = plan.zellen["kurka_j"]["mi"]        # 5-14 steht nicht im Katalog
+        self.assertTrue(z.arbeitet)
+        self.assertEqual(z.schicht.label, "5-14")
+        self.assertNotIn("5-14", self.stamm.schichten)
+
+    def test_unlesbare_zeit_wird_abgelehnt(self):
+        self.vorgabe.fest["kurka_j"]["mo"] = "6 bis um"
+        with self.assertRaises(ValueError) as fehler:
+            grundgeruest(self.stamm, self.vorgabe)
+        self.assertIn("kurka_j", str(fehler.exception))
+
+    def test_ausgeschaltete_regeln_melden_nichts(self):
+        regeln = {b.regel for b in pruefen(self.plan_erzeugen(), self.stamm,
+                                           self.vorgabe).befunde}
+        for aus in self.vorgabe.regeln_aus:
+            self.assertNotIn(aus, regeln)
+
+    def plan_erzeugen(self):
+        return grundgeruest(self.stamm, self.vorgabe)
+
+    def test_handplan_ist_regelkonform(self):
+        fehler = [b.text for b in pruefen(self.plan_erzeugen(), self.stamm,
+                                          self.vorgabe).befunde
+                  if b.schwere == "fehler"]
+        self.assertEqual(fehler, [])
+
+
+class TestWochenBedarf(unittest.TestCase):
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW52.yaml")
+        self.normal = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+
+    def test_heiligabend_schliesst_frueher(self):
+        b = Bewerter(self.stamm, self.vorgabe)
+        self.assertEqual(b.bedarf.oeffnung["mi"], (zu_index("05:00"), zu_index("14:00")))
+        self.assertEqual(b.bedarf.oeffnung["sa"], self.stamm.bedarf.oeffnung["sa"])
+
+    def test_kopfzahl_wird_uebersteuert(self):
+        b = Bewerter(self.stamm, self.vorgabe)
+        self.assertEqual(b.bedarf.kopfzahl["di"], 10)
+
+    def test_stammdaten_bleiben_unveraendert(self):
+        Bewerter(self.stamm, self.vorgabe)
+        self.assertEqual(self.stamm.bedarf.kopfzahl["di"], 5)
+        self.assertEqual(self.stamm.bedarf.oeffnung["mi"][1], zu_index("20:00"))
+
+    def test_ohne_uebersteuerung_identisch(self):
+        b = Bewerter(self.stamm, self.normal)
+        self.assertIs(b.bedarf, self.stamm.bedarf)
+
+
 class TestExport(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
