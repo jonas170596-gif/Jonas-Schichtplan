@@ -4,9 +4,9 @@ Eine JSON-Datei je Woche in `daten/historie/`, Dateiname = `woche`.
 
 ```jsonc
 {
-  "woche": "2025-KW41",              // JJJJ-KWnn; Entwuerfe mit Suffix -v1, -v2
-  "datum_von": "2025-10-05",         // Montag, ISO
-  "datum_bis": "2025-10-10",         // Samstag
+  "woche": "2026-KW41",              // JJJJ-KWnn; Entwuerfe mit Suffix -v1, -v2
+  "datum_von": "2026-10-05",         // Montag, ISO - muss zur KW passen
+  "datum_bis": "2026-10-10",         // Samstag
   "filiale": "Winterbach",
   "status": "final",                 // final | entwurf - nur "final" wird ausgewertet
   "quelle_foto": "2ad1a66d-image.jpg",
@@ -45,3 +45,6 @@ Eine JSON-Datei je Woche in `daten/historie/`, Dateiname = `woche`.
 * Wird ein Plan nach Aushang geaendert, kommt die Erstfassung als eigene Datei
   mit `-v1` und `status: entwurf` dazu. So bleibt sichtbar, wie oft und wo
   kurzfristig umgeplant wird.
+* `datum_von` muss der Montag der genannten Kalenderwoche sein. Danach richtet
+  sich die Feiertagsrechnung, ein falsches Jahr verschiebt alle Wochentage.
+  `python -m schichtplan analyse` gleicht das ab.

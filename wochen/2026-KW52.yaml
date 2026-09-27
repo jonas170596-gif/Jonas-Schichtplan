@@ -1,19 +1,19 @@
-# Feiertage diese Woche: Donnerstag 1. Weihnachtsfeiertag, Freitag 2. Weihnachtsfeiertag
+# Feiertage diese Woche: Freitag 1. Weihnachtsfeiertag, Samstag 2. Weihnachtsfeiertag
 #
 # ACHTUNG Sonderwoche: Heiligabend, 1. Weihnachtsfeiertag, 2. Weihnachtsfeiertag
 # Die ueblichen Regeln passen hier nicht (Kopfzahl, Oeffnungszeiten,
 # Stundenbudget). Diese Woche von Hand planen oder die Vorgaben unter
 # 'fest' komplett durchschreiben.
-# Wochenvorgabe 2025-KW52 - alles, was sich von Woche zu Woche aendert.
+# Wochenvorgabe 2026-KW52 - alles, was sich von Woche zu Woche aendert.
 # Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
 
-woche: 2025-KW52
-datum_von: 2025-12-22          # Montag
-datum_bis: 2025-12-27          # Samstag
+woche: 2026-KW52
+datum_von: 2026-12-21          # Montag
+datum_bis: 2026-12-26          # Samstag
 filiale: Winterbach
 
 # Tage, an denen der Laden zu ist. Aus dem BW-Feiertagskalender vorbelegt.
-geschlossen: [do, fr]
+geschlossen: [fr, sa]
 
 # --- Abwesenheiten (hart) ---
 urlaub: {}
@@ -35,53 +35,53 @@ fest:
   kurka_j:            # J. Kurka
     mo: 6-14
     di: 6-14
-    mi: 5-14
-    sa: 6-14
+    mi: 6-14
+    do: 5-14
   rohwer_c:           # C. Rohwer
     mo: 6-14
     di: 6-14
-    mi: 5-14
-    sa: 6-14
+    mi: 6-14
+    do: 5-14
   marino_a:           # A. Marino
     mo: 11-20
     di: 11-20
-    mi: 6-14
-    sa: 9-18
+    mi: 11-20
+    do: 6-14
   sannzenbacher_n:    # N. Sannzenbacher
     mo: 12-20
     di: 6-14
     mi: 6-14
-    sa: 6-14
+    do: 6-14
   reich_s:            # S. Reich
     mo: frei
     di: 11-20
-    mi: 7-14
-    sa: 10-18
+    mi: 11-20
+    do: 7-14
   nachtrieb_i:        # I. Nachtrieb
     mo: 14-20
     di: 14-20
-    mi: 7-14
-    sa: 11-18
+    mi: 14-20
+    do: 7-14
   kohl_b:             # B. Kohl
     mo: 12-20
     di: 12-20
-    mi: 6-14
-    sa: frei
+    mi: 12-20
+    do: 6-14
   kurz_c:             # C. Kurz
     mo: 8-14
-    di: 8-14
+    di: frei
     mi: 8-14
-    sa: frei
+    do: 8-14
   kurz_u:             # U. Kurz
     mo: frei
     di: 14-20
-    mi: 8-14
-    sa: 12-18
+    mi: frei
+    do: 8-14
   menzler_a:          # A. Menzler
     mo: 8-16
     di: 8-16
-    mi: 6-14
-    sa: 8-16
+    mi: 8-16
+    do: 6-14
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
 
@@ -122,10 +122,10 @@ regeln_aus: [gesamtstunden, wochenstunden, arbeitstage, frueh_spaet_ausgleich]
 # Alles optional, nur was hier steht wird ueberschrieben.
 bedarf:
   oeffnung:
-    mi: {von: "05:00", bis: "14:00"}     # Heiligabend, ab 14 Uhr zu
-  kopfzahl: {mo: 8, di: 10, mi: 10, sa: 8}
-  frueh_min: {mi: 6}
-  schluss_min: {mi: 3}
+    do: {von: "05:00", bis: "14:00"}     # Heiligabend, ab 14 Uhr zu
+  kopfzahl: {mo: 8, di: 9, mi: 10, do: 10}
+  frueh_min: {do: 6}
+  schluss_min: {do: 3}
 #  oeffnung:
 #    mi: {von: "05:00", bis: "14:00"}    # Heiligabend
 #  kopfzahl: {mi: 10}

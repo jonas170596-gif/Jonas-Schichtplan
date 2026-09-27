@@ -1,12 +1,10 @@
 {
-  "woche": "2025-KW40",
-  "datum_von": "2025-09-29",
-  "datum_bis": "2025-10-04",
-  "datum_laut_papier": "2025-09-28 bis 2025-10-03",
+  "woche": "2026-KW36",
+  "datum_von": "2026-08-31",
+  "datum_bis": "2026-09-05",
   "filiale": "Winterbach",
-  "status": "unklar",
-  "quelle_foto": "8bf05dcd-image.jpg",
-  "notiz": "Widerspruch: das Papier markiert Samstag als Feiertag, der Tag der Deutschen Einheit fiel 2025 aber auf Freitag (03.10.). Die Kopfzeile des Formulars ist einen Tag zu frueh datiert, dadurch steht die Feiertagsspalte vermutlich verrutscht. Bis zur Klaerung nicht ausgewertet - 'status' auf 'final' setzen, sobald klar ist, welcher Tag tatsaechlich zu war.",
+  "status": "final",
+  "quelle_foto": "ad5b63e1-image.jpg",
   "tage": [
     "mo",
     "di",
@@ -24,7 +22,9 @@
         "zusatz": []
       },
       "di": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "12:30",
         "zusatz": []
       },
       "mi": {
@@ -34,9 +34,7 @@
         "zusatz": []
       },
       "do": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "art": "frei",
         "zusatz": []
       },
       "fr": {
@@ -46,7 +44,9 @@
         "zusatz": []
       },
       "sa": {
-        "art": "feiertag",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       }
     },
@@ -58,9 +58,7 @@
         "zusatz": []
       },
       "di": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "art": "frei",
         "zusatz": []
       },
       "mi": {
@@ -69,6 +67,42 @@
       },
       "do": {
         "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "18:00",
+        "zusatz": []
+      }
+    },
+    "marino_a": {
+      "mo": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "di": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "do": {
+        "art": "schicht",
         "von": "11:00",
         "bis": "20:00",
         "zusatz": []
@@ -80,33 +114,9 @@
         "zusatz": []
       },
       "sa": {
-        "art": "feiertag",
-        "zusatz": []
-      }
-    },
-    "marino_a": {
-      "mo": {
-        "art": "urlaub",
-        "zusatz": []
-      },
-      "di": {
-        "art": "urlaub",
-        "zusatz": []
-      },
-      "mi": {
-        "art": "urlaub",
-        "zusatz": []
-      },
-      "do": {
-        "art": "urlaub",
-        "zusatz": []
-      },
-      "fr": {
-        "art": "urlaub",
-        "zusatz": []
-      },
-      "sa": {
-        "art": "feiertag",
+        "art": "schicht",
+        "von": "09:00",
+        "bis": "18:00",
         "zusatz": []
       }
     },
@@ -138,7 +148,7 @@
         "zusatz": []
       },
       "sa": {
-        "art": "feiertag",
+        "art": "frei",
         "zusatz": []
       }
     },
@@ -147,36 +157,6 @@
         "art": "schicht",
         "von": "12:00",
         "bis": "20:00",
-        "zusatz": []
-      },
-      "di": {
-        "art": "schicht",
-        "von": "12:00",
-        "bis": "20:00",
-        "zusatz": []
-      },
-      "mi": {
-        "art": "frei",
-        "zusatz": []
-      },
-      "do": {
-        "art": "frei",
-        "zusatz": []
-      },
-      "fr": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
-        "zusatz": []
-      },
-      "sa": {
-        "art": "feiertag",
-        "zusatz": []
-      }
-    },
-    "reich_s": {
-      "mo": {
-        "art": "frei",
         "zusatz": []
       },
       "di": {
@@ -202,7 +182,39 @@
         "zusatz": []
       },
       "sa": {
-        "art": "feiertag",
+        "art": "frei",
+        "zusatz": []
+      }
+    },
+    "reich_s": {
+      "mo": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "di": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "do": {
+        "art": "schicht",
+        "von": "09:00",
+        "bis": "16:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "14:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "18:00",
         "zusatz": []
       }
     },
@@ -212,93 +224,89 @@
         "zusatz": []
       },
       "di": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
-        "zusatz": []
-      },
-      "mi": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
-        "zusatz": []
-      },
-      "do": {
         "art": "frei",
         "zusatz": []
       },
-      "fr": {
+      "mi": {
         "art": "schicht",
         "von": "14:00",
         "bis": "20:00",
         "zusatz": []
       },
+      "do": {
+        "art": "schicht",
+        "von": "14:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "frei",
+        "zusatz": []
+      },
       "sa": {
-        "art": "feiertag",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       }
     },
     "kurz_u": {
       "mo": {
-        "art": "schicht",
-        "von": "14:00",
-        "bis": "20:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "di": {
-        "art": "frei",
+        "art": "urlaub",
         "zusatz": []
       },
       "mi": {
-        "art": "schicht",
-        "von": "14:00",
-        "bis": "20:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "do": {
-        "art": "frei",
+        "art": "urlaub",
         "zusatz": []
       },
       "fr": {
-        "art": "schicht",
-        "von": "08:00",
-        "bis": "16:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "sa": {
-        "art": "feiertag",
+        "art": "urlaub",
         "zusatz": []
       }
     },
     "kohl_b": {
       "mo": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "12:00",
+        "bis": "20:00",
         "zusatz": []
       },
       "di": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "12:00",
+        "bis": "20:00",
         "zusatz": []
       },
       "mi": {
-        "art": "schicht",
-        "von": "12:00",
-        "bis": "20:00",
+        "art": "frei",
         "zusatz": []
       },
       "do": {
-        "art": "schicht",
-        "von": "12:00",
-        "bis": "20:00",
+        "art": "frei",
         "zusatz": []
       },
       "fr": {
         "art": "schicht",
-        "von": "12:00",
-        "bis": "20:00",
+        "von": "06:00",
+        "bis": "13:30",
         "zusatz": []
       },
       "sa": {
-        "art": "feiertag",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "12:00",
         "zusatz": []
       }
     },
@@ -316,19 +324,25 @@
         "zusatz": []
       },
       "mi": {
-        "art": "schule",
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "20:00",
         "zusatz": []
       },
       "do": {
-        "art": "schule",
-        "zusatz": []
-      },
-      "fr": {
         "art": "frei",
         "zusatz": []
       },
+      "fr": {
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "16:00",
+        "zusatz": []
+      },
       "sa": {
-        "art": "feiertag",
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "16:00",
         "zusatz": []
       }
     },
@@ -354,7 +368,7 @@
         "zusatz": []
       },
       "sa": {
-        "art": "feiertag",
+        "art": "nicht_im_plan",
         "zusatz": []
       }
     }

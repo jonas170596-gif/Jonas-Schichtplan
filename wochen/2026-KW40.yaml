@@ -1,14 +1,14 @@
-# Feiertage diese Woche: Freitag Tag der Deutschen Einheit
-# Wochenvorgabe 2025-KW40 - alles, was sich von Woche zu Woche aendert.
+# Feiertage diese Woche: Samstag Tag der Deutschen Einheit
+# Wochenvorgabe 2026-KW40 - alles, was sich von Woche zu Woche aendert.
 # Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
 
-woche: 2025-KW40
-datum_von: 2025-09-29          # Montag
-datum_bis: 2025-10-04          # Samstag
+woche: 2026-KW40
+datum_von: 2026-09-28          # Montag
+datum_bis: 2026-10-03          # Samstag
 filiale: Winterbach
 
 # Tage, an denen der Laden zu ist. Aus dem BW-Feiertagskalender vorbelegt.
-geschlossen: [fr]
+geschlossen: [sa]
 
 # --- Abwesenheiten (hart) ---
 urlaub:
@@ -51,5 +51,24 @@ zusatz: {}
 # --- Abweichendes Wochensoll (z. B. Stundenabbau) ---
 soll_stunden: {}
 #  kurz_u: 12
+
+# --- Sonderwochen ---
+# modus: manuell   -> der Planer rechnet nichts, er prueft nur, was unter
+#                     'fest' steht, und exportiert es. Fuer Weihnachten und
+#                     aehnliche Wochen. 'neu --manuell' schreibt das Raster gleich mit.
+# regeln_aus:      -> Regeln, die in dieser Woche nicht gelten sollen,
+#                     z. B. [gesamtstunden, kopfzahl, wochenstunden]
+modus: auto
+regeln_aus: []
+
+# Bedarf dieser Woche abweichend vom Normalfall (konfig/bedarf.yaml).
+# Alles optional, nur was hier steht wird ueberschrieben.
+bedarf: {}
+#  oeffnung:
+#    mi: {von: "05:00", bis: "14:00"}    # Heiligabend
+#  kopfzahl: {mi: 10}
+#  frueh_min: {mi: 6}
+#  schluss_min: {mi: 3}
+#  wochenstunden_gesamt: 300
 
 notiz: ""

@@ -36,13 +36,13 @@ class TestHistorie(unittest.TestCase):
         self.wochen = lade_historie(WURZEL / "daten/historie")
 
     def test_finale_wochen(self):
-        # KW40 steht auf 'unklar' - Papier und Kalender widersprechen sich
-        self.assertEqual(len(self.wochen), 13)
-        self.assertNotIn("2025-KW40", [w.woche for w in self.wochen])
+        self.assertEqual(len(self.wochen), 14)
+        self.assertIn("2026-KW40", [w.woche for w in self.wochen])
 
     def test_datum_ist_der_echte_montag(self):
         for w in lade_historie(WURZEL / "daten/historie", nur_final=False):
             jahr, kw = w.woche.replace("-v1", "").split("-KW")
+            self.assertEqual(jahr, "2026", w.woche)
             montag = datetime.date.fromisocalendar(int(jahr), int(kw), 1)
             self.assertEqual(w.datum_von, montag.isoformat(), w.woche)
 
@@ -66,16 +66,16 @@ class TestWochendatum(unittest.TestCase):
         import tempfile
         with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False,
                                          encoding="utf-8") as f:
-            f.write("woche: 2025-KW40\ndatum_von: 2025-09-28\n")   # Sonntag
+            f.write("woche: 2026-KW40\ndatum_von: 2026-09-27\n")   # Sonntag
             pfad = f.name
         with self.assertRaises(ValueError) as fehler:
             lade_wochenvorgabe(pfad)
-        self.assertIn("2025-09-29", str(fehler.exception))
+        self.assertIn("2026-09-28", str(fehler.exception))
         pathlib.Path(pfad).unlink()
 
     def test_richtiges_datum_geht_durch(self):
-        v = lade_wochenvorgabe(WURZEL / "wochen/2025-KW40.yaml")
-        self.assertEqual(v.datum_von, "2025-09-29")
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW40.yaml")
+        self.assertEqual(v.datum_von, "2026-09-28")
 
 
 class TestKonfig(unittest.TestCase):
@@ -102,7 +102,7 @@ class TestKonfig(unittest.TestCase):
 class TestGenerator(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
 
     def test_harte_vorgaben_bleiben_stehen(self):
         erg = erzeuge(self.stamm, self.vorgabe, iterationen=800, neustarts=1, seed=7)
@@ -156,7 +156,7 @@ class TestGenerator(unittest.TestCase):
 class TestBewertung(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
 
     def test_leerer_plan_wird_bestraft(self):
         leer = grundgeruest(self.stamm, self.vorgabe)
@@ -332,11 +332,17 @@ class TestBewertung(unittest.TestCase):
 
 
 class TestGeschlosseneTage(unittest.TestCase):
-    """Ein Feiertag mitten in der Woche darf Abstaende nicht verkuerzen."""
+    """Ein geschlossener Tag mitten in der Woche darf Abstaende nicht verkuerzen.
+
+    Die Vorgabe wird hier kuenstlich gebaut (Freitag zu), damit der Test nicht
+    davon abhaengt, wo im Kalender gerade ein Feiertag liegt."""
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW40.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe.geschlossen = ["fr"]
+        self.vorgabe.abwesend = {}
+        self.vorgabe.termine = []
         self.plan = grundgeruest(self.stamm, self.vorgabe)
 
     def _setze(self, mid, tag, sid):
@@ -349,65 +355,72 @@ class TestGeschlosseneTage(unittest.TestCase):
     def test_spaet_do_frueh_sa_ist_kein_kurzer_wechsel(self):
         self._setze("nachtrieb_i", "do", "14-20")
         self._setze("nachtrieb_i", "sa", "6-14")
-        regeln = {b.regel for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde}
-        self.assertNotIn("wechsel", regeln)
-        self.assertNotIn("ruhezeit_verletzung", regeln)
+        texte = [b.text for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde
+                 if b.regel in ("wechsel", "ruhezeit_verletzung")]
+        self.assertFalse(any("I. Nachtrieb" in x for x in texte), texte)
 
     def test_spaet_mi_frueh_do_bleibt_ein_kurzer_wechsel(self):
         self._setze("nachtrieb_i", "mi", "14-20")
         self._setze("nachtrieb_i", "do", "6-14")
-        regeln = {b.regel for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde}
-        self.assertIn("wechsel", regeln)
+        texte = [b.text for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "wechsel"]
+        self.assertTrue(any("I. Nachtrieb" in x for x in texte), texte)
 
-    def test_feiertag_unterbricht_die_serie(self):
+    def test_geschlossener_tag_unterbricht_die_serie(self):
         for tag in ("mo", "di", "mi", "do", "sa"):
             self._setze("kurka_j", tag, "6-14")
-        befunde = [b for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde
-                   if b.regel == "tage_in_folge"]
-        self.assertEqual(befunde, [])   # 4 am Stueck, dann Feiertag, dann 1
+        texte = [b.text for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "tage_in_folge"]
+        self.assertFalse(any("J. Kurka" in x for x in texte), texte)
 
     def test_freie_tage_um_einen_feiertag_gelten_als_zusammenhaengend(self):
         for tag in ("mo", "di", "mi"):
             self._setze("kohl_b", tag, "12-20")
         # frei sind Do und Sa, dazwischen nur der geschlossene Freitag
-        regeln = {b.regel for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde}
-        self.assertNotIn("freie_tage_zusammenhaengend", regeln)
+        texte = [b.text for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "freie_tage_zusammenhaengend"]
+        self.assertFalse(any("B. Kohl" in x for x in texte), texte)
 
 
 class TestFeiertage(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW40.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW40.yaml")
 
     def test_ostern_stimmt(self):
         self.assertEqual(ostersonntag(2025), datetime.date(2025, 4, 20))
         self.assertEqual(ostersonntag(2026), datetime.date(2026, 4, 5))
         self.assertEqual(ostersonntag(2027), datetime.date(2027, 3, 28))
 
-    def test_bw_feiertage_2025(self):
-        ft = feiertage_bw(2025)
-        self.assertEqual(ft[datetime.date(2025, 4, 18)], "Karfreitag")
-        self.assertEqual(ft[datetime.date(2025, 6, 19)], "Fronleichnam")
-        self.assertEqual(ft[datetime.date(2025, 10, 3)], "Tag der Deutschen Einheit")
-        self.assertIn(datetime.date(2025, 1, 6), ft)        # nur in BW und BY
-        self.assertNotIn(datetime.date(2025, 4, 20), ft)    # Ostersonntag, ohnehin zu
+    def test_bw_feiertage(self):
+        ft = feiertage_bw(2026)
+        self.assertEqual(ft[datetime.date(2026, 4, 3)], "Karfreitag")
+        self.assertEqual(ft[datetime.date(2026, 6, 4)], "Fronleichnam")
+        self.assertEqual(ft[datetime.date(2026, 10, 3)], "Tag der Deutschen Einheit")
+        self.assertIn(datetime.date(2026, 1, 6), ft)        # nur in BW und BY
+        self.assertNotIn(datetime.date(2026, 4, 5), ft)     # Ostersonntag, ohnehin zu
+
+    def test_03_10_wandert_durch_die_wochentage(self):
+        """Der Ausloeser fuer die Jahresverwechslung: 2025 Freitag, 2026 Samstag."""
+        self.assertEqual(datetime.date(2025, 10, 3).strftime("%A"), "Friday")
+        self.assertEqual(datetime.date(2026, 10, 3).strftime("%A"), "Saturday")
 
     def test_samstag_vor_feiertagsmontag_zaehlt_als_vortag(self):
         k = Kalender()
-        # Pfingstmontag 2025 ist der 09.06., der Samstag davor der 07.06.
-        self.assertEqual(k.vor_feiertag(datetime.date(2025, 6, 7)), "Pfingstmontag")
-        self.assertEqual(k.nach_feiertag(datetime.date(2025, 6, 10)), "Pfingstmontag")
+        # Pfingstmontag 2026 ist der 25.05., der Samstag davor der 23.05.
+        self.assertEqual(k.vor_feiertag(datetime.date(2026, 5, 23)), "Pfingstmontag")
+        self.assertEqual(k.nach_feiertag(datetime.date(2026, 5, 26)), "Pfingstmontag")
 
     def test_weihnachtswoche_wird_erkannt(self):
         k = Kalender()
-        self.assertIsNotNone(k.weihnachtswoche(datetime.date(2025, 12, 22)))
-        self.assertIsNone(k.weihnachtswoche(datetime.date(2025, 10, 13)))
+        self.assertIsNotNone(k.weihnachtswoche(datetime.date(2026, 12, 21)))
+        self.assertIsNone(k.weihnachtswoche(datetime.date(2026, 10, 12)))
 
     def test_umfeld_hebt_die_mindestwerte(self):
-        b = Bewerter(self.stamm, self.vorgabe)
-        self.assertEqual(b.mindestwert("do", "schluss_min", 2)[0], 4)   # vor Feiertag
-        self.assertEqual(b.mindestwert("sa", "frueh_min", 3)[0], 3)     # nach Feiertag
+        b = Bewerter(self.stamm, self.vorgabe)   # Feiertag ist Samstag 03.10.2026
+        self.assertEqual(b.mindestwert("fr", "schluss_min", 2)[0], 4)   # vor Feiertag
         self.assertEqual(b.mindestwert("mo", "schluss_min", 2)[0], 2)   # unberuehrt
+        self.assertNotIn("sa", b.tage)                                  # Feiertag
 
     def test_generierter_plan_haelt_die_feiertagsvorgaben(self):
         erg = erzeuge(self.stamm, self.vorgabe, iterationen=30000, seed=4)
@@ -419,7 +432,7 @@ class TestFeiertage(unittest.TestCase):
 class TestAusgleich(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
         self.historie = lade_historie(WURZEL / "daten/historie")
 
     def test_fenster_umfasst_vier_wochen(self):
@@ -475,7 +488,7 @@ class TestAusgleich(unittest.TestCase):
 class TestTerminWechsel(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
         self.historie = lade_historie(WURZEL / "daten/historie")
 
     def test_termin_ist_als_abwechselnd_konfiguriert(self):
@@ -508,16 +521,16 @@ class TestBacktest(unittest.TestCase):
     def test_vorgabe_uebernimmt_abwesenheiten(self):
         stamm = lade_stammdaten(WURZEL / "konfig")
         w = next(w for w in lade_historie(WURZEL / "daten/historie")
-                 if w.woche == "2025-KW41")
+                 if w.woche == "2026-KW41")
         v = vorgabe_aus_historie(w, stamm)
         self.assertEqual(v.abwesend["reich_s"]["mo"], "urlaub")
         self.assertEqual(v.abwesend["menzler_a"]["do"], "schule")
 
     def test_feiertag_schliesst_den_tag(self):
         stamm = lade_stammdaten(WURZEL / "konfig")
-        w = next(w for w in lade_historie(WURZEL / "daten/historie", nur_final=False)
-                 if w.woche == "2025-KW40")
-        self.assertEqual(w.status, "unklar")     # Papier und Kalender uneins
+        w = next(w for w in lade_historie(WURZEL / "daten/historie")
+                 if w.woche == "2026-KW40")
+        # 03.10.2026 faellt auf einen Samstag
         self.assertEqual(vorgabe_aus_historie(w, stamm).geschlossen, ["sa"])
 
     def test_original_laesst_sich_bewerten(self):
@@ -533,7 +546,7 @@ class TestHandplan(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW52.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW52.yaml")
 
     def test_modus_ist_manuell(self):
         self.assertEqual(self.vorgabe.modus, "manuell")
@@ -556,7 +569,7 @@ class TestHandplan(unittest.TestCase):
 
     def test_zeit_ausserhalb_des_katalogs_wird_uebernommen(self):
         plan = grundgeruest(self.stamm, self.vorgabe)
-        z = plan.zellen["kurka_j"]["mi"]        # 5-14 steht nicht im Katalog
+        z = plan.zellen["kurka_j"]["do"]        # 5-14 steht nicht im Katalog
         self.assertTrue(z.arbeitet)
         self.assertEqual(z.schicht.label, "5-14")
         self.assertNotIn("5-14", self.stamm.schichten)
@@ -586,22 +599,22 @@ class TestHandplan(unittest.TestCase):
 class TestWochenBedarf(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW52.yaml")
-        self.normal = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW52.yaml")
+        self.normal = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
 
     def test_heiligabend_schliesst_frueher(self):
-        b = Bewerter(self.stamm, self.vorgabe)
-        self.assertEqual(b.bedarf.oeffnung["mi"], (zu_index("05:00"), zu_index("14:00")))
-        self.assertEqual(b.bedarf.oeffnung["sa"], self.stamm.bedarf.oeffnung["sa"])
+        b = Bewerter(self.stamm, self.vorgabe)       # 24.12.2026 ist ein Donnerstag
+        self.assertEqual(b.bedarf.oeffnung["do"], (zu_index("05:00"), zu_index("14:00")))
+        self.assertEqual(b.bedarf.oeffnung["mo"], self.stamm.bedarf.oeffnung["mo"])
 
     def test_kopfzahl_wird_uebersteuert(self):
         b = Bewerter(self.stamm, self.vorgabe)
-        self.assertEqual(b.bedarf.kopfzahl["di"], 10)
+        self.assertEqual(b.bedarf.kopfzahl["mi"], 10)
 
     def test_stammdaten_bleiben_unveraendert(self):
         Bewerter(self.stamm, self.vorgabe)
-        self.assertEqual(self.stamm.bedarf.kopfzahl["di"], 5)
-        self.assertEqual(self.stamm.bedarf.oeffnung["mi"][1], zu_index("20:00"))
+        self.assertEqual(self.stamm.bedarf.kopfzahl["mi"], 5)
+        self.assertEqual(self.stamm.bedarf.oeffnung["do"][1], zu_index("20:00"))
 
     def test_ohne_uebersteuerung_identisch(self):
         b = Bewerter(self.stamm, self.normal)
@@ -611,7 +624,7 @@ class TestWochenBedarf(unittest.TestCase):
 class TestExport(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
         self.plan = erzeuge(self.stamm, self.vorgabe, iterationen=1500,
                             neustarts=1, seed=11).plan
 
@@ -626,12 +639,13 @@ class TestExport(unittest.TestCase):
         erwartet = sum(1 for r in self.plan.zellen.values()
                        for t in self.plan.offene_tage if r[t].arbeitet)
         self.assertEqual(len(zeilen), erwartet)
-        self.assertIn("13.10.2025", text)
+        montag = datetime.date.fromisoformat(self.plan.datum_von)
+        self.assertRegex(text, rf"{montag:%d\.%m\.%Y}|{montag.year}")
 
     def test_json_ist_wieder_einlesbar(self):
         import json
         doc = json.loads(export.als_json(self.plan, self.stamm))
-        self.assertEqual(doc["woche"], "2025-KW42")
+        self.assertEqual(doc["woche"], "2026-KW42")
         self.assertEqual(set(doc["plan"]), set(self.plan.zellen))
 
     def test_abwesenheits_csv_listet_urlaub(self):

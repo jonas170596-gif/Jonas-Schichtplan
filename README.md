@@ -2,7 +2,7 @@
 
 Erzeugt den Wochenplan aus Stammdaten + den Variablen, die sich jede Woche
 aendern (Urlaub, Schule, Wunschfrei, Feiertage). Grundlage sind 14 digitalisierte
-Altplaene aus KW28-KW41/2025.
+Altplaene aus KW28-KW41/2026.
 
 Reines Python 3.11 + PyYAML, kein Solver-Paket, keine Datenbank.
 
@@ -11,20 +11,20 @@ Reines Python 3.11 + PyYAML, kein Solver-Paket, keine Datenbank.
 ```bash
 pip install pyyaml
 
-python -m schichtplan neu 2025-KW43        # Wochenvorgabe anlegen
-$EDITOR wochen/2025-KW43.yaml              # Urlaub, Schule, Wuensche eintragen
-python -m schichtplan plan wochen/2025-KW43.yaml
+python -m schichtplan neu 2026-KW43        # Wochenvorgabe anlegen
+$EDITOR wochen/2026-KW43.yaml              # Urlaub, Schule, Wuensche eintragen
+python -m schichtplan plan wochen/2026-KW43.yaml
 ```
 
 ## Wochenablauf
 
 ```bash
 python -m schichtplan ausgleich                          # wer haengt frueh/spaet schief?
-python -m schichtplan neu 2025-KW43
-$EDITOR wochen/2025-KW43.yaml
-python -m schichtplan plan wochen/2025-KW43.yaml         # rechnen, pruefen, exportieren
+python -m schichtplan neu 2026-KW43
+$EDITOR wochen/2026-KW43.yaml
+python -m schichtplan plan wochen/2026-KW43.yaml         # rechnen, pruefen, exportieren
 # ... Plan aushaengen, ggf. von Hand nachbessern ...
-python -m schichtplan uebernehmen ausgabe/2025-KW43.json # in die Historie legen
+python -m schichtplan uebernehmen ausgabe/2026-KW43.json # in die Historie legen
 ```
 
 Der letzte Schritt ist der wichtige: **nur uebernommene Plaene zaehlen fuer den
@@ -48,9 +48,9 @@ Eine YAML-Datei je Woche. Alles optional - was nicht drinsteht, entscheidet
 der Planer selbst.
 
 ```yaml
-woche: 2025-KW43
-datum_von: 2025-10-20
-datum_bis: 2025-10-25
+woche: 2026-KW43
+datum_von: 2026-10-19
+datum_bis: 2026-10-24
 
 geschlossen: []                  # Feiertage
 
@@ -100,7 +100,7 @@ Nicht jeder hat welche - das Feld darf leer bleiben.
 
 Der Feiertagskalender fuer Baden-Wuerttemberg wird gerechnet, nicht gepflegt -
 Ostersonntag nach der Gaussschen Osterformel, alles Bewegliche haengt daran.
-`python -m schichtplan neu 2025-KW40` traegt die Feiertage der Woche gleich
+`python -m schichtplan neu 2026-KW40` traegt die Feiertage der Woche gleich
 unter `geschlossen` ein.
 
 ```bash
@@ -128,7 +128,7 @@ Weihnachts- und Silvesterwochen werden erkannt. Sie werden **von Hand geplant** 
 der Planer rechnet dort nicht, er prueft nur und exportiert:
 
 ```bash
-python -m schichtplan neu 2025-KW52 --manuell
+python -m schichtplan neu 2026-KW52 --manuell
 ```
 
 Das legt `modus: manuell` an und schreibt gleich das ganze Raster mit allen
@@ -143,7 +143,7 @@ fest:
     sa: 6-14
 ```
 
-`python -m schichtplan plan wochen/2025-KW52.yaml` uebernimmt das unveraendert,
+`python -m schichtplan plan wochen/2026-KW52.yaml` uebernimmt das unveraendert,
 laesst aber alle Pruefungen darueber laufen und schreibt Druckplan und
 e2n-CSVs wie sonst auch. Du bekommst also Handarbeit bei der Verteilung und
 trotzdem die Kontrolle auf Faehigkeiten, Ruhezeiten und Besetzung.
@@ -302,26 +302,22 @@ gefaellt.
 
 ## Kalender und Altplaene
 
-Die Kopfzeilen der abfotografierten Formulare sind **durchgaengig einen Tag zu
-frueh** datiert - sie nennen den Sonntag und den Freitag statt Montag und
-Samstag. In `daten/historie` stehen deshalb die echten Kalenderdaten, die
-Papierangabe bleibt als `datum_laut_papier` daneben stehen.
+Die Altplaene sind aus **2026** - die Formulare tragen im Fuss zwar
+"Stand: 09/25", das ist aber der Revisionsstand des Vordrucks, nicht das
+Planjahr. Alle 14 Datumsangaben passen exakt auf die Kalenderwochen 2026 und
+auf keine einzige aus 2025.
 
-Das war kein Schoenheitsfehler: `datum_von` steuert die Feiertagsrechnung. Um
-so etwas kuenftig sofort zu sehen, gibt es zwei Pruefungen.
+Das ist kein Schoenheitsfehler, `datum_von` steuert die Feiertagsrechnung:
+der 03.10. ist 2026 ein Samstag und 2025 ein Freitag. Damit so etwas auffaellt
+statt durchzurutschen, gibt es zwei Pruefungen.
 
 * Eine Wochenvorgabe, deren `datum_von` nicht der Montag der genannten
   Kalenderwoche ist, wird abgelehnt.
 * `analyse` und `plan` gleichen die als Feiertag markierten Spalten der
   Historie gegen den Kalender ab und melden Abweichungen.
 
-Ein Fall ist dabei aufgefallen: **2025-KW40**. Das Papier markiert Samstag als
-Feiertag, der Tag der Deutschen Einheit fiel 2025 aber auf den Freitag
-(03.10.). Die Woche steht auf `status: unklar` und wird nicht ausgewertet, bis
-klar ist, welcher Tag tatsaechlich zu war. Danach `status` auf `final` setzen.
-
-(2026 faellt der 03.10. tatsaechlich auf einen Samstag - der Planer rechnet das
-jedes Jahr neu aus.)
+Beide sind gruen: die einzige Feiertagsspalte in der Historie ist der Samstag
+in KW40, und genau dort liegt der Tag der Deutschen Einheit 2026.
 
 ## Neue Altplaene aufnehmen
 

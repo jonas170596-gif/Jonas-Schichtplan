@@ -2,12 +2,12 @@
 
   python -m schichtplan analyse                    Muster der Altplaene anzeigen
   python -m schichtplan analyse --konfig-vorschlag Konfig aus Historie neu ableiten
-  python -m schichtplan neu 2025-KW42              Wochenvorgabe anlegen
-  python -m schichtplan plan wochen/2025-KW42.yaml Plan rechnen und exportieren
-  python -m schichtplan pruefen ausgabe/2025-KW42.json wochen/2025-KW42.yaml
+  python -m schichtplan neu 2026-KW42              Wochenvorgabe anlegen
+  python -m schichtplan plan wochen/2026-KW42.yaml Plan rechnen und exportieren
+  python -m schichtplan pruefen ausgabe/2026-KW42.json wochen/2026-KW42.yaml
   python -m schichtplan backtest                   Konfig gegen die Altplaene messen
   python -m schichtplan ausgleich                  Frueh/Spaet-Bilanz je Mitarbeiter
-  python -m schichtplan uebernehmen ausgabe/2025-KW43.json
+  python -m schichtplan uebernehmen ausgabe/2026-KW43.json
                                                    fertigen Plan in die Historie legen
   python -m schichtplan feiertage 2026             Feiertagskalender Baden-Wuerttemberg
 """
@@ -436,7 +436,7 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_analyse)
 
     n = sub.add_parser("neu", help="Wochenvorgabe anlegen")
-    n.add_argument("woche", help="z. B. 2025-KW42")
+    n.add_argument("woche", help="z. B. 2026-KW42")
     n.add_argument("--ordner", default="wochen")
     n.add_argument("--ueberschreiben", action="store_true")
     n.add_argument("--manuell", action="store_true",
@@ -457,7 +457,7 @@ def main(argv=None) -> int:
 
     bt = sub.add_parser("backtest", help="Konfiguration gegen die Altplaene messen")
     bt.add_argument("--historie", default="daten/historie")
-    bt.add_argument("--woche", nargs="*", help="nur diese Wochen, z. B. 2025-KW41")
+    bt.add_argument("--woche", nargs="*", help="nur diese Wochen, z. B. 2026-KW41")
     bt.add_argument("--iterationen", type=int, default=20000)
     bt.add_argument("--seed", type=int, default=1)
     bt.set_defaults(func=cmd_backtest)

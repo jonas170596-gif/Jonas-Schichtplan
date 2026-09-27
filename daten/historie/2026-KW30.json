@@ -1,12 +1,11 @@
 {
-  "woche": "2025-KW32",
-  "datum_von": "2025-08-04",
-  "datum_bis": "2025-08-09",
-  "datum_laut_papier": "2025-08-03 bis 2025-08-08",
+  "woche": "2026-KW30",
+  "datum_von": "2026-07-20",
+  "datum_bis": "2026-07-25",
   "filiale": "Winterbach",
   "status": "final",
-  "quelle_foto": "bc958339-image.jpg",
-  "notiz": "Zusatzspalte 'Grossputz Theke' am Samstag; Entwurf siehe 2025-KW32-v1",
+  "quelle_foto": "6bcdac09-image.jpg",
+  "notiz": "Zwei Zellen im Original ohne Endzeit ('6-')",
   "tage": [
     "mo",
     "di",
@@ -18,13 +17,13 @@
   "plan": {
     "kurka_j": {
       "mo": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       },
       "di": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "13:30",
+        "art": "frei",
         "zusatz": []
       },
       "mi": {
@@ -34,22 +33,24 @@
         "zusatz": []
       },
       "do": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       },
       "fr": {
         "art": "schicht",
         "von": "06:00",
-        "bis": "14:00",
-        "zusatz": []
+        "bis": null,
+        "zusatz": [],
+        "unklar": true
       },
       "sa": {
         "art": "schicht",
         "von": "06:00",
-        "bis": "14:00",
-        "zusatz": [
-          "grossputz"
-        ]
+        "bis": null,
+        "zusatz": [],
+        "unklar": true
       }
     },
     "rohwer_c": {
@@ -61,8 +62,8 @@
       },
       "di": {
         "art": "schicht",
-        "von": "11:00",
-        "bis": "20:00",
+        "von": "06:00",
+        "bis": "13:30",
         "zusatz": []
       },
       "mi": {
@@ -77,103 +78,83 @@
       },
       "fr": {
         "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "von": "11:00",
+        "bis": "20:00",
         "zusatz": []
       },
       "sa": {
         "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
-        "zusatz": [
-          "grossputz"
-        ]
+        "von": "08:00",
+        "bis": "18:00",
+        "zusatz": []
       }
     },
     "marino_a": {
       "mo": {
-        "art": "frei",
+        "art": "urlaub",
         "zusatz": []
       },
       "di": {
-        "art": "frei",
+        "art": "urlaub",
         "zusatz": []
       },
       "mi": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "do": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "fr": {
-        "art": "schicht",
-        "von": "11:00",
-        "bis": "20:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "sa": {
-        "art": "schicht",
-        "von": "09:00",
-        "bis": "18:00",
-        "zusatz": [
-          "grossputz"
-        ]
+        "art": "urlaub",
+        "zusatz": []
       }
     },
     "kurz_c": {
       "mo": {
-        "art": "schicht",
-        "von": "08:00",
-        "bis": "14:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "di": {
-        "art": "frei",
+        "art": "urlaub",
         "zusatz": []
       },
       "mi": {
-        "art": "schicht",
-        "von": "08:00",
-        "bis": "13:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "do": {
-        "art": "schicht",
-        "von": "08:00",
-        "bis": "14:00",
+        "art": "urlaub",
         "zusatz": []
       },
       "fr": {
-        "art": "frei",
+        "art": "urlaub",
         "zusatz": []
       },
       "sa": {
-        "art": "frei",
+        "art": "urlaub",
         "zusatz": []
       }
     },
     "sannzenbacher_n": {
       "mo": {
-        "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "art": "frei",
         "zusatz": []
       },
       "di": {
         "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "von": "12:00",
+        "bis": "20:00",
         "zusatz": []
       },
       "mi": {
         "art": "schicht",
-        "von": "14:00",
+        "von": "12:00",
         "bis": "20:00",
         "zusatz": []
       },
@@ -182,11 +163,15 @@
         "zusatz": []
       },
       "fr": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       },
       "sa": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       }
     },
@@ -197,8 +182,8 @@
       },
       "di": {
         "art": "schicht",
-        "von": "08:00",
-        "bis": "16:00",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       },
       "mi": {
@@ -213,7 +198,7 @@
       },
       "fr": {
         "art": "schicht",
-        "von": "14:00",
+        "von": "11:00",
         "bis": "20:00",
         "zusatz": []
       },
@@ -221,16 +206,14 @@
         "art": "schicht",
         "von": "11:00",
         "bis": "18:00",
-        "zusatz": [
-          "grossputz"
-        ]
+        "zusatz": []
       }
     },
     "nachtrieb_i": {
       "mo": {
         "art": "schicht",
-        "von": "14:00",
-        "bis": "20:00",
+        "von": "07:00",
+        "bis": "15:00",
         "zusatz": []
       },
       "di": {
@@ -238,7 +221,9 @@
         "zusatz": []
       },
       "mi": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       },
       "do": {
@@ -246,25 +231,21 @@
         "zusatz": []
       },
       "fr": {
-        "art": "schicht",
-        "von": "11:00",
-        "bis": "20:00",
+        "art": "frei",
         "zusatz": []
       },
       "sa": {
         "art": "schicht",
         "von": "09:00",
         "bis": "18:00",
-        "zusatz": [
-          "grossputz"
-        ]
+        "zusatz": []
       }
     },
     "kurz_u": {
       "mo": {
         "art": "schicht",
-        "von": "06:00",
-        "bis": "14:00",
+        "von": "14:00",
+        "bis": "20:00",
         "zusatz": []
       },
       "di": {
@@ -273,7 +254,7 @@
       },
       "mi": {
         "art": "schicht",
-        "von": "12:00",
+        "von": "14:00",
         "bis": "20:00",
         "zusatz": []
       },
@@ -284,7 +265,9 @@
         "zusatz": []
       },
       "fr": {
-        "art": "frei",
+        "art": "schicht",
+        "von": "14:00",
+        "bis": "20:00",
         "zusatz": []
       },
       "sa": {
@@ -315,8 +298,8 @@
       },
       "fr": {
         "art": "schicht",
-        "von": "06:00",
-        "bis": "13:30",
+        "von": "08:00",
+        "bis": "15:30",
         "zusatz": []
       },
       "sa": {
@@ -328,53 +311,61 @@
     },
     "menzler_a": {
       "mo": {
-        "art": "urlaub",
+        "art": "schule",
         "zusatz": []
       },
       "di": {
-        "art": "urlaub",
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "16:00",
         "zusatz": []
       },
       "mi": {
-        "art": "urlaub",
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "16:00",
         "zusatz": []
       },
       "do": {
-        "art": "urlaub",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       },
       "fr": {
-        "art": "urlaub",
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
         "zusatz": []
       },
       "sa": {
-        "art": "urlaub",
+        "art": "frei",
         "zusatz": []
       }
     },
     "kurz_t": {
       "mo": {
-        "art": "nicht_im_plan",
+        "art": "urlaub",
         "zusatz": []
       },
       "di": {
-        "art": "nicht_im_plan",
+        "art": "urlaub",
         "zusatz": []
       },
       "mi": {
-        "art": "nicht_im_plan",
+        "art": "urlaub",
         "zusatz": []
       },
       "do": {
-        "art": "nicht_im_plan",
+        "art": "urlaub",
         "zusatz": []
       },
       "fr": {
-        "art": "nicht_im_plan",
+        "art": "urlaub",
         "zusatz": []
       },
       "sa": {
-        "art": "nicht_im_plan",
+        "art": "urlaub",
         "zusatz": []
       }
     }
