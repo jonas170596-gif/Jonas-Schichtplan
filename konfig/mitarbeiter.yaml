@@ -1,5 +1,6 @@
 # Stammdaten der Mitarbeiter.
 #
+#   faehigkeiten                 f = Fleisch, w = Wurst, o = Ofen
 #   soll_stunden                 Brutto-Wochenstunden inkl. Pause
 #   soll_tage                    angestrebte Arbeitstage pro Woche
 #   max_tage                     Obergrenze Arbeitstage pro Woche
@@ -9,6 +10,11 @@
 #                                wird nur eingesetzt, wenn die Besetzung es braucht
 #   zaehlt_stundenbudget         false = zaehlt nicht gegen wochenstunden_gesamt (Azubi)
 #   feste_freie_tage             gelten immer, ohne Eintrag in der Wochenvorgabe
+#   bevorzugte_freie_tage        sollen frei bleiben, duerfen aber weichen
+#   vermeiden                    Schichtkategorien oder -IDs, die nur im Notfall kommen
+#   schichtwunsch                tag -> kategorie, weicher Wunsch je Wochentag
+#   schicht_verteilung           ueber mehrere Tage je Kategorie eine Schicht
+#   frueh_spaet_ausgleich        false = nimmt am Frueh/Spaet-Ausgleich nicht teil
 #   freie_tage_zusammenhaengend  true = freie Tage sollen aneinandergrenzen
 #   erlaubte_schichten           was der/die MA ueberhaupt arbeiten darf
 #   stamm_schichten              Gewicht 0..1 - je hoeher, desto lieber vergeben
@@ -18,24 +24,35 @@ mitarbeiter:
   # ---------------- Vollzeit, 40 h ----------------
   kurka_j:
     name: "J. Kurka"
+    faehigkeiten: [f, w, o]
     soll_stunden: 40
     soll_tage: 5
     feste_freie_tage: []          # freier Tag variabel, der Planer legt ihn
+    vermeiden: [spaet]            # der Frueh-Anker, Spaet nur im Notfall
+    frueh_spaet_ausgleich: false  # nimmt am Ausgleich bewusst nicht teil
     erlaubte_schichten: [6-14, 6-13:30, 6-12, 6-11, 11-20]
     stamm_schichten: {6-14: 0.88, 6-13:30: 0.05, 11-20: 0.04}
-    notiz: "Frueh-Anker. Kandidat fuer die Teamleitersitzung (Schicht endet 13:30)."
+    notiz: "Hauptsaechlicher Frueh-Anker. Teamleitersitzung im Wechsel mit Rohwer."
 
   rohwer_c:
     name: "C. Rohwer"
+    faehigkeiten: [f, w, o]
     soll_stunden: 40
     soll_tage: 5
     feste_freie_tage: [mi]
+    schichtwunsch: {mo: frueh, di: frueh, mi: frueh, do: frueh}
+    frueh_spaet_ausgleich: false  # Mo-Do frueh ist gesetzt, damit ist er frueh-lastig;
+                                  # der Ausgleich passiert bei ihm nur ueber Fr/Sa
+    schicht_verteilung:
+      - tage: [fr, sa]            # freitags und samstags im Wechsel
+        kategorien: [frueh, spaet]
     erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-12, 9-18, 10-18, 11-18, 8-18]
     stamm_schichten: {6-14: 0.56, 11-20: 0.30}
-    notiz: "Kandidat fuer die Teamleitersitzung (Schicht endet 13:30)."
+    notiz: "Mo-Do frueh. Teamleitersitzung im Wechsel mit Kurka."
 
   marino_a:
     name: "A. Marino"
+    faehigkeiten: [f, w, o]
     soll_stunden: 40
     soll_tage: 5
     feste_freie_tage: [mo]
@@ -45,14 +62,18 @@ mitarbeiter:
   # ---------------- Teilzeit ----------------
   sannzenbacher_n:
     name: "N. Sannzenbacher"
-    soll_stunden: 32               # aus der Historie, Vertragswert noch offen
+    faehigkeiten: [f, w]
+    soll_stunden: 30
     soll_tage: 4
+    bevorzugte_freie_tage: [mi, do]   # duerfen wandern, sollen aber zusammenbleiben
+    freie_tage_zusammenhaengend: true
     erlaubte_schichten: [6-14, 12-20, 11-20, 14-20, 6-13:30, 10-18, 11-18, 12-18]
     stamm_schichten: {6-14: 0.40, 12-20: 0.38, 10-18: 0.10}
 
   reich_s:
     name: "S. Reich"
-    soll_stunden: 30               # aus der Historie, Vertragswert noch offen
+    faehigkeiten: [w]
+    soll_stunden: 30
     soll_tage: 4
     feste_freie_tage: [mo, mi]     # Aenderung nur nach Absprache -> dann 'fest' in der Wochenvorgabe
     erlaubte_schichten: [6-14, 11-20, 14-20, 8-16, 9-16, 11-18, 12-18, 10-18]
@@ -60,6 +81,7 @@ mitarbeiter:
 
   nachtrieb_i:
     name: "I. Nachtrieb"
+    faehigkeiten: [f, w]
     soll_stunden: 24               # Monatsmittel, einzelne Wochen duerfen abweichen
     soll_tage: 3
     max_tage: 5
@@ -69,6 +91,7 @@ mitarbeiter:
 
   kohl_b:
     name: "B. Kohl"
+    faehigkeiten: [w]
     soll_stunden: 30
     soll_tage: 4
     freie_tage_zusammenhaengend: true
@@ -77,16 +100,22 @@ mitarbeiter:
 
   kurz_c:
     name: "C. Kurz"
-    soll_stunden: 17               # aus der Historie, Vertragswert noch offen
+    faehigkeiten: [f, w, o]
+    soll_stunden: 20               # offizieller Vertrag; gearbeitet wird das alte Muster
     soll_tage: 3
     max_tage: 4
-    feste_freie_tage: [di, fr, sa]
+    feste_freie_tage: [di]
+    bevorzugte_freie_tage: [fr, sa]   # nur nach Absprache einsetzen
     erlaubte_schichten: [8-14, 8-13, 8-11, 6-12, 6-14]
     stamm_schichten: {8-14: 0.64, 8-13: 0.28}
+    notiz: "Muster Mo 8-14 / Mi 8-13 / Do 8-14. Fr oder Sa nur nach Absprache -
+      dann in der Wochenvorgabe unter 'fest' eintragen." 
 
   kurz_u:
     name: "U. Kurz"
-    moeglichst_wenig: true         # nur einsetzen, wenn die Besetzung es verlangt
+    faehigkeiten: [f, w]
+    moeglichst_wenig: true
+    frueh_spaet_ausgleich: false   # Reserve bekommt, was uebrig bleibt         # nur einsetzen, wenn die Besetzung es verlangt
     soll_stunden: 0
     soll_tage: 0
     max_tage: 5
@@ -98,6 +127,7 @@ mitarbeiter:
   # ---------------- Azubi ----------------
   menzler_a:
     name: "A. Menzler"
+    faehigkeiten: [f, w]
     soll_stunden: 32
     soll_tage: 4
     zaehlt_stundenbudget: false    # Azubistunden zaehlen nicht gegen die 255 h

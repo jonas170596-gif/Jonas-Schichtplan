@@ -6,11 +6,15 @@
   python -m schichtplan plan wochen/2025-KW42.yaml Plan rechnen und exportieren
   python -m schichtplan pruefen ausgabe/2025-KW42.json wochen/2025-KW42.yaml
   python -m schichtplan backtest                   Konfig gegen die Altplaene messen
+  python -m schichtplan ausgleich                  Frueh/Spaet-Bilanz je Mitarbeiter
+  python -m schichtplan uebernehmen ausgabe/2025-KW43.json
+                                                   fertigen Plan in die Historie legen
 """
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import pathlib
 import sys
 
@@ -67,6 +71,7 @@ termine: []
 #    ab: "13:30"
 #    kandidaten: [kurka_j, rohwer_c]
 #    anzahl: 1
+#    abwechselnd: true      # nicht dieselbe Person wie beim letzten Mal
 
 # --- Zusatzaufgaben, die im Plan vermerkt werden ---
 zusatz: {{}}
@@ -169,6 +174,79 @@ def cmd_backtest(args) -> int:
     return 0
 
 
+def cmd_ausgleich(args) -> int:
+    """Frueh/Spaet-Verhaeltnis je Mitarbeiter ueber das rollierende Fenster."""
+    stamm = lade_stammdaten(args.konfig)
+    wochen = lade_historie(args.historie)
+    fenster = args.fenster or stamm.regeln.ausgleich_fenster_wochen
+    if not wochen:
+        print("Keine Altplaene in", args.historie, file=sys.stderr)
+        return 1
+    betrachtet = wochen[-fenster:]
+    print(f"Frueh/Spaet ueber {len(betrachtet)} Wochen "
+          f"({betrachtet[0].woche} bis {betrachtet[-1].woche})\n")
+    print(f"{'Mitarbeiter':<18}{'Frueh':>6}{'Spaet':>6}{'Mittel':>7}"
+          f"{'Differenz':>11}  Verteilung")
+    print("-" * 68)
+    schief = []
+    for mid, m in stamm.mitarbeiter.items():
+        if not (m.im_plan and m.aktiv):
+            continue
+        zaehler = {"frueh": 0, "spaet": 0, "mittel": 0}
+        for w in betrachtet:
+            for z in w.plan.get(mid, {}).values():
+                if z.verwertbar:
+                    zaehler[stamm.kategorie_von(z.von, z.bis)] += 1
+        f, s = zaehler["frueh"], zaehler["spaet"]
+        if f + s == 0:
+            balken = ""
+        else:
+            balken = "F" * f + "S" * s
+        marke = ""
+        if m.frueh_spaet_ausgleich and abs(f - s) > stamm.regeln.ausgleich_toleranz:
+            marke = "  <-- schief"
+            schief.append(m.name)
+        elif not m.frueh_spaet_ausgleich:
+            marke = "  (ausgenommen)"
+        print(f"{m.name:<18}{f:>6}{s:>6}{zaehler['mittel']:>7}{f - s:>+11}"
+              f"  {balken}{marke}")
+    print()
+    if schief:
+        print("Schief: " + ", ".join(schief))
+        print("Der Planer zieht das ueber die naechsten Wochen gerade, solange die "
+              "fertigen Plaene mit 'uebernehmen' in der Historie landen.")
+    else:
+        print("Alle innerhalb der Toleranz von "
+              f"{stamm.regeln.ausgleich_toleranz} Schichten.")
+    return 0
+
+
+def cmd_uebernehmen(args) -> int:
+    """Fertigen Plan in die Historie legen, damit Ausgleich und Fairness ihn sehen."""
+    stamm = lade_stammdaten(args.konfig)
+    quelle = pathlib.Path(args.plan)
+    roh = json.loads(quelle.read_text(encoding="utf-8"))
+    roh["status"] = "final"
+    roh.setdefault("quelle_foto", "")
+    roh["notiz"] = (roh.get("notiz", "") + " " if roh.get("notiz") else "") \
+        + f"generiert, uebernommen aus {quelle.name}"
+    fehlend = [t for t in TAGE
+               for reihe in roh["plan"].values() if t not in reihe]
+    if fehlend:
+        print(f"Plan ist unvollstaendig, es fehlen Tage: {sorted(set(fehlend))}",
+              file=sys.stderr)
+        return 1
+    ziel = pathlib.Path(args.historie) / f"{roh['woche']}.json"
+    if ziel.exists() and not args.ueberschreiben:
+        print(f"{ziel} existiert bereits (--ueberschreiben erzwingt)", file=sys.stderr)
+        return 1
+    ziel.write_text(json.dumps(roh, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
+    print("uebernommen:", ziel)
+    print(f"Historie umfasst jetzt {len(lade_historie(args.historie))} finale Wochen.")
+    return 0
+
+
 def cmd_pruefen(args) -> int:
     stamm = lade_stammdaten(args.konfig)
     vorgabe = lade_wochenvorgabe(args.vorgabe)
@@ -182,7 +260,6 @@ def cmd_pruefen(args) -> int:
 
 
 def _plan_aus_json(pfad: pathlib.Path, stamm) -> Plan:
-    import json
     roh = json.loads(pfad.read_text(encoding="utf-8"))
     nach_zeit = {(s.von, s.bis): s for s in stamm.schichten.values()}
     zellen = {}
@@ -270,6 +347,17 @@ def main(argv=None) -> int:
     bt.add_argument("--iterationen", type=int, default=20000)
     bt.add_argument("--seed", type=int, default=1)
     bt.set_defaults(func=cmd_backtest)
+
+    au = sub.add_parser("ausgleich", help="Frueh/Spaet-Bilanz je Mitarbeiter")
+    au.add_argument("--historie", default="daten/historie")
+    au.add_argument("--fenster", type=int, help="Anzahl Wochen (sonst aus regeln.yaml)")
+    au.set_defaults(func=cmd_ausgleich)
+
+    ue = sub.add_parser("uebernehmen", help="fertigen Plan in die Historie legen")
+    ue.add_argument("plan", help="JSON aus ausgabe/")
+    ue.add_argument("--historie", default="daten/historie")
+    ue.add_argument("--ueberschreiben", action="store_true")
+    ue.set_defaults(func=cmd_uebernehmen)
 
     v = sub.add_parser("pruefen", help="bestehenden Plan gegen die Regeln pruefen")
     v.add_argument("plan")

@@ -10,6 +10,8 @@ stunden_toleranz_h: 3     # Abweichung vom Wochensoll, die straffrei bleibt
 max_tage_in_folge: 6
 wechsel_max_pro_woche: 1  # kurze Wechsel (Spaetschicht bis 20 Uhr -> Frueh ab 6 Uhr)
                           # je Mitarbeiter und Woche; jeder weitere wird teuer
+ausgleich_fenster_wochen: 4  # rollierendes Fenster fuer den Frueh/Spaet-Ausgleich
+ausgleich_toleranz: 2     # so viele Schichten Ungleichgewicht bleiben straffrei
 samstage_frei_pro_x: 0    # Ziel: je X Wochen mind. 1 freier Samstag. 0 = aus.
                           # In den Altplaenen wird durchgehend samstags gearbeitet -
                           # auf 4 setzen, wenn das kuenftig anders sein soll.
@@ -23,10 +25,12 @@ gewichte:
   schluss_besetzung: 600    # je fehlender Schlussschicht
   gesamtstunden: 30         # je Stunde Abweichung vom Wochenbudget (ohne Azubi)
 
-  # --- Team ---
+  # --- Team und Faehigkeiten ---
+  faehigkeit: 2500          # Fleisch/Wurst/Ofen nicht besetzt (praktisch hart)
   gruppenbesetzung: 2500    # z. B. kein Frueh-Anker anwesend (praktisch hart)
-  unvertraeglich: 2500      # z. B. Kohl und Reich zusammen in der Spaetschicht
+  unvertraeglich: 2500      # Paare, die nicht zusammenarbeiten duerfen
   termin: 1500              # Teamleitersitzung o. Ae. nicht abgedeckt
+  termin_wechsel: 400       # dieselbe Person wie beim letzten Mal
 
   # --- Arbeitszeit der Mitarbeiter ---
   wochenstunden: 25         # je Stunde Abweichung vom Soll
@@ -43,6 +47,11 @@ gewichte:
   wechsel_ueber_limit: 1200 # jeder weitere kurze Wechsel
   ruhezeit_verletzung: 3000 # Ruhe unter ruhezeit_min_h (praktisch hart)
   sparsam_einsetzen: 45     # je Stunde bei MA mit moeglichst_wenig
+  vermiedene_schicht: 700   # Schicht, die der MA nur im Notfall macht (Kurka spaet)
+  frueh_spaet_ausgleich: 200  # je Schicht Ungleichgewicht ueber das Fenster hinaus
+  schichtwunsch: 130        # Wochentag hat nicht die gewuenschte Kategorie
+  schicht_verteilung: 220   # z. B. Rohwer Fr/Sa nicht im Wechsel frueh/spaet
+  bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
   samstag_fairness: 120     # kein freier Samstag im Betrachtungsfenster

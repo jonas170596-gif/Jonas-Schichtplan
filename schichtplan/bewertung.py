@@ -44,6 +44,13 @@ class Bewerter:
         self.tage = [t for t in b.offene_tage if t not in vorgabe.geschlossen]
         self.slots = {t: list(range(*b.oeffnung[t])) for t in self.tage}
         self.min_kurve = {t: [b.min_am_slot(t, s) for s in self.slots[t]] for t in self.tage}
+        # Oeffnungsfenster als Bitmaske je Tag; jede Schicht bekommt dieselbe
+        # Darstellung, dann ist "Faehigkeit durchgehend besetzt" ein AND/OR.
+        self.tagesmaske = {t: ((1 << len(self.slots[t])) - 1) << self.slots[t][0]
+                           for t in self.tage if self.slots[t]}
+        self.schichtmaske = {s.id: ((1 << (s.bis - s.von)) - 1) << s.von
+                             for s in stamm.schichten.values()}
+        self._hist_bilanz = self._historische_bilanz()
         self.soll_stunden = {
             mid: vorgabe.soll_stunden.get(mid, m.soll_stunden)
             for mid, m in stamm.mitarbeiter.items()
@@ -55,6 +62,29 @@ class Bewerter:
             mid: sum(1 for t in self.tage if t not in vorgabe.abwesend.get(mid, {}))
             for mid in stamm.mitarbeiter
         }
+
+    def _maske(self, schicht) -> int:
+        m = self.schichtmaske.get(schicht.id)
+        if m is None:      # Schicht aus einem Altplan, nicht im Katalog
+            m = ((1 << (schicht.bis - schicht.von)) - 1) << schicht.von
+            self.schichtmaske[schicht.id] = m
+        return m
+
+    def _historische_bilanz(self) -> dict[str, tuple[int, int, int]]:
+        """Frueh/Spaet der Vorwochen - aendert sich waehrend der Suche nicht."""
+        fenster = self.stamm.regeln.ausgleich_fenster_wochen
+        vor = self.vorwochen[-(fenster - 1):] if fenster > 1 else []
+        bilanz = {}
+        for mid in self.stamm.mitarbeiter:
+            frueh = spaet = 0
+            for w in vor:
+                for z in w.plan.get(mid, {}).values():
+                    if z.verwertbar:
+                        kat = self.stamm.kategorie_von(z.von, z.bis)
+                        frueh += kat == "frueh"
+                        spaet += kat == "spaet"
+            bilanz[mid] = (frueh, spaet, len(vor))
+        return bilanz
 
     def _ziel(self, mid: str) -> tuple[float, int]:
         """(Zielstunden, Zieltage) fuer diese Woche."""
@@ -70,6 +100,8 @@ class Bewerter:
         add = self._sammler(erg, detail)
         self._besetzung(plan, add)
         self._team(plan, add)
+        self._faehigkeiten(plan, add)
+        self._ausgleich(plan, add)
         self._termine(plan, add)
         self._arbeitszeit(plan, add)
         self._stundenbudget(plan, add)
@@ -170,6 +202,76 @@ class Bewerter:
                         f"{TAG_LANG[tag]}: {regel.name} - {' und '.join(namen)} "
                         f"gleichzeitig eingeteilt", "fehler")
 
+    def _faehigkeiten(self, plan: Plan, add):
+        from .modelle import zu_zeit
+        for regel in self.stamm.abdeckung:
+            name = self.stamm.faehigkeit_namen.get(regel.faehigkeit, regel.faehigkeit)
+            for tag in self.tage:
+                if not regel.gilt_am(tag):
+                    continue
+                koennen = [
+                    z.schicht for mid, reihe in plan.zellen.items()
+                    if (z := reihe[tag]).arbeitet
+                    and self.stamm.mitarbeiter[mid].kann(regel.faehigkeit)
+                ]
+                if not regel.zeitabdeckung:
+                    da = sum(1 for s in koennen if regel.passt(s))
+                    if da < regel.min:
+                        add("faehigkeit", regel.min - da,
+                            f"{TAG_LANG[tag]}: {name} nicht besetzt "
+                            f"({da} von {regel.min})"
+                            + (f" - {regel.grund}" if regel.grund else ""), "fehler")
+                    continue
+                if regel.min == 1:
+                    gedeckt = 0
+                    for s in koennen:
+                        gedeckt |= self._maske(s)
+                    offen = self.tagesmaske[tag] & ~gedeckt
+                    if not offen:
+                        continue
+                    luecke = bin(offen).count("1")
+                    erste = (offen & -offen).bit_length() - 1
+                else:
+                    luecke, erste = 0, None
+                    for slot in self.slots[tag]:
+                        da = sum(1 for s in koennen if s.deckt(slot))
+                        if da < regel.min:
+                            luecke += regel.min - da
+                            if erste is None:
+                                erste = slot
+                if luecke:
+                    add("faehigkeit", luecke,
+                        f"{TAG_LANG[tag]}: {name} ab {zu_zeit(erste)} nicht besetzt "
+                        f"({luecke} Personenhalbstunden)", "fehler")
+
+    # ---- Frueh/Spaet-Ausgleich ueber mehrere Wochen --------------------- #
+    def _kategorie(self, von: int, bis: int) -> str:
+        return self.stamm.kategorie_von(von, bis)
+
+    def frueh_spaet_bilanz(self, plan: Plan, mid: str) -> tuple[int, int, int]:
+        """(frueh, spaet, Wochen im Fenster) inklusive der geplanten Woche."""
+        frueh, spaet, wochen = self._hist_bilanz.get(mid, (0, 0, 0))
+        for z in plan.zellen.get(mid, {}).values():
+            if z.arbeitet:
+                frueh += z.schicht.kategorie == "frueh"
+                spaet += z.schicht.kategorie == "spaet"
+        return frueh, spaet, wochen + 1
+
+    def _ausgleich(self, plan: Plan, add):
+        if self.stamm.regeln.ausgleich_fenster_wochen <= 1:
+            return
+        toleranz = self.stamm.regeln.ausgleich_toleranz
+        for mid, m in self.stamm.mitarbeiter.items():
+            if not (m.im_plan and m.aktiv and m.frueh_spaet_ausgleich):
+                continue
+            frueh, spaet, wochen = self.frueh_spaet_bilanz(plan, mid)
+            if frueh + spaet == 0:
+                continue
+            weg = max(0, abs(frueh - spaet) - toleranz)
+            add("frueh_spaet_ausgleich", weg,
+                f"{m.name}: {frueh} Frueh gegen {spaet} Spaet in {wochen} Wochen "
+                f"(Toleranz {toleranz})" if weg else "", "warnung")
+
     def _termine(self, plan: Plan, add):
         for tm in self.vorgabe.termine:
             if tm.tag not in self.tage:
@@ -182,6 +284,24 @@ class Bewerter:
                 add("termin", tm.anzahl - len(passend),
                     f"{TAG_LANG[tm.tag]}: {tm.name} ab {zu_zeit(tm.ab)} - "
                     f"{len(passend)} von {tm.anzahl} Kandidaten enden passend", "fehler")
+            if tm.abwechselnd:
+                letzter = self._letzter_terminhalter(tm)
+                if letzter is not None and letzter in passend:
+                    add("termin_wechsel", 1,
+                        f"{tm.name}: {self.stamm.mitarbeiter[letzter].name} war schon "
+                        f"beim letzten Mal dran", "warnung")
+
+    def _letzter_terminhalter(self, tm) -> str | None:
+        """Wer den Termin zuletzt wahrgenommen hat - erkannt am Schichtende."""
+        for w in reversed(self.vorwochen):
+            treffer = [mid for mid in tm.kandidaten
+                       if (z := w.plan.get(mid, {}).get(tm.tag)) is not None
+                       and z.verwertbar and z.bis == tm.ab]
+            if len(treffer) == 1:
+                return treffer[0]
+            if treffer:
+                return None
+        return None
 
     # ---- Gesamtstundenbudget -------------------------------------------- #
     def gesamtbudget(self) -> float:
@@ -308,6 +428,36 @@ class Bewerter:
                         f"{m.name}: {i + 1}. kurzer Wechsel in der Woche "
                         f"({TAG_LANG[a]} -> {TAG_LANG[b_]}, {pause / 2:.1f} h Ruhe) - "
                         f"erlaubt ist {grenze}", "warnung")
+
+            for tag in m.bevorzugte_freie_tage:
+                if tag in self.tage and reihe[tag].arbeitet:
+                    add("bevorzugter_freier_tag", 1,
+                        f"{m.name}: {TAG_LANG[tag]} ist eigentlich frei")
+
+            for tag, z in reihe.items():
+                if not z.arbeitet:
+                    continue
+                if z.schicht.kategorie in m.vermeiden or z.schicht.id in m.vermeiden:
+                    add("vermiedene_schicht", 1,
+                        f"{m.name}: {z.schicht.label} am {TAG_LANG[tag]} "
+                        f"(soll vermieden werden)", "warnung")
+                wunsch = m.schichtwunsch.get(tag)
+                if wunsch and z.schicht.kategorie != wunsch:
+                    add("schichtwunsch", 1,
+                        f"{m.name}: {TAG_LANG[tag]} {z.schicht.kategorie} "
+                        f"statt {wunsch}")
+
+            for regel in self.stamm.verteilung.get(mid, []):
+                kats = [reihe[tag].schicht.kategorie for tag in regel.tage
+                        if tag in self.tage and reihe[tag].arbeitet]
+                if len(kats) < len(regel.kategorien):
+                    continue
+                fehl = sum(max(0, 1 - kats.count(k)) for k in regel.kategorien)
+                fehl += sum(1 for k in kats if k not in regel.kategorien)
+                add("schicht_verteilung", fehl,
+                    f"{m.name}: {'/'.join(TAG_LANG[t][:2] for t in regel.tage)} sollen "
+                    f"{' und '.join(regel.kategorien)} sein, sind {'/'.join(kats)}"
+                    if fehl else "", "warnung")
 
             if m.freie_tage_zusammenhaengend:
                 frei = [i for i, t_ in enumerate(self.tage) if not reihe[t_].arbeitet

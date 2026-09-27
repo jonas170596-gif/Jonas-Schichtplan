@@ -68,7 +68,12 @@ class Mitarbeiter:
     soll_tage: int = 5
     max_tage: int = 6
     feste_freie_tage: list[str] = field(default_factory=list)
+    bevorzugte_freie_tage: list[str] = field(default_factory=list)
     freie_tage_zusammenhaengend: bool = False
+    faehigkeiten: frozenset[str] = frozenset()
+    vermeiden: list[str] = field(default_factory=list)     # Kategorien oder Schicht-IDs
+    schichtwunsch: dict[str, str] = field(default_factory=dict)   # tag -> kategorie
+    frueh_spaet_ausgleich: bool = True
     moeglichst_wenig: bool = False
     zaehlt_stundenbudget: bool = True
     stunden_toleranz_h: float | None = None
@@ -76,6 +81,9 @@ class Mitarbeiter:
     stamm_schichten: dict[str, float] = field(default_factory=dict)  # id -> Gewicht 0..1
     max_tage_in_folge: int = 6
     notiz: str = ""
+
+    def kann(self, faehigkeit: str) -> bool:
+        return faehigkeit in self.faehigkeiten
 
 
 @dataclass

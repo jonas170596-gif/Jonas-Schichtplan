@@ -11,11 +11,26 @@ Reines Python 3.11 + PyYAML, kein Solver-Paket, keine Datenbank.
 ```bash
 pip install pyyaml
 
-python -m schichtplan analyse              # was steckt in den Altplaenen?
 python -m schichtplan neu 2025-KW43        # Wochenvorgabe anlegen
 $EDITOR wochen/2025-KW43.yaml              # Urlaub, Schule, Wuensche eintragen
 python -m schichtplan plan wochen/2025-KW43.yaml
 ```
+
+## Wochenablauf
+
+```bash
+python -m schichtplan ausgleich                          # wer haengt frueh/spaet schief?
+python -m schichtplan neu 2025-KW43
+$EDITOR wochen/2025-KW43.yaml
+python -m schichtplan plan wochen/2025-KW43.yaml         # rechnen, pruefen, exportieren
+# ... Plan aushaengen, ggf. von Hand nachbessern ...
+python -m schichtplan uebernehmen ausgabe/2025-KW43.json # in die Historie legen
+```
+
+Der letzte Schritt ist der wichtige: **nur uebernommene Plaene zaehlen fuer den
+Frueh/Spaet-Ausgleich und die Samstags-Fairness.** Ohne ihn plant jede Woche
+blind von vorn. Wurde der Plan nach dem Aushang noch von Hand geaendert, erst
+die JSON in `ausgabe/` anpassen, dann uebernehmen - sonst stimmt die Bilanz nicht.
 
 Ergebnis in `ausgabe/`:
 
@@ -81,24 +96,59 @@ Nicht jeder hat welche - das Feld darf leer bleiben.
 
 ## Die Wochenmodelle
 
-| | Stunden | Tage | feste freie Tage | Besonderheit |
-|---|---|---|---|---|
-| J. Kurka | 40 | 5 | - | freier Tag variabel; Frueh-Anker; Sitzungskandidat |
-| C. Rohwer | 40 | 5 | Mi | Sitzungskandidat |
-| A. Marino | 40 | 5 | Mo | |
-| N. Sannzenbacher | 32* | 4 | - | |
-| S. Reich | 30* | 4 | Mo, Mi | Aenderung nur nach Absprache |
-| I. Nachtrieb | 24 | 3 (bis 5) | - | Monatsmittel, Wochentoleranz +/- 8 h |
-| B. Kohl | 30 | 4 | - | zwei freie Tage, moeglichst zusammenhaengend |
-| C. Kurz | 17* | 3 | Di, Fr, Sa | |
-| U. Kurz | Reserve | - | Di | so wenig wie moeglich, breit einsetzbar |
-| A. Menzler | 32 | 4 | - | Azubi, zaehlt nicht gegen das Stundenbudget |
+| | kann | Stunden | Tage | fest frei | bevorzugt frei | Besonderheit |
+|---|---|---|---|---|---|---|
+| J. Kurka | f w o | 40 | 5 | - | - | Frueh-Anker, Spaet nur im Notfall; freier Tag variabel |
+| C. Rohwer | f w o | 40 | 5 | Mi | - | Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet |
+| A. Marino | f w o | 40 | 5 | Mo | - | |
+| N. Sannzenbacher | f w | 30 | 4 | - | Mi, Do | freie Tage duerfen wandern, aber zusammen |
+| S. Reich | w | 30 | 4 | Mo, Mi | - | Aenderung nur nach Absprache |
+| I. Nachtrieb | f w | 24 | 3 (bis 5) | - | - | Monatsmittel, Wochentoleranz +/- 8 h |
+| B. Kohl | w | 30 | 4 | - | - | zwei freie Tage, moeglichst zusammenhaengend |
+| C. Kurz | f w o | 20 | 3 | Di | Fr, Sa | Muster Mo 8-14 / Mi 8-13 / Do 8-14 |
+| U. Kurz | f w | Reserve | - | Di | - | so wenig wie moeglich, breit einsetzbar |
+| A. Menzler | f w | 32 | 4 | - | - | Azubi, zaehlt nicht gegen das Stundenbudget |
 
-\* aus der Historie abgeleitet, Vertragswert noch offen.
+**fest frei** gilt immer. **bevorzugt frei** soll frei bleiben, darf aber
+weichen, wenn die Besetzung es verlangt - der Plan weist es dann als Hinweis aus.
 
 **Aenderung nur nach Absprache** heisst technisch: der Tag steht in
 `feste_freie_tage` und wird nur ueberschrieben, wenn er in der Wochenvorgabe
 unter `fest` auftaucht - dann hat die Wochenvorgabe Vorrang.
+
+## Faehigkeiten
+
+`f` Fleisch, `w` Wurst, `o` Ofen - je Mitarbeiter in `konfig/mitarbeiter.yaml`,
+die Abdeckungsregeln in `konfig/team.yaml`:
+
+* **f und w muessen durchgehend besetzt sein**, jede Halbstunde der Oeffnungszeit.
+* **o muss morgens da sein**, mindestens eine Fruehschicht mit Ofen.
+
+Dass Kohl und Reich nicht zusammen in der Spaetschicht stehen duerfen, folgt
+daraus von selbst: beide koennen nur `w`, also fehlt Fleisch, sobald nur die
+zwei da sind. Eine eigene Paarregel waere strenger als noetig - sie wuerde die
+beiden auch trennen, wenn jemand mit `f` danebensteht. Sie liegt deshalb nur
+als auskommentierte Vorlage in `team.yaml`.
+
+## Frueh/Spaet-Ausgleich
+
+```bash
+python -m schichtplan ausgleich
+```
+
+```
+Mitarbeiter        Frueh Spaet Mittel  Differenz  Verteilung
+J. Kurka              18     1      0        +17  FFFFFFFFFFFFFFFFFFS  (ausgenommen)
+S. Reich               6     3      1         +3  FFFFFFSSS  <-- schief
+I. Nachtrieb           3     7      5         -4  FFFSSSSSSS  <-- schief
+```
+
+Rollierendes Fenster von 4 Wochen (`ausgleich_fenster_wochen`), Toleranz
+2 Schichten. Wer darueber hinaus schief liegt, bekommt in der naechsten Woche
+Gegendruck. Ausgenommen sind Kurka (Frueh-Anker), Rohwer (Mo-Do frueh ist
+gesetzt, sein Ausgleich laeuft nur ueber Fr/Sa) und U. Kurz (Reserve).
+
+**Das funktioniert nur mit gepflegter Historie** - siehe `uebernehmen` oben.
 
 ## Konfiguration
 
@@ -107,7 +157,7 @@ unter `fest` auftaucht - dann hat die Wochenvorgabe Vorrang.
 | `konfig/mitarbeiter.yaml` | Sollstunden, Solltage, feste freie Tage, erlaubte und gewohnte Schichten |
 | `konfig/schichten.yaml` | Schichtkatalog (`6-14`, `11-20`, ...) inkl. an welchen Tagen erlaubt |
 | `konfig/bedarf.yaml` | Kopfzahl, Frueh-/Schlussbesetzung, Mindestbesetzungskurve, Wochenstundenbudget |
-| `konfig/team.yaml` | wer muss da sein, wer darf nicht zusammen - hier kommen auch die Qualifikationen rein |
+| `konfig/team.yaml` | Faehigkeiten, deren Abdeckung, Gruppen- und Unvertraeglichkeitsregeln |
 | `konfig/regeln.yaml` | Gewichte aller Regeln, Ruhezeit, Toleranzen |
 
 Die Startwerte wurden aus der Historie abgeleitet, nicht geraten. Neu ableiten
@@ -129,20 +179,38 @@ python -m schichtplan backtest
 Rekonstruiert fuer jede historische Woche die damaligen Randbedingungen,
 plant neu und vergleicht mit dem, was tatsaechlich geschrieben wurde.
 
-Stand heute: **75 % Anwesenheit** (Arbeit/Frei richtig) und **49 % exakt
-dieselbe Schicht**. Vorher, nur mit den aus den Fotos abgeleiteten Mustern,
-waren es 65 % / 42 % - die nachgereichten Wochenmodelle und Teamregeln haben
-also messbar etwas gebracht.
+Stand heute: **76 % Anwesenheit** (Arbeit/Frei richtig) und **48 % exakt
+dieselbe Schicht**. Zum Vergleich:
 
-Der Rest sind Regeln, die noch nirgends stehen: Qualifikationen (wer kann
-Theke, wer Produktion), Umsatzspitzen, Absprachen. Genau dafuer ist der
-Backtest da: Regel in `konfig/` ergaenzen, Backtest laufen lassen, Quote
-muss steigen.
+| Stand | Anwesenheit | Schicht |
+|---|---|---|
+| nur Muster aus den Fotos | 65 % | 42 % |
+| + Wochenmodelle, Teamregeln, Termine | 75 % | 49 % |
+| + Faehigkeiten, Frueh/Spaet-Ausgleich | 76 % | 48 % |
+
+Die letzte Zeile zeigt, worauf man beim Messen achten muss: die
+Faehigkeitsregeln haben die Anwesenheit noch leicht verbessert, die exakte
+Schicht aber nicht. Das ist kein Rueckschritt - der Planer verteilt Frueh und
+Spaet jetzt bewusst anders als frueher von Hand geplant wurde, und genau das
+war ja gewollt. Wo der Backtest gegen eine absichtliche Aenderung misst, ist
+die Quote das falsche Mass.
+
+Was noch fehlt: Umsatzspitzen, einzelne Absprachen. Regel in `konfig/`
+ergaenzen, Backtest laufen lassen, Quote pruefen.
 
 Die Spalten `Punkte Orig.` / `Punkte neu` zeigen dieselben Plaene nach den
 eigenen Regeln bewertet. Liegt `Punkte neu` weit darunter, optimiert die
 Konfiguration etwas anderes als der Mensch - dann sind die Gewichte schuld,
 nicht der Planer.
+
+## Laufzeit
+
+Eine Woche rechnen dauert mit den Standardwerten (40 000 Iterationen,
+4 Neustarts) rund 8 Sekunden, mit `--iterationen 80000` etwa 16. Mehr
+Iterationen lohnen, wenn Hinweise stehen bleiben, die sich aufloesen lassen
+sollten. `--seed` macht den Lauf reproduzierbar; ein anderer Seed liefert eine
+andere gleichwertige Loesung - ganz brauchbar, wenn einem ein Plan nicht
+gefaellt.
 
 ## Neue Altplaene aufnehmen
 
@@ -161,9 +229,11 @@ hoch, dass sie praktisch hart sind:
 
 | Regel | was sie will |
 |---|---|
+| `faehigkeit` | f und w durchgehend besetzt, o in der Fruehschicht |
 | `gruppenbesetzung` | in jeder Fruehschicht einer von Kurka / Rohwer / Marino |
-| `unvertraeglich` | Kohl und Reich nie zusammen in der Spaetschicht |
+| `unvertraeglich` | Paare, die nicht zusammenarbeiten duerfen (derzeit keins aktiv) |
 | `termin` | Teamleitersitzung o. Ae. ist abgedeckt |
+| `termin_wechsel` | Sitzung nicht zweimal hintereinander dieselbe Person |
 | `ruhezeit_verletzung` | nie unter 10 h Ruhe |
 | `kopfzahl` | Zielkopfzahl je Tag; ein Kopf zu viel ist frei, zu wenig nicht |
 | `besetzung_unter` / `_ueber` | Mindestbesetzungskurve ueber den Tag |
@@ -173,6 +243,11 @@ hoch, dass sie praktisch hart sind:
 | `wochenstunden` / `arbeitstage` | individuelles Wochenmodell |
 | `wunsch_frei` / `wunsch_schicht` | Wuensche der Woche |
 | `freie_tage_zusammenhaengend` | Kohls freie Tage aneinander |
+| `frueh_spaet_ausgleich` | Frueh und Spaet gleichen sich ueber 4 Wochen aus |
+| `vermiedene_schicht` | Kurka spaet nur im Notfall |
+| `schichtwunsch` | Rohwer Mo-Do frueh |
+| `schicht_verteilung` | Rohwer Fr/Sa im Wechsel frueh/spaet |
+| `bevorzugter_freier_tag` | weiche freie Tage (Sannzenbacher Mi/Do, C. Kurz Fr/Sa) |
 | `stammschicht` | jeder bekommt moeglichst seine gewohnte Schicht |
 | `sparsam_einsetzen` | U. Kurz nur einsetzen, wenn es die Besetzung braucht |
 | `zersplitterung` | nicht jeden Tag eine andere Schichtart |

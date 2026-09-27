@@ -1,16 +1,26 @@
-# Regeln zur Zusammensetzung einer Schicht - wer muss da sein, wer nicht
-# zusammen. Hier landen auch die Qualifikationen (Theke / Produktion), sobald
-# sie feststehen: einfach eine weitere Gruppenregel.
-#
-# gruppenbesetzung: mindestens `min` Personen aus `gruppe` muessen passen
-# unvertraeglich:   hoechstens `max_gleichzeitig` Personen aus `gruppe`
-#
-# Beide Regeln lassen sich eingrenzen auf
-#   kategorie:   frueh | mittel | spaet   (Schichtkategorie aus schichten.yaml)
-#   startet_bis: "07:00"                  (Schichtbeginn bis einschliesslich)
-#   endet_ab:    "20:00"                  (Schichtende ab einschliesslich)
-#   tage:        [mo, di, ...]            (sonst alle offenen Tage)
+# Faehigkeiten und Regeln zur Zusammensetzung einer Schicht.
 
+faehigkeiten:
+  f: {name: Fleisch}
+  w: {name: Wurst}
+  o: {name: Ofen}
+
+# Welche Faehigkeit wann besetzt sein muss.
+#   ohne kategorie/startet_bis -> durchgehend waehrend der Oeffnungszeit
+#   mit kategorie/startet_bis  -> mindestens `min` passende Schichten am Tag
+abdeckung:
+  - faehigkeit: f
+    min: 1
+    grund: "Fleisch muss durchgehend besetzt sein"
+  - faehigkeit: w
+    min: 1
+    grund: "Wurst muss durchgehend besetzt sein"
+  - faehigkeit: o
+    min: 1
+    kategorie: frueh
+    grund: "Ofen muss morgens da sein"
+
+# Mindestens `min` Personen aus `gruppe` in passender Schicht.
 gruppenbesetzung:
   - name: "Frueh-Anker"
     gruppe: [kurka_j, rohwer_c, marino_a]
@@ -18,13 +28,16 @@ gruppenbesetzung:
     kategorie: frueh
     grund: "In der Fruehschicht muss einer der drei da sein."
 
-  # Vorlage fuer die Qualifikationen, sobald sie feststehen:
-  # - name: "Theke besetzt"
-  #   gruppe: [rohwer_c, reich_s, nachtrieb_i]
-  #   min: 1
-
-unvertraeglich:
-  - name: "Kohl / Reich nicht zusammen spaet"
-    gruppe: [kohl_b, reich_s]
-    max_gleichzeitig: 1
-    kategorie: spaet
+# Hoechstens `max_gleichzeitig` Personen aus `gruppe`.
+#
+# Kohl und Reich koennen beide nur Wurst. Dass sie nicht zusammen in der
+# Spaetschicht stehen duerfen, folgt schon aus der f-Abdeckung oben: sobald
+# nur die beiden da sind, fehlt Fleisch. Die Paarregel waere strenger als
+# noetig - sie wuerde die beiden auch dann trennen, wenn jemand mit f
+# danebensteht. Deshalb steht sie hier nur als Vorlage. Einkommentieren,
+# falls die beiden aus anderen Gruenden getrennt bleiben sollen.
+unvertraeglich: []
+#  - name: "Kohl / Reich nicht zusammen spaet"
+#    gruppe: [kohl_b, reich_s]
+#    max_gleichzeitig: 1
+#    kategorie: spaet

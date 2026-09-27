@@ -32,6 +32,40 @@ class Bedarf:
 
 
 @dataclass
+class Verteilungsregel:
+    """Ueber mehrere Tage hinweg soll je Kategorie hoechstens/mindestens eine
+    Schicht liegen - z. B. Rohwer freitags und samstags im Wechsel frueh/spaet."""
+    tage: list[str]
+    kategorien: list[str]
+
+
+@dataclass
+class Abdeckungsregel:
+    """Eine Faehigkeit muss besetzt sein - entweder durchgehend waehrend der
+    Oeffnungszeit oder in einem bestimmten Schichttyp."""
+    faehigkeit: str
+    min: int = 1
+    kategorie: str | None = None
+    startet_bis: int | None = None
+    tage: list[str] | None = None
+    grund: str = ""
+
+    @property
+    def zeitabdeckung(self) -> bool:
+        return self.kategorie is None and self.startet_bis is None
+
+    def gilt_am(self, tag: str) -> bool:
+        return self.tage is None or tag in self.tage
+
+    def passt(self, schicht) -> bool:
+        if self.kategorie and schicht.kategorie != self.kategorie:
+            return False
+        if self.startet_bis is not None and schicht.von > self.startet_bis:
+            return False
+        return True
+
+
+@dataclass
 class Gruppenregel:
     """Mindest- oder Hoechstbesetzung aus einer Personengruppe.
 
@@ -72,6 +106,8 @@ class Regeln:
     max_tage_in_folge: int = 6
     samstage_frei_pro_x: int = 0        # 0 = aus; sonst: 1 freier Samstag je X Wochen
     wechsel_max_pro_woche: int = 1      # kurze Wechsel (Spaet -> Frueh) je MA und Woche
+    ausgleich_fenster_wochen: int = 4   # Fenster fuer den Frueh/Spaet-Ausgleich
+    ausgleich_toleranz: int = 2         # erlaubtes Ungleichgewicht im Fenster
 
 
 @dataclass
@@ -82,6 +118,23 @@ class Stammdaten:
     regeln: Regeln
     gruppenbesetzung: list[Gruppenregel] = field(default_factory=list)
     unvertraeglich: list[Gruppenregel] = field(default_factory=list)
+    abdeckung: list[Abdeckungsregel] = field(default_factory=list)
+    faehigkeit_namen: dict[str, str] = field(default_factory=dict)
+    verteilung: dict[str, list[Verteilungsregel]] = field(default_factory=dict)
+
+    _kat_tabelle: dict[tuple[int, int], str] = field(default_factory=dict, repr=False)
+
+    def kategorie_von(self, von: int, bis: int) -> str:
+        """Kategorie einer Zeitspanne - aus dem Katalog, sonst nach Startzeit."""
+        if not self._kat_tabelle:
+            self._kat_tabelle.update({(s.von, s.bis): s.kategorie
+                                      for s in self.schichten.values()})
+        kat = self._kat_tabelle.get((von, bis))
+        if kat is None:
+            kat = ("frueh" if von <= self.bedarf.frueh_bis
+                   else "spaet" if von >= zu_index("11:00") else "mittel")
+            self._kat_tabelle[(von, bis)] = kat
+        return kat
 
 
 def _lies(pfad: pathlib.Path) -> dict:
@@ -120,7 +173,12 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             soll_tage=int(m.get("soll_tage", 5)),
             max_tage=int(m.get("max_tage", 6)),
             feste_freie_tage=list(m.get("feste_freie_tage", [])),
+            bevorzugte_freie_tage=list(m.get("bevorzugte_freie_tage", [])),
             freie_tage_zusammenhaengend=bool(m.get("freie_tage_zusammenhaengend", False)),
+            faehigkeiten=frozenset(m.get("faehigkeiten", [])),
+            vermeiden=list(m.get("vermeiden", [])),
+            schichtwunsch=dict(m.get("schichtwunsch") or {}),
+            frueh_spaet_ausgleich=bool(m.get("frueh_spaet_ausgleich", True)),
             moeglichst_wenig=bool(m.get("moeglichst_wenig", False)),
             zaehlt_stundenbudget=bool(m.get("zaehlt_stundenbudget", True)),
             stunden_toleranz_h=(float(m["stunden_toleranz_h"])
@@ -160,6 +218,8 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         max_tage_in_folge=int(roh_r.get("max_tage_in_folge", 6)),
         samstage_frei_pro_x=int(roh_r.get("samstage_frei_pro_x", 0)),
         wechsel_max_pro_woche=int(roh_r.get("wechsel_max_pro_woche", 1)),
+        ausgleich_fenster_wochen=int(roh_r.get("ausgleich_fenster_wochen", 4)),
+        ausgleich_toleranz=int(roh_r.get("ausgleich_toleranz", 2)),
     )
     roh_t = _lies(ordner / "team.yaml") if (ordner / "team.yaml").exists() else {}
 
@@ -180,12 +240,39 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             grund=r.get("grund", ""),
         )
 
+    abdeckung = []
+    for r in (roh_t.get("abdeckung") or []):
+        abdeckung.append(Abdeckungsregel(
+            faehigkeit=r["faehigkeit"],
+            min=int(r.get("min", 1)),
+            kategorie=r.get("kategorie"),
+            startet_bis=zu_index(r["startet_bis"]) if r.get("startet_bis") else None,
+            tage=list(r["tage"]) if r.get("tage") else None,
+            grund=r.get("grund", ""),
+        ))
+    bekannt = {f for m in mitarbeiter.values() for f in m.faehigkeiten}
+    for r in abdeckung:
+        if r.faehigkeit not in bekannt:
+            raise ValueError(f"team.yaml/abdeckung: Faehigkeit {r.faehigkeit!r} "
+                             f"hat niemand - bekannt sind {sorted(bekannt)}")
+
+    verteilung = {}
+    for mid, m in roh_m["mitarbeiter"].items():
+        regeln_v = [Verteilungsregel(tage=list(r["tage"]), kategorien=list(r["kategorien"]))
+                    for r in (m.get("schicht_verteilung") or [])]
+        if regeln_v:
+            verteilung[mid] = regeln_v
+
     return Stammdaten(
         mitarbeiter, schichten, bedarf, regeln,
         gruppenbesetzung=[_gruppenregel(r, "min")
                           for r in (roh_t.get("gruppenbesetzung") or [])],
         unvertraeglich=[_gruppenregel(r, "max_gleichzeitig")
                         for r in (roh_t.get("unvertraeglich") or [])],
+        abdeckung=abdeckung,
+        faehigkeit_namen={k: (v or {}).get("name", k)
+                          for k, v in (roh_t.get("faehigkeiten") or {}).items()},
+        verteilung=verteilung,
     )
 
 
@@ -198,6 +285,7 @@ class Termin:
     ab: int                       # Slotindex; die Schicht muss genau dann enden
     kandidaten: list[str]
     anzahl: int = 1
+    abwechselnd: bool = False     # nicht dieselbe Person wie beim letzten Mal
 
 
 @dataclass
@@ -246,7 +334,8 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
 
     termine = [
         Termin(name=r.get("name", "Termin"), tag=r["tag"], ab=zu_index(r["ab"]),
-               kandidaten=list(r["kandidaten"]), anzahl=int(r.get("anzahl", 1)))
+               kandidaten=list(r["kandidaten"]), anzahl=int(r.get("anzahl", 1)),
+               abwechselnd=bool(r.get("abwechselnd", False)))
         for r in (roh.get("termine") or [])
     ]
     for tm in termine:

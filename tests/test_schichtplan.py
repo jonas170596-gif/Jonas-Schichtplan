@@ -10,7 +10,7 @@ from schichtplan.bewertung import Bewerter, pruefen
 from schichtplan.generator import erzeuge, grundgeruest
 from schichtplan.historie import lade_historie
 from schichtplan.konfig import lade_stammdaten, lade_wochenvorgabe
-from schichtplan.modelle import TAGE, zu_index, zu_text
+from schichtplan.modelle import TAGE, TAG_LANG, zu_index, zu_text
 from schichtplan import export
 
 WURZEL = pathlib.Path(__file__).resolve().parents[1]
@@ -81,9 +81,13 @@ class TestGenerator(unittest.TestCase):
     def test_neue_feste_freie_tage_greifen(self):
         erwartet = {"rohwer_c": ["mi"], "marino_a": ["mo"],
                     "reich_s": ["mo", "mi"], "kurz_u": ["di"],
-                    "kurz_c": ["di", "fr", "sa"], "kurka_j": []}
+                    "kurz_c": ["di"], "kurka_j": []}
         for mid, tage in erwartet.items():
             self.assertEqual(self.stamm.mitarbeiter[mid].feste_freie_tage, tage, mid)
+        self.assertEqual(self.stamm.mitarbeiter["kurz_c"].bevorzugte_freie_tage,
+                         ["fr", "sa"])
+        self.assertEqual(self.stamm.mitarbeiter["sannzenbacher_n"].bevorzugte_freie_tage,
+                         ["mi", "do"])
 
     def test_feste_freie_tage_bleiben_frei(self):
         erg = erzeuge(self.stamm, self.vorgabe, iterationen=800, neustarts=1, seed=7)
@@ -169,19 +173,64 @@ class TestBewertung(unittest.TestCase):
                   if b.regel == "gruppenbesetzung" and "Montag" in b.text]
         self.assertEqual(montag, [])
 
-    def test_kohl_und_reich_nicht_zusammen_spaet(self):
+    def _faehigkeitsluecken(self, plan, tag):
+        return [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                if b.regel == "faehigkeit" and TAG_LANG[tag] in b.text]
+
+    def test_nur_wurst_am_abend_meldet_fehlendes_fleisch(self):
+        """Kohl und Reich koennen beide nur w - stehen sie allein spaet da,
+        fehlt Fleisch. Genau daraus folgt 'die beiden nicht zusammen'."""
         plan = grundgeruest(self.stamm, self.vorgabe)
         self._setze(plan, "kohl_b", "do", "12-20")
         self._setze(plan, "reich_s", "do", "14-20")
-        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
-        self.assertIn("unvertraeglich", regeln)
+        self.assertTrue(any("Fleisch" in x for x in self._faehigkeitsluecken(plan, "do")))
 
-    def test_kohl_und_reich_zusammen_frueh_ist_erlaubt(self):
+    def test_mit_fleischkraft_daneben_ist_es_in_ordnung(self):
         plan = grundgeruest(self.stamm, self.vorgabe)
-        self._setze(plan, "kohl_b", "do", "6-13:30")
-        self._setze(plan, "reich_s", "do", "6-14")
+        self._setze(plan, "kohl_b", "do", "12-20")
+        self._setze(plan, "reich_s", "do", "14-20")
+        self._setze(plan, "nachtrieb_i", "do", "6-14")       # f ab 6
+        self._setze(plan, "sannzenbacher_n", "do", "12-20")  # f bis 20
+        self.assertFalse(any("Fleisch" in x for x in self._faehigkeitsluecken(plan, "do")))
+
+    def test_ofen_muss_morgens_da_sein(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "nachtrieb_i", "do", "6-14")       # fw, kein o
+        self.assertTrue(any("Ofen" in x for x in self._faehigkeitsluecken(plan, "do")))
+        self._setze(plan, "kurka_j", "do", "6-14")           # fwo
+        self.assertFalse(any("Ofen" in x for x in self._faehigkeitsluecken(plan, "do")))
+
+    def test_kurka_meidet_spaetschichten(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "kurka_j", "mo", "11-20")
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
-        self.assertNotIn("unvertraeglich", regeln)
+        self.assertIn("vermiedene_schicht", regeln)
+
+    def test_bevorzugter_freier_tag_wird_bemaengelt(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "kurz_c", "fr", "8-14")
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "bevorzugter_freier_tag"]
+        self.assertTrue(any("C. Kurz" in x and "Freitag" in x for x in texte), texte)
+
+    def test_rohwer_fr_sa_im_wechsel(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "rohwer_c", "fr", "11-20")     # spaet
+        self._setze(plan, "rohwer_c", "sa", "11-18")     # ebenfalls spaet
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("schicht_verteilung", regeln)
+        self._setze(plan, "rohwer_c", "sa", "6-14")      # jetzt frueh
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("schicht_verteilung", regeln)
+
+    def test_rohwer_will_mo_bis_do_frueh(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "rohwer_c", "do", "11-20")
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("schichtwunsch", regeln)
+        self._setze(plan, "rohwer_c", "do", "6-14")
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("schichtwunsch", regeln)
 
     def test_termin_verlangt_passendes_schichtende(self):
         plan = grundgeruest(self.stamm, self.vorgabe)
@@ -219,6 +268,75 @@ class TestBewertung(unittest.TestCase):
         self._setze(plan, "kurz_u", "mo", "14-20")
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
         self.assertIn("sparsam_einsetzen", regeln)
+
+
+class TestAusgleich(unittest.TestCase):
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.historie = lade_historie(WURZEL / "daten/historie")
+
+    def test_fenster_umfasst_vier_wochen(self):
+        b = Bewerter(self.stamm, self.vorgabe, self.historie)
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        _, _, wochen = b.frueh_spaet_bilanz(plan, "reich_s")
+        self.assertEqual(wochen, self.stamm.regeln.ausgleich_fenster_wochen)
+
+    def test_bilanz_zaehlt_die_geplante_woche_mit(self):
+        b = Bewerter(self.stamm, self.vorgabe, self.historie)
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        vorher = b.frueh_spaet_bilanz(plan, "reich_s")
+        plan.zellen["reich_s"]["di"].art = "schicht"
+        plan.zellen["reich_s"]["di"].schicht = self.stamm.schichten["14-20"]
+        nachher = b.frueh_spaet_bilanz(plan, "reich_s")
+        self.assertEqual(nachher[1], vorher[1] + 1)
+
+    def test_kurka_nimmt_nicht_teil(self):
+        self.assertFalse(self.stamm.mitarbeiter["kurka_j"].frueh_spaet_ausgleich)
+        self.assertFalse(self.stamm.mitarbeiter["kurz_u"].frueh_spaet_ausgleich)
+
+    def test_einseitige_bilanz_wird_bestraft(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag in ("di", "do", "fr", "sa"):
+            plan.zellen["reich_s"][tag].art = "schicht"
+            plan.zellen["reich_s"][tag].schicht = self.stamm.schichten[
+                "14-20" if tag != "sa" else "12-18"]
+        befunde = [b for b in pruefen(plan, self.stamm, self.vorgabe,
+                                      self.historie).befunde
+                   if b.regel == "frueh_spaet_ausgleich"]
+        self.assertTrue(any("S. Reich" in b.text for b in befunde), befunde)
+
+
+class TestTerminWechsel(unittest.TestCase):
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW42.yaml")
+        self.historie = lade_historie(WURZEL / "daten/historie")
+
+    def test_termin_ist_als_abwechselnd_konfiguriert(self):
+        self.assertTrue(self.vorgabe.termine[0].abwechselnd)
+
+    def test_letzter_halter_wird_aus_der_historie_erkannt(self):
+        b = Bewerter(self.stamm, self.vorgabe, self.historie)
+        # KW41: Kurka Di 6-13:30 - er war zuletzt dran
+        self.assertEqual(b._letzter_terminhalter(self.vorgabe.termine[0]), "kurka_j")
+
+    def test_wiederholung_wird_bemaengelt(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        plan.zellen["kurka_j"]["di"].art = "schicht"
+        plan.zellen["kurka_j"]["di"].schicht = self.stamm.schichten["6-13:30"]
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe,
+                                           self.historie).befunde}
+        self.assertIn("termin_wechsel", regeln)
+
+    def test_wechsel_auf_rohwer_ist_in_ordnung(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        plan.zellen["rohwer_c"]["di"].art = "schicht"
+        plan.zellen["rohwer_c"]["di"].schicht = self.stamm.schichten["6-13:30"]
+        befunde = pruefen(plan, self.stamm, self.vorgabe, self.historie).befunde
+        regeln = {b.regel for b in befunde}
+        self.assertNotIn("termin_wechsel", regeln)
+        self.assertNotIn("termin", regeln)
 
 
 class TestBacktest(unittest.TestCase):

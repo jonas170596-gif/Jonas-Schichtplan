@@ -44,6 +44,7 @@ termine:
     ab: "13:30"
     kandidaten: [kurka_j, rohwer_c]
     anzahl: 1
+    abwechselnd: true
 
 # --- Zusatzaufgaben, die im Plan vermerkt werden ---
 zusatz: {}
