@@ -1,7 +1,8 @@
 {
   "woche": "2025-KW36",
-  "datum_von": "2025-08-31",
-  "datum_bis": "2025-09-05",
+  "datum_von": "2025-09-01",
+  "datum_bis": "2025-09-06",
+  "datum_laut_papier": "2025-08-31 bis 2025-09-05",
   "filiale": "Winterbach",
   "status": "final",
   "quelle_foto": "ad5b63e1-image.jpg",

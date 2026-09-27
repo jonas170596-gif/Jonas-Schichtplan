@@ -1,10 +1,12 @@
 {
   "woche": "2025-KW30",
-  "datum_von": "2025-07-20",
-  "datum_bis": "2025-07-25",
+  "datum_von": "2025-07-21",
+  "datum_bis": "2025-07-26",
+  "datum_laut_papier": "2025-07-20 bis 2025-07-25",
   "filiale": "Winterbach",
   "status": "final",
   "quelle_foto": "6bcdac09-image.jpg",
+  "notiz": "Zwei Zellen im Original ohne Endzeit ('6-')",
   "tage": [
     "mo",
     "di",
@@ -368,6 +370,5 @@
         "zusatz": []
       }
     }
-  },
-  "notiz": "Zwei Zellen im Original ohne Endzeit ('6-')"
+  }
 }

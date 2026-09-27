@@ -11,7 +11,7 @@ from __future__ import annotations
 import collections
 import statistics
 
-from .historie import HistWoche, lade_historie, schicht_aus_hist
+from .historie import HistWoche, kalenderabgleich, lade_historie, schicht_aus_hist
 from .modelle import TAGE, TAG_LANG, zu_text, zu_zeit
 
 NAMEN = {
@@ -184,7 +184,11 @@ def bericht(wochen: list[HistWoche] | None = None) -> str:
     z.append(f"Ausgewertete Wochen (final): {len(wochen)}")
     if wochen:
         z.append(f"Zeitraum: {wochen[0].datum_von} bis {wochen[-1].datum_von}")
-    z.append("")
+    if meldungen := kalenderabgleich(wochen):
+        z.append("== Kalenderabgleich ==")
+        for m in meldungen:
+            z.append(f"  ACHTUNG {m}")
+        z.append("")
     z.append("== Schichtkatalog ==")
     for sid, info in schichtkatalog(wochen, 1).items():
         z.append(f"  {sid:<12} {info['anzahl']:>4}x")

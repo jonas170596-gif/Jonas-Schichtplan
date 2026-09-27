@@ -1,10 +1,12 @@
 {
   "woche": "2025-KW31",
-  "datum_von": "2025-07-27",
-  "datum_bis": "2025-08-01",
+  "datum_von": "2025-07-28",
+  "datum_bis": "2025-08-02",
+  "datum_laut_papier": "2025-07-27 bis 2025-08-01",
   "filiale": "Winterbach",
   "status": "final",
   "quelle_foto": "ace8f2ac-image.jpg",
+  "notiz": "Zusatzspalte 'Inventur/Putzen' am Samstag; zwei Samstagszeiten im Original offen ('6-')",
   "tage": [
     "mo",
     "di",
@@ -386,6 +388,5 @@
         "zusatz": []
       }
     }
-  },
-  "notiz": "Zusatzspalte 'Inventur/Putzen' am Samstag; zwei Samstagszeiten im Original offen ('6-')"
+  }
 }

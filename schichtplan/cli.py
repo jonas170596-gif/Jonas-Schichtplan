@@ -28,7 +28,7 @@ from .bewertung import Bewerter
 from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .feiertage import Kalender, feiertage_bw, sondertage
-from .historie import lade_historie
+from .historie import kalenderabgleich, lade_historie
 from .konfig import KONFIG_DIR, lade_stammdaten, lade_wochenvorgabe
 from .modelle import TAGE, TAG_LANG, Plan, Zelle, zu_index
 
@@ -220,6 +220,12 @@ def cmd_plan(args) -> int:
         montag = dt.date.fromisoformat(vorgabe.datum_von)
     except ValueError:
         montag = None
+    if meldungen := kalenderabgleich(vorwochen):
+        print("Historie passt nicht zum Feiertagskalender:")
+        for m in meldungen:
+            print("  ACHTUNG", m)
+        print()
+
     handplan = vorgabe.modus == "manuell"
     if montag and (sonder := kalender.weihnachtswoche(montag)) and not handplan:
         print(f"ACHTUNG Sonderwoche: {sonder}")

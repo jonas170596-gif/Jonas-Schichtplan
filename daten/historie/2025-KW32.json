@@ -1,10 +1,12 @@
 {
   "woche": "2025-KW32",
-  "datum_von": "2025-08-03",
-  "datum_bis": "2025-08-08",
+  "datum_von": "2025-08-04",
+  "datum_bis": "2025-08-09",
+  "datum_laut_papier": "2025-08-03 bis 2025-08-08",
   "filiale": "Winterbach",
   "status": "final",
   "quelle_foto": "bc958339-image.jpg",
+  "notiz": "Zusatzspalte 'Grossputz Theke' am Samstag; Entwurf siehe 2025-KW32-v1",
   "tage": [
     "mo",
     "di",
@@ -376,6 +378,5 @@
         "zusatz": []
       }
     }
-  },
-  "notiz": "Zusatzspalte 'Grossputz Theke' am Samstag; Entwurf siehe 2025-KW32-v1"
+  }
 }

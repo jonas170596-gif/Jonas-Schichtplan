@@ -1,10 +1,12 @@
 {
   "woche": "2025-KW40",
-  "datum_von": "2025-09-28",
-  "datum_bis": "2025-10-03",
+  "datum_von": "2025-09-29",
+  "datum_bis": "2025-10-04",
+  "datum_laut_papier": "2025-09-28 bis 2025-10-03",
   "filiale": "Winterbach",
-  "status": "final",
+  "status": "unklar",
   "quelle_foto": "8bf05dcd-image.jpg",
+  "notiz": "Widerspruch: das Papier markiert Samstag als Feiertag, der Tag der Deutschen Einheit fiel 2025 aber auf Freitag (03.10.). Die Kopfzeile des Formulars ist einen Tag zu frueh datiert, dadurch steht die Feiertagsspalte vermutlich verrutscht. Bis zur Klaerung nicht ausgewertet - 'status' auf 'final' setzen, sobald klar ist, welcher Tag tatsaechlich zu war.",
   "tage": [
     "mo",
     "di",
@@ -356,6 +358,5 @@
         "zusatz": []
       }
     }
-  },
-  "notiz": "Samstag 03.10. Feiertag (Tag der Deutschen Einheit) - Spalte durchgestrichen"
+  }
 }

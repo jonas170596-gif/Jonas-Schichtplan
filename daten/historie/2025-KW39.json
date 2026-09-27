@@ -1,10 +1,12 @@
 {
   "woche": "2025-KW39",
-  "datum_von": "2025-09-21",
-  "datum_bis": "2025-09-26",
+  "datum_von": "2025-09-22",
+  "datum_bis": "2025-09-27",
+  "datum_laut_papier": "2025-09-21 bis 2025-09-26",
   "filiale": "Winterbach",
   "status": "final",
   "quelle_foto": "6d4321d6-image.jpg",
+  "notiz": "Montag Schulung fuer drei Mitarbeiter",
   "tage": [
     "mo",
     "di",
@@ -376,6 +378,5 @@
         "zusatz": []
       }
     }
-  },
-  "notiz": "Montag Schulung fuer drei Mitarbeiter"
+  }
 }

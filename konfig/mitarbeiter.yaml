@@ -132,8 +132,10 @@ mitarbeiter:
     soll_tage: 5
     praesenztage: 5                # Schichten + Schultage ergeben immer 5 Tage
     abwesenheit_stunden: {schule: 8}   # ein Schultag deckt 8 h des Wochensolls
-    max_spaet_pro_woche: 1         # Azubi soll nicht staendig spaet stehen
-    springer: true                 # wechselnde Schichten sind bei ihm gewollt
+    springer: true                 # wechselnde Schichten sind bei ihm gewollt;
+                                   # Spaetschichten sind moeglich, wenn noetig.
+                                   # Der Spaet-Frueh-Wechsel gilt fuer ihn wie
+                                   # fuer alle anderen.
     zaehlt_stundenbudget: false    # Azubistunden zaehlen nicht gegen die 255 h
     erlaubte_schichten: [8-16, 6-14, 11-20, 12-20, 6-13:30, 9-18, 10-18, 11-18, 12-18]
     stamm_schichten: {8-16: 0.45, 6-14: 0.20, 11-20: 0.10, 9-18: 0.10, 10-18: 0.10}

@@ -2,6 +2,7 @@
 Wochenvorgabe."""
 from __future__ import annotations
 
+import datetime as _dt
 import pathlib
 from dataclasses import dataclass, field
 
@@ -397,6 +398,19 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
     for tm in termine:
         if tm.tag not in TAGE:
             raise ValueError(f"Termin {tm.name}: unbekannter Tag {tm.tag!r}")
+
+    woche = roh["woche"]
+    datum_von = str(roh["datum_von"])
+    try:
+        jahr, _, kw = woche.partition("-KW")
+        montag = _dt.date.fromisocalendar(int(jahr), int(kw.split("-")[0]), 1)
+    except (ValueError, TypeError):
+        montag = None
+    if montag and datum_von != montag.isoformat():
+        raise ValueError(
+            f"{pfad}: datum_von ist {datum_von}, der Montag von {woche} ist aber "
+            f"{montag}. Ein falsches Datum verschiebt alle Feiertagsregeln - bitte "
+            f"korrigieren (oder die Woche umbenennen).")
 
     modus = roh.get("modus", "auto")
     if modus not in ("auto", "manuell"):

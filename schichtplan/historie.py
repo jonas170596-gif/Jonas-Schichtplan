@@ -58,6 +58,29 @@ class HistWoche:
                 if not all(r[t].art == "feiertag" for r in self.plan.values())]
 
 
+def kalenderabgleich(wochen: list[HistWoche]) -> list[str]:
+    """Stimmen die als Feiertag markierten Spalten mit dem Kalender ueberein?
+
+    Die Kopfzeilen der Papierplaene sind durchgaengig einen Tag zu frueh
+    datiert; dadurch kann die Feiertagsspalte verrutscht sein."""
+    import datetime as dt
+
+    from .feiertage import Kalender
+    kalender = Kalender()
+    meldungen = []
+    for w in wochen:
+        montag = dt.date.fromisoformat(w.datum_von)
+        laut_plan = sorted(t for t in TAGE
+                           if all(r[t].art == "feiertag" for r in w.plan.values()))
+        laut_kalender = sorted(t for i, t in enumerate(TAGE)
+                               if kalender.ist_feiertag(montag + dt.timedelta(days=i)))
+        if laut_plan != laut_kalender:
+            meldungen.append(
+                f"{w.woche}: Plan schliesst {laut_plan or ['nichts']}, "
+                f"der Kalender nennt {laut_kalender or ['nichts']}")
+    return meldungen
+
+
 def lade_historie(ordner: pathlib.Path | str = HISTORIE_DIR,
                   nur_final: bool = True) -> list[HistWoche]:
     ordner = pathlib.Path(ordner)

@@ -182,13 +182,16 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 | B. Kohl | w | 30 | 4 | - | - | zwei freie Tage, moeglichst zusammenhaengend |
 | C. Kurz | f w o | 20 | 3 | Di | Fr, Sa | Muster Mo 8-14 / Mi 8-13 / Do 8-14 |
 | U. Kurz | f w | Reserve | - | Di | - | so wenig wie moeglich, breit einsetzbar |
-| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer, hoechstens 1 Spaetschicht |
+| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer, breit einsetzbar |
 
 \* Menzler rechnet anders: 5 Praesenztage, Schichten **und** Schultage
 zusammen. Ein Schultag deckt 8 h des Wochensolls ab, also vier Schichten bei
 einem Schultag, drei bei zweien, fuenf ohne. Dadurch ist er auch dann dabei,
 wenn sonst niemand fehlt. Seine Stunden zaehlen nicht gegen das 255-h-Budget,
 und als Springer bekommt er keine Strafe fuer wechselnde Schichtarten.
+Spaetschichten sind moeglich, wenn die Besetzung es braucht - eine feste
+Obergrenze gibt es nicht. Die Regel gegen Spaet-Frueh-Wechsel gilt fuer ihn
+wie fuer alle anderen.
 
 **fest frei** gilt immer. **bevorzugt frei** soll frei bleiben, darf aber
 weichen, wenn die Besetzung es verlangt - der Plan weist es dann als Hinweis aus.
@@ -297,6 +300,29 @@ sollten. `--seed` macht den Lauf reproduzierbar; ein anderer Seed liefert eine
 andere gleichwertige Loesung - ganz brauchbar, wenn einem ein Plan nicht
 gefaellt.
 
+## Kalender und Altplaene
+
+Die Kopfzeilen der abfotografierten Formulare sind **durchgaengig einen Tag zu
+frueh** datiert - sie nennen den Sonntag und den Freitag statt Montag und
+Samstag. In `daten/historie` stehen deshalb die echten Kalenderdaten, die
+Papierangabe bleibt als `datum_laut_papier` daneben stehen.
+
+Das war kein Schoenheitsfehler: `datum_von` steuert die Feiertagsrechnung. Um
+so etwas kuenftig sofort zu sehen, gibt es zwei Pruefungen.
+
+* Eine Wochenvorgabe, deren `datum_von` nicht der Montag der genannten
+  Kalenderwoche ist, wird abgelehnt.
+* `analyse` und `plan` gleichen die als Feiertag markierten Spalten der
+  Historie gegen den Kalender ab und melden Abweichungen.
+
+Ein Fall ist dabei aufgefallen: **2025-KW40**. Das Papier markiert Samstag als
+Feiertag, der Tag der Deutschen Einheit fiel 2025 aber auf den Freitag
+(03.10.). Die Woche steht auf `status: unklar` und wird nicht ausgewertet, bis
+klar ist, welcher Tag tatsaechlich zu war. Danach `status` auf `final` setzen.
+
+(2026 faellt der 03.10. tatsaechlich auf einen Samstag - der Planer rechnet das
+jedes Jahr neu aus.)
+
 ## Neue Altplaene aufnehmen
 
 Eine JSON-Datei je Woche in `daten/historie/`, Aufbau siehe
@@ -315,7 +341,6 @@ hoch, dass sie praktisch hart sind:
 | Regel | was sie will |
 |---|---|
 | `faehigkeit` | f und w durchgehend besetzt, o in der Fruehschicht |
-| `zu_viel_spaet` | Azubi hoechstens eine Spaetschicht pro Woche |
 | `gruppenbesetzung` | in jeder Fruehschicht einer von Kurka / Rohwer / Marino |
 | `unvertraeglich` | Paare, die nicht zusammenarbeiten duerfen (derzeit keins aktiv) |
 | `termin` | Teamleitersitzung o. Ae. ist abgedeckt |

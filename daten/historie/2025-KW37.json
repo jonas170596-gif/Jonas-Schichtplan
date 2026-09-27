@@ -1,10 +1,12 @@
 {
   "woche": "2025-KW37",
-  "datum_von": "2025-09-07",
-  "datum_bis": "2025-09-12",
+  "datum_von": "2025-09-08",
+  "datum_bis": "2025-09-13",
+  "datum_laut_papier": "2025-09-07 bis 2025-09-12",
   "filiale": "Winterbach",
   "status": "final",
   "quelle_foto": "065cdd3c-image.jpg",
+  "notiz": "Korrigierte Fassung (ueberklebte Zellen); Erstfassung siehe 2025-KW37-v1",
   "tage": [
     "mo",
     "di",
@@ -372,6 +374,5 @@
         "zusatz": []
       }
     }
-  },
-  "notiz": "Korrigierte Fassung (ueberklebte Zellen); Erstfassung siehe 2025-KW37-v1"
+  }
 }

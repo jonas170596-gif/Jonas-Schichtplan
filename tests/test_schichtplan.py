@@ -10,7 +10,7 @@ from schichtplan.backtest import plan_aus_historie, vorgabe_aus_historie
 from schichtplan.bewertung import Bewerter, pruefen
 from schichtplan.feiertage import Kalender, feiertage_bw, ostersonntag
 from schichtplan.generator import erzeuge, grundgeruest
-from schichtplan.historie import lade_historie
+from schichtplan.historie import kalenderabgleich, lade_historie
 from schichtplan.konfig import lade_stammdaten, lade_wochenvorgabe
 from schichtplan.modelle import TAGE, TAG_LANG, zu_index, zu_text
 from schichtplan import export
@@ -35,8 +35,19 @@ class TestHistorie(unittest.TestCase):
     def setUp(self):
         self.wochen = lade_historie(WURZEL / "daten/historie")
 
-    def test_14_finale_wochen(self):
-        self.assertEqual(len(self.wochen), 14)
+    def test_finale_wochen(self):
+        # KW40 steht auf 'unklar' - Papier und Kalender widersprechen sich
+        self.assertEqual(len(self.wochen), 13)
+        self.assertNotIn("2025-KW40", [w.woche for w in self.wochen])
+
+    def test_datum_ist_der_echte_montag(self):
+        for w in lade_historie(WURZEL / "daten/historie", nur_final=False):
+            jahr, kw = w.woche.replace("-v1", "").split("-KW")
+            montag = datetime.date.fromisocalendar(int(jahr), int(kw), 1)
+            self.assertEqual(w.datum_von, montag.isoformat(), w.woche)
+
+    def test_feiertagsspalten_passen_zum_kalender(self):
+        self.assertEqual(kalenderabgleich(self.wochen), [])
 
     def test_jede_zelle_belegt(self):
         for w in self.wochen:
@@ -46,6 +57,25 @@ class TestHistorie(unittest.TestCase):
     def test_entwuerfe_werden_ausgeblendet(self):
         alle = lade_historie(WURZEL / "daten/historie", nur_final=False)
         self.assertEqual(len(alle), 16)
+
+
+class TestWochendatum(unittest.TestCase):
+    """Ein falsch datierter Wochenplan verschiebt alle Feiertagsregeln."""
+
+    def test_falsches_datum_wird_abgelehnt(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False,
+                                         encoding="utf-8") as f:
+            f.write("woche: 2025-KW40\ndatum_von: 2025-09-28\n")   # Sonntag
+            pfad = f.name
+        with self.assertRaises(ValueError) as fehler:
+            lade_wochenvorgabe(pfad)
+        self.assertIn("2025-09-29", str(fehler.exception))
+        pathlib.Path(pfad).unlink()
+
+    def test_richtiges_datum_geht_durch(self):
+        v = lade_wochenvorgabe(WURZEL / "wochen/2025-KW40.yaml")
+        self.assertEqual(v.datum_von, "2025-09-29")
 
 
 class TestKonfig(unittest.TestCase):
@@ -201,6 +231,35 @@ class TestBewertung(unittest.TestCase):
         self.assertTrue(any("Ofen" in x for x in self._faehigkeitsluecken(plan, "do")))
         self._setze(plan, "kurka_j", "do", "6-14")           # fwo
         self.assertFalse(any("Ofen" in x for x in self._faehigkeitsluecken(plan, "do")))
+
+    def test_menzler_darf_spaet_arbeiten(self):
+        """Keine feste Obergrenze mehr - Spaet ist moeglich, wenn noetig."""
+        self.assertIsNone(self.stamm.mitarbeiter["menzler_a"].max_spaet_pro_woche)
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag in ("mo", "di", "mi"):
+            self._setze(plan, "menzler_a", tag, "11-20")
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("zu_viel_spaet", regeln)
+
+    def test_wechselregel_gilt_auch_fuer_den_springer(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "menzler_a", "mo", "11-20")
+        self._setze(plan, "menzler_a", "di", "6-14")
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "wechsel"]
+        self.assertTrue(any("A. Menzler" in x for x in texte), texte)
+
+    def test_zweiter_wechsel_kostet_den_springer_auch_mehr(self):
+        # Wechsel zaehlen nur zwischen aufeinanderfolgenden Tagen, deshalb
+        # Mo-Do durchgehend belegen (der Schultag am Do wird ueberschrieben).
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag, sid in (("mo", "11-20"), ("di", "6-14"),
+                         ("mi", "11-20"), ("do", "6-14")):
+            self._setze(plan, "menzler_a", tag, sid)
+        befunde = {b.regel: b.punkte
+                   for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("wechsel_ueber_limit", befunde)
+        self.assertGreater(befunde["wechsel_ueber_limit"], befunde["wechsel"])
 
     def test_kurka_meidet_spaetschichten(self):
         plan = grundgeruest(self.stamm, self.vorgabe)
@@ -383,15 +442,34 @@ class TestAusgleich(unittest.TestCase):
         self.assertFalse(self.stamm.mitarbeiter["kurz_u"].frueh_spaet_ausgleich)
 
     def test_einseitige_bilanz_wird_bestraft(self):
+        """Lauter Spaetschichten muessen die Bilanz messbar verschieben."""
+        b = Bewerter(self.stamm, self.vorgabe, self.historie)
+        leer = grundgeruest(self.stamm, self.vorgabe)
+        vorher = b.frueh_spaet_bilanz(leer, "reich_s")
+        voll = grundgeruest(self.stamm, self.vorgabe)
+        for tag in ("di", "do", "fr", "sa"):
+            voll.zellen["reich_s"][tag].art = "schicht"
+            voll.zellen["reich_s"][tag].schicht = self.stamm.schichten[
+                "14-20" if tag != "sa" else "12-18"]
+        nachher = b.frueh_spaet_bilanz(voll, "reich_s")
+        self.assertEqual(nachher[1], vorher[1] + 4)
+        self.assertEqual(nachher[0], vorher[0])          # keine Fruehschicht dazu
+
+    def test_ausgleich_straft_erst_jenseits_der_toleranz(self):
+        b = Bewerter(self.stamm, self.vorgabe, self.historie)
         plan = grundgeruest(self.stamm, self.vorgabe)
         for tag in ("di", "do", "fr", "sa"):
             plan.zellen["reich_s"][tag].art = "schicht"
             plan.zellen["reich_s"][tag].schicht = self.stamm.schichten[
                 "14-20" if tag != "sa" else "12-18"]
-        befunde = [b for b in pruefen(plan, self.stamm, self.vorgabe,
+        frueh, spaet, _ = b.frueh_spaet_bilanz(plan, "reich_s")
+        befunde = [x for x in pruefen(plan, self.stamm, self.vorgabe,
                                       self.historie).befunde
-                   if b.regel == "frueh_spaet_ausgleich"]
-        self.assertTrue(any("S. Reich" in b.text for b in befunde), befunde)
+                   if x.regel == "frueh_spaet_ausgleich" and "S. Reich" in x.text]
+        if abs(frueh - spaet) > self.stamm.regeln.ausgleich_toleranz:
+            self.assertTrue(befunde, f"{frueh} frueh / {spaet} spaet ohne Befund")
+        else:
+            self.assertFalse(befunde)
 
 
 class TestTerminWechsel(unittest.TestCase):
@@ -437,8 +515,9 @@ class TestBacktest(unittest.TestCase):
 
     def test_feiertag_schliesst_den_tag(self):
         stamm = lade_stammdaten(WURZEL / "konfig")
-        w = next(w for w in lade_historie(WURZEL / "daten/historie")
+        w = next(w for w in lade_historie(WURZEL / "daten/historie", nur_final=False)
                  if w.woche == "2025-KW40")
+        self.assertEqual(w.status, "unklar")     # Papier und Kalender uneins
         self.assertEqual(vorgabe_aus_historie(w, stamm).geschlossen, ["sa"])
 
     def test_original_laesst_sich_bewerten(self):
