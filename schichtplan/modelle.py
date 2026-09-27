@@ -68,6 +68,10 @@ class Mitarbeiter:
     soll_tage: int = 5
     max_tage: int = 6
     feste_freie_tage: list[str] = field(default_factory=list)
+    freie_tage_zusammenhaengend: bool = False
+    moeglichst_wenig: bool = False
+    zaehlt_stundenbudget: bool = True
+    stunden_toleranz_h: float | None = None
     erlaubte_schichten: list[str] = field(default_factory=list)
     stamm_schichten: dict[str, float] = field(default_factory=dict)  # id -> Gewicht 0..1
     max_tage_in_folge: int = 6

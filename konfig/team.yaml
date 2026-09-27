@@ -1,0 +1,30 @@
+# Regeln zur Zusammensetzung einer Schicht - wer muss da sein, wer nicht
+# zusammen. Hier landen auch die Qualifikationen (Theke / Produktion), sobald
+# sie feststehen: einfach eine weitere Gruppenregel.
+#
+# gruppenbesetzung: mindestens `min` Personen aus `gruppe` muessen passen
+# unvertraeglich:   hoechstens `max_gleichzeitig` Personen aus `gruppe`
+#
+# Beide Regeln lassen sich eingrenzen auf
+#   kategorie:   frueh | mittel | spaet   (Schichtkategorie aus schichten.yaml)
+#   startet_bis: "07:00"                  (Schichtbeginn bis einschliesslich)
+#   endet_ab:    "20:00"                  (Schichtende ab einschliesslich)
+#   tage:        [mo, di, ...]            (sonst alle offenen Tage)
+
+gruppenbesetzung:
+  - name: "Frueh-Anker"
+    gruppe: [kurka_j, rohwer_c, marino_a]
+    min: 1
+    kategorie: frueh
+    grund: "In der Fruehschicht muss einer der drei da sein."
+
+  # Vorlage fuer die Qualifikationen, sobald sie feststehen:
+  # - name: "Theke besetzt"
+  #   gruppe: [rohwer_c, reich_s, nachtrieb_i]
+  #   min: 1
+
+unvertraeglich:
+  - name: "Kohl / Reich nicht zusammen spaet"
+    gruppe: [kohl_b, reich_s]
+    max_gleichzeitig: 1
+    kategorie: spaet

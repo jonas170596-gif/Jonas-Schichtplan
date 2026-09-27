@@ -69,7 +69,10 @@ class Bewerter:
         erg = Bewertung()
         add = self._sammler(erg, detail)
         self._besetzung(plan, add)
+        self._team(plan, add)
+        self._termine(plan, add)
         self._arbeitszeit(plan, add)
+        self._stundenbudget(plan, add)
         self._wuensche(plan, add)
         self._qualitaet(plan, add)
         return erg
@@ -91,11 +94,15 @@ class Bewerter:
             zellen = [r[t] for r in plan.zellen.values() if r[t].arbeitet]
             koepfe = len(zellen)
             ziel = b.kopfzahl.get(t, koepfe)
-            weg = max(0, abs(koepfe - ziel) - b.kopfzahl_toleranz)
+            if koepfe < ziel:
+                weg = max(0, ziel - koepfe - b.kopfzahl_toleranz_unter)
+                wort = "nur"
+            else:
+                weg = max(0, koepfe - ziel - b.kopfzahl_toleranz_ueber)
+                wort = "schon"
             if weg:
                 add("kopfzahl", weg,
-                    f"{TAG_LANG[t]}: {koepfe} Mitarbeiter statt {ziel}"
-                    f" (Toleranz +/-{b.kopfzahl_toleranz})",
+                    f"{TAG_LANG[t]}: {wort} {koepfe} Mitarbeiter statt {ziel}",
                     "fehler" if weg > 1 else "warnung")
 
             frueh = sum(1 for z in zellen if z.schicht.von <= b.frueh_bis)
@@ -134,6 +141,79 @@ class Bewerter:
                     f"({unter} Personenhalbstunden)", "fehler")
             add("besetzung_ueber", ueber)
 
+    # ---- Team: wer muss da sein, wer nicht zusammen --------------------- #
+    def _team(self, plan: Plan, add):
+        for regel in self.stamm.gruppenbesetzung:
+            for tag in self.tage:
+                if not regel.gilt_am(tag):
+                    continue
+                da = sum(1 for mid in regel.gruppe
+                         if (z := plan.zellen.get(mid, {}).get(tag)) is not None
+                         and z.arbeitet and regel.passt(tag, z.schicht))
+                if da < regel.min:
+                    add("gruppenbesetzung", regel.min - da,
+                        f"{TAG_LANG[tag]}: {regel.name} - {da} von {regel.min} besetzt"
+                        + (f" ({regel.grund})" if regel.grund else ""), "fehler")
+
+        for regel in self.stamm.unvertraeglich:
+            grenze = regel.max_gleichzeitig
+            if grenze is None:
+                continue
+            for tag in self.tage:
+                if not regel.gilt_am(tag):
+                    continue
+                namen = [self.stamm.mitarbeiter[mid].name for mid in regel.gruppe
+                         if (z := plan.zellen.get(mid, {}).get(tag)) is not None
+                         and z.arbeitet and regel.passt(tag, z.schicht)]
+                if len(namen) > grenze:
+                    add("unvertraeglich", len(namen) - grenze,
+                        f"{TAG_LANG[tag]}: {regel.name} - {' und '.join(namen)} "
+                        f"gleichzeitig eingeteilt", "fehler")
+
+    def _termine(self, plan: Plan, add):
+        for tm in self.vorgabe.termine:
+            if tm.tag not in self.tage:
+                continue
+            passend = [mid for mid in tm.kandidaten
+                       if (z := plan.zellen.get(mid, {}).get(tm.tag)) is not None
+                       and z.arbeitet and z.schicht.bis == tm.ab]
+            if len(passend) < tm.anzahl:
+                from .modelle import zu_zeit
+                add("termin", tm.anzahl - len(passend),
+                    f"{TAG_LANG[tm.tag]}: {tm.name} ab {zu_zeit(tm.ab)} - "
+                    f"{len(passend)} von {tm.anzahl} Kandidaten enden passend", "fehler")
+
+    # ---- Gesamtstundenbudget -------------------------------------------- #
+    def gesamtbudget(self) -> float:
+        """Wochenbudget, um ausgefallene Sollstunden (Urlaub) gekuerzt."""
+        b = self.stamm.bedarf
+        if not b.wochenstunden_gesamt:
+            return 0.0
+        ausfall = 0.0
+        for mid, m in self.stamm.mitarbeiter.items():
+            if not (m.im_plan and m.aktiv and m.zaehlt_stundenbudget) or m.moeglichst_wenig:
+                continue
+            ziel, _ = self._ziel(mid)
+            ausfall += max(0.0, self.soll_stunden[mid] - ziel)
+        return max(0.0, b.wochenstunden_gesamt - ausfall)
+
+    def gesamtstunden(self, plan: Plan) -> float:
+        return sum(z.stunden
+                   for mid, reihe in plan.zellen.items()
+                   if self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
+                   for z in reihe.values())
+
+    def _stundenbudget(self, plan: Plan, add):
+        ziel = self.gesamtbudget()
+        if not ziel:
+            return
+        ist = self.gesamtstunden(plan)
+        weg = max(0.0, abs(ist - ziel) - self.stamm.bedarf.wochenstunden_gesamt_toleranz)
+        add("gesamtstunden", weg,
+            f"Gesamt {ist:.1f} h statt {ziel:.1f} h "
+            f"(+/-{self.stamm.bedarf.wochenstunden_gesamt_toleranz:.0f} h, ohne Azubi)"
+            if weg else "", "warnung")
+
     # ---- Arbeitszeit --------------------------------------------------- #
     def _arbeitszeit(self, plan: Plan, add):
         for mid, m in self.stamm.mitarbeiter.items():
@@ -144,8 +224,20 @@ class Bewerter:
             tage = sum(1 for z in reihe.values() if z.arbeitet)
             if self.verfuegbare_tage[mid] == 0:
                 continue
+            if m.moeglichst_wenig:
+                # keine Soll-Vorgabe: jede Stunde kostet, die Besetzungsregeln
+                # muessen den Einsatz rechtfertigen
+                add("sparsam_einsetzen", stunden,
+                    f"{m.name}: {stunden:.1f} h (Reserve, soll wenig arbeiten)"
+                    if stunden else "")
+                if tage > m.max_tage:
+                    add("max_tage", tage - m.max_tage,
+                        f"{m.name}: {tage} Arbeitstage, erlaubt sind {m.max_tage}", "fehler")
+                continue
             soll_h, soll_t = self._ziel(mid)
-            weg_h = max(0.0, abs(stunden - soll_h) - self.stamm.regeln.stunden_toleranz_h)
+            toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
+                        else self.stamm.regeln.stunden_toleranz_h)
+            weg_h = max(0.0, abs(stunden - soll_h) - toleranz)
             add("wochenstunden", weg_h,
                 f"{m.name}: {stunden:.1f} h statt {soll_h:.1f} h" if weg_h >= 2 else "",
                 "warnung")
@@ -192,6 +284,7 @@ class Bewerter:
             if not m.im_plan:
                 continue
             reihe = plan.zellen[mid]
+            wechsel = []
             for a, b_ in zip(self.tage, self.tage[1:]):
                 za, zb = reihe[a], reihe[b_]
                 if za.arbeitet and zb.arbeitet:
@@ -201,10 +294,30 @@ class Bewerter:
                             f"{m.name}: nur {pause / 2:.1f} h Ruhe zwischen "
                             f"{TAG_LANG[a]} und {TAG_LANG[b_]} "
                             f"(Untergrenze {self.stamm.regeln.ruhezeit_min_h} h)", "fehler")
-                    elif pause < ruhe_slots:
-                        add("ruhezeit", (ruhe_slots - pause) / 2,
-                            f"{m.name}: {pause / 2:.1f} h Ruhe zwischen "
-                            f"{TAG_LANG[a]} und {TAG_LANG[b_]}", "warnung")
+                    if pause < ruhe_slots:
+                        wechsel.append((a, b_, pause))
+            # Spaet -> Frueh: einmal pro Woche geduldet, jeder weitere teuer
+            grenze = self.stamm.regeln.wechsel_max_pro_woche
+            for i, (a, b_, pause) in enumerate(wechsel):
+                if i < grenze:
+                    add("wechsel", 1,
+                        f"{m.name}: kurzer Wechsel {TAG_LANG[a]} -> {TAG_LANG[b_]} "
+                        f"({pause / 2:.1f} h Ruhe)")
+                else:
+                    add("wechsel_ueber_limit", 1,
+                        f"{m.name}: {i + 1}. kurzer Wechsel in der Woche "
+                        f"({TAG_LANG[a]} -> {TAG_LANG[b_]}, {pause / 2:.1f} h Ruhe) - "
+                        f"erlaubt ist {grenze}", "warnung")
+
+            if m.freie_tage_zusammenhaengend:
+                frei = [i for i, t_ in enumerate(self.tage) if not reihe[t_].arbeitet
+                        and reihe[t_].art == "frei"]
+                if len(frei) >= 2:
+                    bloecke = 1 + sum(1 for x, y in zip(frei, frei[1:]) if y - x > 1)
+                    add("freie_tage_zusammenhaengend", bloecke - 1,
+                        f"{m.name}: freie Tage liegen in {bloecke} Bloecken "
+                        f"({', '.join(TAG_LANG[self.tage[i]] for i in frei)})"
+                        if bloecke > 1 else "")
             if m.stamm_schichten:
                 fremd = sum(1 - m.stamm_schichten.get(z.schicht.id, 0.0)
                             for z in reihe.values() if z.arbeitet)

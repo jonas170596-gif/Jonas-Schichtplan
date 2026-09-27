@@ -21,11 +21,46 @@ class Bedarf:
     frueh_bis: int
     schluss_min: dict[str, int]                   # Schichten, die bis Ladenschluss laufen
     besetzung_min: dict[str, list[tuple[int, int, int]]]   # tag -> [(von, bis, min)]
-    kopfzahl_toleranz: int = 0
+    kopfzahl_toleranz_unter: int = 0      # wie viele Koepfe unter Ziel straffrei
+    kopfzahl_toleranz_ueber: int = 0      # wie viele Koepfe ueber Ziel straffrei
+    wochenstunden_gesamt: float = 0.0     # 0 = kein Gesamtbudget
+    wochenstunden_gesamt_toleranz: float = 5.0
 
     def min_am_slot(self, tag: str, slot: int) -> int:
         return max((m for v, b, m in self.besetzung_min.get(tag, []) if v <= slot < b),
                    default=0)
+
+
+@dataclass
+class Gruppenregel:
+    """Mindest- oder Hoechstbesetzung aus einer Personengruppe.
+
+    `min` und `max_gleichzeitig` schliessen sich nicht aus - eine Regel kann
+    beides haben. Der Filter (kategorie/startet_bis/endet_ab) grenzt ein,
+    welche Schichten mitzaehlen."""
+    name: str
+    gruppe: list[str]
+    min: int = 0
+    max_gleichzeitig: int | None = None
+    kategorie: str | None = None
+    startet_bis: int | None = None
+    endet_ab: int | None = None
+    tage: list[str] | None = None
+    grund: str = ""
+
+    def passt(self, tag: str, schicht) -> bool:
+        if self.tage is not None and tag not in self.tage:
+            return False
+        if self.kategorie and schicht.kategorie != self.kategorie:
+            return False
+        if self.startet_bis is not None and schicht.von > self.startet_bis:
+            return False
+        if self.endet_ab is not None and schicht.bis < self.endet_ab:
+            return False
+        return True
+
+    def gilt_am(self, tag: str) -> bool:
+        return self.tage is None or tag in self.tage
 
 
 @dataclass
@@ -36,6 +71,7 @@ class Regeln:
     stunden_toleranz_h: float = 0.0
     max_tage_in_folge: int = 6
     samstage_frei_pro_x: int = 0        # 0 = aus; sonst: 1 freier Samstag je X Wochen
+    wechsel_max_pro_woche: int = 1      # kurze Wechsel (Spaet -> Frueh) je MA und Woche
 
 
 @dataclass
@@ -44,6 +80,8 @@ class Stammdaten:
     schichten: dict[str, Schicht]
     bedarf: Bedarf
     regeln: Regeln
+    gruppenbesetzung: list[Gruppenregel] = field(default_factory=list)
+    unvertraeglich: list[Gruppenregel] = field(default_factory=list)
 
 
 def _lies(pfad: pathlib.Path) -> dict:
@@ -82,6 +120,11 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             soll_tage=int(m.get("soll_tage", 5)),
             max_tage=int(m.get("max_tage", 6)),
             feste_freie_tage=list(m.get("feste_freie_tage", [])),
+            freie_tage_zusammenhaengend=bool(m.get("freie_tage_zusammenhaengend", False)),
+            moeglichst_wenig=bool(m.get("moeglichst_wenig", False)),
+            zaehlt_stundenbudget=bool(m.get("zaehlt_stundenbudget", True)),
+            stunden_toleranz_h=(float(m["stunden_toleranz_h"])
+                                if m.get("stunden_toleranz_h") is not None else None),
             erlaubte_schichten=erlaubt,
             stamm_schichten={k: float(v) for k, v in (m.get("stamm_schichten") or {}).items()},
             max_tage_in_folge=int(m.get("max_tage_in_folge", 6)),
@@ -102,7 +145,10 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             t: [(zu_index(f["von"]), zu_index(f["bis"]), int(f["min"])) for f in fenster]
             for t, fenster in roh_b.get("besetzung_min", {}).items()
         },
-        kopfzahl_toleranz=int(roh_b.get("kopfzahl_toleranz", 0)),
+        kopfzahl_toleranz_unter=int(roh_b.get("kopfzahl_toleranz_unter", 0)),
+        kopfzahl_toleranz_ueber=int(roh_b.get("kopfzahl_toleranz_ueber", 1)),
+        wochenstunden_gesamt=float(roh_b.get("wochenstunden_gesamt", 0)),
+        wochenstunden_gesamt_toleranz=float(roh_b.get("wochenstunden_gesamt_toleranz", 5)),
     )
 
     roh_r = _lies(ordner / "regeln.yaml")
@@ -113,8 +159,45 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         stunden_toleranz_h=float(roh_r.get("stunden_toleranz_h", 0)),
         max_tage_in_folge=int(roh_r.get("max_tage_in_folge", 6)),
         samstage_frei_pro_x=int(roh_r.get("samstage_frei_pro_x", 0)),
+        wechsel_max_pro_woche=int(roh_r.get("wechsel_max_pro_woche", 1)),
     )
-    return Stammdaten(mitarbeiter, schichten, bedarf, regeln)
+    roh_t = _lies(ordner / "team.yaml") if (ordner / "team.yaml").exists() else {}
+
+    def _gruppenregel(r: dict, feld_min: str) -> Gruppenregel:
+        unbekannt = [g for g in r["gruppe"] if g not in mitarbeiter]
+        if unbekannt:
+            raise ValueError(f"team.yaml/{r.get('name', '?')}: unbekannte Mitarbeiter {unbekannt}")
+        return Gruppenregel(
+            name=r.get("name", "unbenannt"),
+            gruppe=list(r["gruppe"]),
+            min=int(r.get("min", 0)),
+            max_gleichzeitig=(int(r["max_gleichzeitig"])
+                              if r.get("max_gleichzeitig") is not None else None),
+            kategorie=r.get("kategorie"),
+            startet_bis=zu_index(r["startet_bis"]) if r.get("startet_bis") else None,
+            endet_ab=zu_index(r["endet_ab"]) if r.get("endet_ab") else None,
+            tage=list(r["tage"]) if r.get("tage") else None,
+            grund=r.get("grund", ""),
+        )
+
+    return Stammdaten(
+        mitarbeiter, schichten, bedarf, regeln,
+        gruppenbesetzung=[_gruppenregel(r, "min")
+                          for r in (roh_t.get("gruppenbesetzung") or [])],
+        unvertraeglich=[_gruppenregel(r, "max_gleichzeitig")
+                        for r in (roh_t.get("unvertraeglich") or [])],
+    )
+
+
+@dataclass
+class Termin:
+    """Fixer Termin, fuer den jemand die Schicht frueher beenden muss -
+    z. B. die Teamleitersitzung am Dienstag ab 13:30."""
+    name: str
+    tag: str
+    ab: int                       # Slotindex; die Schicht muss genau dann enden
+    kandidaten: list[str]
+    anzahl: int = 1
 
 
 @dataclass
@@ -131,6 +214,7 @@ class Wochenvorgabe:
     wunsch_schicht: dict[str, dict[str, str]] = field(default_factory=dict)
     zusatz: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     soll_stunden: dict[str, float] = field(default_factory=dict)       # Override
+    termine: list[Termin] = field(default_factory=list)
     notiz: str = ""
 
 
@@ -160,6 +244,15 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
     zusatz = {ma: {t: (v if isinstance(v, list) else [v]) for t, v in tage.items()}
               for ma, tage in (roh.get("zusatz") or {}).items()}
 
+    termine = [
+        Termin(name=r.get("name", "Termin"), tag=r["tag"], ab=zu_index(r["ab"]),
+               kandidaten=list(r["kandidaten"]), anzahl=int(r.get("anzahl", 1)))
+        for r in (roh.get("termine") or [])
+    ]
+    for tm in termine:
+        if tm.tag not in TAGE:
+            raise ValueError(f"Termin {tm.name}: unbekannter Tag {tm.tag!r}")
+
     return Wochenvorgabe(
         woche=roh["woche"],
         datum_von=str(roh["datum_von"]),
@@ -172,5 +265,6 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
         wunsch_schicht=wunsch_schicht,
         zusatz=zusatz,
         soll_stunden={k: float(v) for k, v in (roh.get("soll_stunden") or {}).items()},
+        termine=termine,
         notiz=roh.get("notiz", ""),
     )

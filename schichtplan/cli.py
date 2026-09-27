@@ -19,6 +19,7 @@ import yaml
 from . import analyse as _analyse
 from . import backtest as _backtest
 from . import export
+from .bewertung import Bewerter
 from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .historie import lade_historie
@@ -58,6 +59,14 @@ wunsch_frei: {{}}
 
 wunsch_schicht: {{}}
 #  kohl_b: {{fr: 6-13:30}}
+
+# --- Termine: Schicht muss zu dieser Zeit enden ---
+termine: []
+#  - name: Teamleitersitzung
+#    tag: di
+#    ab: "13:30"
+#    kandidaten: [kurka_j, rohwer_c]
+#    anzahl: 1
 
 # --- Zusatzaufgaben, die im Plan vermerkt werden ---
 zusatz: {{}}
@@ -124,11 +133,12 @@ def cmd_plan(args) -> int:
                   iterationen=args.iterationen, neustarts=args.neustarts, seed=args.seed)
     plan, bew = erg.plan, erg.bewertung
 
+    bewerter = Bewerter(stamm, vorgabe, vorwochen)
     ziel = pathlib.Path(args.ausgabe)
     ziel.mkdir(parents=True, exist_ok=True)
     basis = ziel / plan.woche
     dateien = {
-        f"{basis}.html": export.als_html(plan, stamm, bew),
+        f"{basis}.html": export.als_html(plan, stamm, bew, bewerter=bewerter),
         f"{basis}.json": export.als_json(plan, stamm),
         f"{basis}.csv": export.als_csv(plan, stamm),
         f"{basis}-e2n-schichten.csv": export.als_e2n_csv(
@@ -138,7 +148,7 @@ def cmd_plan(args) -> int:
     for pfad, inhalt in dateien.items():
         pathlib.Path(pfad).write_text(inhalt, encoding="utf-8")
 
-    print(_textplan(plan, stamm))
+    print(_textplan(plan, stamm, bewerter))
     print(f"\nStrafpunkte: {bew.punkte:.0f}  (Greedy-Start: {erg.startpunkte:.0f})")
     _zeige_befunde(bew)
     print("\nGeschrieben:")
@@ -165,7 +175,7 @@ def cmd_pruefen(args) -> int:
     plan = _plan_aus_json(pathlib.Path(args.plan), stamm)
     vorwochen = lade_historie(args.historie) if args.historie else []
     bew = _pruefen(plan, stamm, vorgabe, vorwochen)
-    print(_textplan(plan, stamm))
+    print(_textplan(plan, stamm, Bewerter(stamm, vorgabe, vorwochen)))
     print(f"\nStrafpunkte: {bew.punkte:.0f}")
     _zeige_befunde(bew)
     return 1 if bew.fehler() else 0
@@ -194,7 +204,7 @@ def _plan_aus_json(pfad: pathlib.Path, stamm) -> Plan:
                 roh.get("filiale", ""), roh.get("tage", TAGE))
 
 
-def _textplan(plan: Plan, stamm) -> str:
+def _textplan(plan: Plan, stamm, bewerter=None) -> str:
     from .modelle import TAG_LANG
     tage = plan.offene_tage
     breite = 11
@@ -207,6 +217,10 @@ def _textplan(plan: Plan, stamm) -> str:
         zeilen.append(f"{z}  {plan.stunden(mid):5.1f} h / {plan.arbeitstage(mid)} T")
     zeilen.append("-" * len(kopf))
     zeilen.append(f"{'Koepfe':<18}" + "".join(f"{plan.koepfe(t):<{breite}}" for t in tage))
+    if bewerter is not None and bewerter.gesamtbudget():
+        ist, ziel = bewerter.gesamtstunden(plan), bewerter.gesamtbudget()
+        zeilen.append(f"{'Stunden gesamt':<18}{ist:.1f} h (Budget {ziel:.1f} h, "
+                      f"Azubi nicht gezaehlt)")
     return "\n".join(zeilen)
 
 

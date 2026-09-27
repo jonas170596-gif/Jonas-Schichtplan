@@ -12,7 +12,14 @@ oeffnung:                     # Planungsfenster, nicht Ladenoeffnung
   fr: {von: "06:00", bis: "20:00"}
   sa: {von: "06:00", bis: "18:00"}
 
-kopfzahl_toleranz: 1          # Abweichung von kopfzahl, die straffrei bleibt
+# Wochenbudget fuer die Umsatzziele je Verkaeuferstunde. Azubistunden zaehlen
+# nicht mit (menzler_a: zaehlt_stundenbudget: false). Faellt jemand ganz oder
+# teilweise aus, sinkt das Budget automatisch um dessen Sollstunden.
+wochenstunden_gesamt: 255
+wochenstunden_gesamt_toleranz: 5
+
+kopfzahl_toleranz_unter: 0    # unter der Zielkopfzahl wird sofort bestraft
+kopfzahl_toleranz_ueber: 1    # ein Kopf zu viel ist unkritisch
 kopfzahl:                     # Zielanzahl eingeteilter Mitarbeiter
   mo: 5
   di: 5

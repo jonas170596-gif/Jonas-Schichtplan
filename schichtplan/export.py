@@ -107,6 +107,7 @@ td.summe { font-size:9.5pt; color:#444; background:#fafafa; }
 th.summe { font-size:9.5pt; }
 .zusatz { display:block; font-size:8pt; color:#555; }
 .fuss { margin-top:4mm; font-size:8.5pt; color:#555; display:flex; justify-content:space-between; }
+.budget { margin-top:4mm; font-size:10pt; }
 .hinweise { margin-top:5mm; font-size:9pt; }
 .hinweise li { margin-bottom:1mm; }
 .fehler { color:#b00020; }
@@ -115,7 +116,7 @@ th.summe { font-size:9.5pt; }
 
 
 def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
-             titel: str | None = None) -> str:
+             titel: str | None = None, bewerter=None) -> str:
     e = html.escape
     tage = plan.offene_tage
     alle = [t for t in stamm.bedarf.offene_tage]
@@ -140,6 +141,15 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
         tds.append(f'<td class="summe">{plan.stunden(mid):.1f} h<span class="zusatz">'
                    f'{plan.arbeitstage(mid)} Tage</span></td>')
         zeilen.append("<tr>" + "".join(tds) + "</tr>")
+
+    budget = ""
+    if bewerter is not None and bewerter.gesamtbudget():
+        ist, ziel = bewerter.gesamtstunden(plan), bewerter.gesamtbudget()
+        ampel = "#1b7f3b" if abs(ist - ziel) <= \
+            stamm.bedarf.wochenstunden_gesamt_toleranz else "#b00020"
+        budget = (f'<div class="budget">Verkaeuferstunden gesamt: '
+                  f'<b style="color:{ampel}">{ist:.1f} h</b> '
+                  f'(Budget {ziel:.1f} h, Azubistunden nicht gezaehlt)</div>')
 
     hinweise = ""
     if bewertung is not None:
@@ -168,6 +178,7 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
     <th class="summe" style="width:9%">Summe</th></tr></thead>
   <tbody>{''.join(zeilen)}</tbody>
 </table>
+{budget}
 {hinweise}
 <div class="fuss"><span>{e(plan.filiale)}</span><span>schichtplan-generator</span></div>
 </body></html>

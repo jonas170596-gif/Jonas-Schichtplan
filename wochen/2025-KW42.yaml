@@ -37,6 +37,14 @@ wunsch_schicht:
   kurka_j: {sa: 6-14}
 #  kohl_b: {fr: 6-13:30}
 
+# --- Termine: Schicht muss zu dieser Zeit enden ---
+termine:
+  - name: Teamleitersitzung
+    tag: di
+    ab: "13:30"
+    kandidaten: [kurka_j, rohwer_c]
+    anzahl: 1
+
 # --- Zusatzaufgaben, die im Plan vermerkt werden ---
 zusatz: {}
 #  rohwer_c: {sa: [grossputz]}
