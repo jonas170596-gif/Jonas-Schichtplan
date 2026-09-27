@@ -45,6 +45,20 @@ schluss_min:                  # Mindestanzahl Schichten bis Ladenschluss
   fr: 3
   sa: 3
 
+# Rund um Feiertage verschiebt sich das Geschaeft: davor wird abends
+# eingekauft, danach muss morgens mehr aufgebaut werden. Die Werte heben die
+# Mindestwerte oben an, sie senken nie. Welcher Tag betroffen ist, rechnet der
+# Planer aus dem Feiertagskalender - der Samstag vor einem Feiertagsmontag
+# zaehlt mit, weil sonntags ohnehin zu ist.
+feiertagsregeln:
+  bundesland: BW
+  vor_feiertag:
+    schluss_min: 4            # vier bis Ladenschluss
+    # kopfzahl: 6             # bei Bedarf auch die Zielkopfzahl anheben
+  nach_feiertag:
+    frueh_min: 3              # drei ab 6 Uhr
+    # kopfzahl: 6
+
 besetzung_min:                # Mindestbesetzung je Zeitfenster
   mo:
     - {von: "06:00", bis: "08:00", min: 2}

@@ -13,6 +13,14 @@ KONFIG_DIR = pathlib.Path("konfig")
 
 
 @dataclass
+class Feiertagsregeln:
+    """Was sich an den Tagen rund um einen Feiertag aendert."""
+    bundesland: str = "BW"
+    vor_feiertag: dict[str, int] = field(default_factory=dict)
+    nach_feiertag: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
 class Bedarf:
     offene_tage: list[str]
     oeffnung: dict[str, tuple[int, int]]          # tag -> (von, bis) als Slotindex
@@ -25,6 +33,7 @@ class Bedarf:
     kopfzahl_toleranz_ueber: int = 0      # wie viele Koepfe ueber Ziel straffrei
     wochenstunden_gesamt: float = 0.0     # 0 = kein Gesamtbudget
     wochenstunden_gesamt_toleranz: float = 5.0
+    feiertagsregeln: Feiertagsregeln = field(default_factory=Feiertagsregeln)
 
     def min_am_slot(self, tag: str, slot: int) -> int:
         return max((m for v, b, m in self.besetzung_min.get(tag, []) if v <= slot < b),
@@ -179,6 +188,13 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             vermeiden=list(m.get("vermeiden", [])),
             schichtwunsch=dict(m.get("schichtwunsch") or {}),
             frueh_spaet_ausgleich=bool(m.get("frueh_spaet_ausgleich", True)),
+            max_spaet_pro_woche=(int(m["max_spaet_pro_woche"])
+                                 if m.get("max_spaet_pro_woche") is not None else None),
+            springer=bool(m.get("springer", False)),
+            praesenztage=(int(m["praesenztage"])
+                          if m.get("praesenztage") is not None else None),
+            abwesenheit_stunden={k: float(v) for k, v
+                                 in (m.get("abwesenheit_stunden") or {}).items()},
             moeglichst_wenig=bool(m.get("moeglichst_wenig", False)),
             zaehlt_stundenbudget=bool(m.get("zaehlt_stundenbudget", True)),
             stunden_toleranz_h=(float(m["stunden_toleranz_h"])
@@ -207,6 +223,13 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         kopfzahl_toleranz_ueber=int(roh_b.get("kopfzahl_toleranz_ueber", 1)),
         wochenstunden_gesamt=float(roh_b.get("wochenstunden_gesamt", 0)),
         wochenstunden_gesamt_toleranz=float(roh_b.get("wochenstunden_gesamt_toleranz", 5)),
+        feiertagsregeln=Feiertagsregeln(
+            bundesland=(roh_b.get("feiertagsregeln") or {}).get("bundesland", "BW"),
+            vor_feiertag={k: int(v) for k, v in
+                          ((roh_b.get("feiertagsregeln") or {}).get("vor_feiertag") or {}).items()},
+            nach_feiertag={k: int(v) for k, v in
+                           ((roh_b.get("feiertagsregeln") or {}).get("nach_feiertag") or {}).items()},
+        ),
     )
 
     roh_r = _lies(ordner / "regeln.yaml")

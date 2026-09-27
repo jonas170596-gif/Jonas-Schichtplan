@@ -21,8 +21,11 @@ gewichte:
   kopfzahl: 400             # je Kopf Abweichung von bedarf.kopfzahl
   besetzung_unter: 250      # je fehlender Person und Halbstunde
   besetzung_ueber: 10       # je ueberzaehliger Person und Halbstunde
-  frueh_besetzung: 600      # je fehlender Fruehschicht
-  schluss_besetzung: 600    # je fehlender Schlussschicht
+  # Frueh- und Schlussbesetzung sind ausdrueckliche Mindestvorgaben und muessen
+  # die aus der Historie gemittelte Zielkopfzahl schlagen - sonst spart der
+  # Planer lieber einen Kopf, als die Vorgabe zu erfuellen.
+  frueh_besetzung: 1200     # je fehlender Fruehschicht
+  schluss_besetzung: 1200   # je fehlender Schlussschicht
   gesamtstunden: 30         # je Stunde Abweichung vom Wochenbudget (ohne Azubi)
 
   # --- Team und Faehigkeiten ---
@@ -55,4 +58,5 @@ gewichte:
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
   samstag_fairness: 120     # kein freier Samstag im Betrachtungsfenster
+  zu_viel_spaet: 350        # mehr Spaetschichten als vorgesehen (Azubi)
   zersplitterung: 20        # viele verschiedene Schichtarten in einer Woche

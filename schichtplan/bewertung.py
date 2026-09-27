@@ -50,18 +50,56 @@ class Bewerter:
                            for t in self.tage if self.slots[t]}
         self.schichtmaske = {s.id: ((1 << (s.bis - s.von)) - 1) << s.von
                              for s in stamm.schichten.values()}
-        self._hist_bilanz = self._historische_bilanz()
         self.soll_stunden = {
             mid: vorgabe.soll_stunden.get(mid, m.soll_stunden)
             for mid, m in stamm.mitarbeiter.items()
         }
-        # Urlaub kuerzt nicht die Stunden pro Tag, sondern die Anzahl moeglicher Tage.
-        # Wer 40 h auf 5 Tage hat und einen Tag Urlaub nimmt, arbeitet die restlichen
-        # Tage normal weiter - genau so steht es in den Altplaenen.
+        # Urlaub kuerzt nicht die Stunden pro Tag, sondern die Anzahl moeglicher
+        # Tage. Wer 40 h auf 5 Tage hat und einen Tag Urlaub nimmt, arbeitet die
+        # restlichen Tage normal weiter - genau so steht es in den Altplaenen.
         self.verfuegbare_tage = {
             mid: sum(1 for t in self.tage if t not in vorgabe.abwesend.get(mid, {}))
             for mid in stamm.mitarbeiter
         }
+        self._hist_bilanz = self._historische_bilanz()
+        self.feiertagsumfeld = self._feiertagsumfeld()
+
+    def _feiertagsumfeld(self) -> dict[str, dict[str, object]]:
+        """Je Tag: welche Mindestwerte der Feiertag drumherum anhebt.
+
+        Vor einem Feiertag wird abends mehr verkauft, danach muss morgens
+        mehr aufgebaut werden. Der Samstag vor einem Feiertagsmontag zaehlt
+        mit, weil sonntags ohnehin zu ist."""
+        import datetime as dt
+        from .feiertage import Kalender
+        regeln = self.stamm.bedarf.feiertagsregeln
+        if not (regeln.vor_feiertag or regeln.nach_feiertag):
+            return {}
+        try:
+            montag = dt.date.fromisoformat(self.vorgabe.datum_von)
+        except ValueError:
+            return {}
+        kalender = Kalender(regeln.bundesland)
+        umfeld = {}
+        for tag in self.tage:
+            datum = montag + dt.timedelta(days=TAGE.index(tag))
+            eintrag: dict[str, object] = {}
+            if (name := kalender.vor_feiertag(datum)) and regeln.vor_feiertag:
+                eintrag.update(regeln.vor_feiertag)
+                eintrag["anlass"] = f"vor {name}"
+            if (name := kalender.nach_feiertag(datum)) and regeln.nach_feiertag:
+                eintrag.update(regeln.nach_feiertag)
+                anlass = eintrag.get("anlass")
+                eintrag["anlass"] = f"{anlass} / nach {name}" if anlass else f"nach {name}"
+            if eintrag:
+                umfeld[tag] = eintrag
+        return umfeld
+
+    def mindestwert(self, tag: str, feld: str, grundwert: int) -> tuple[int, str]:
+        eintrag = self.feiertagsumfeld.get(tag)
+        if not eintrag or feld not in eintrag:
+            return grundwert, ""
+        return max(grundwert, int(eintrag[feld])), str(eintrag.get("anlass", ""))
 
     def _maske(self, schicht) -> int:
         m = self.schichtmaske.get(schicht.id)
@@ -87,9 +125,21 @@ class Bewerter:
         return bilanz
 
     def _ziel(self, mid: str) -> tuple[float, int]:
-        """(Zielstunden, Zieltage) fuer diese Woche."""
+        """(Zielstunden, Zieltage) fuer diese Woche.
+
+        Mit `praesenztage` zaehlen bestimmte Abwesenheiten als Tag mit - beim
+        Azubi die Berufsschule: vier Schichten plus ein Schultag sind seine
+        fuenf Tage, und der Schultag deckt einen Teil des Wochensolls ab."""
         m = self.stamm.mitarbeiter[mid]
         moeglich = self.verfuegbare_tage[mid]
+        if m.praesenztage is not None:
+            abwesend = self.vorgabe.abwesend.get(mid, {})
+            gezaehlt = [art for t, art in abwesend.items()
+                        if t in self.tage and art in m.abwesenheit_stunden]
+            tage = max(0, min(m.praesenztage - len(gezaehlt), moeglich))
+            stunden = self.soll_stunden[mid] - sum(m.abwesenheit_stunden[a]
+                                                   for a in gezaehlt)
+            return max(0.0, stunden), tage
         tage = min(m.soll_tage, moeglich)
         pro_tag = self.soll_stunden[mid] / m.soll_tage if m.soll_tage else 0.0
         return pro_tag * tage, tage
@@ -125,7 +175,7 @@ class Bewerter:
         for t in self.tage:
             zellen = [r[t] for r in plan.zellen.values() if r[t].arbeitet]
             koepfe = len(zellen)
-            ziel = b.kopfzahl.get(t, koepfe)
+            ziel, _ = self.mindestwert(t, "kopfzahl", b.kopfzahl.get(t, koepfe))
             if koepfe < ziel:
                 weg = max(0, ziel - koepfe - b.kopfzahl_toleranz_unter)
                 wort = "nur"
@@ -138,18 +188,19 @@ class Bewerter:
                     "fehler" if weg > 1 else "warnung")
 
             frueh = sum(1 for z in zellen if z.schicht.von <= b.frueh_bis)
-            fehlt = b.frueh_min.get(t, 0) - frueh
-            if fehlt > 0:
-                add("frueh_besetzung", fehlt,
-                    f"{TAG_LANG[t]}: nur {frueh} Fruehschichten, {b.frueh_min[t]} noetig", "fehler")
+            noetig, anlass = self.mindestwert(t, "frueh_min", b.frueh_min.get(t, 0))
+            if frueh < noetig:
+                add("frueh_besetzung", noetig - frueh,
+                    f"{TAG_LANG[t]}: nur {frueh} Fruehschichten, {noetig} noetig"
+                    + (f" ({anlass})" if anlass else ""), "fehler")
 
             schluss_zeit = b.oeffnung[t][1]
             schluss = sum(1 for z in zellen if z.schicht.bis >= schluss_zeit)
-            fehlt = b.schluss_min.get(t, 0) - schluss
-            if fehlt > 0:
-                add("schluss_besetzung", fehlt,
-                    f"{TAG_LANG[t]}: nur {schluss} bis Ladenschluss, {b.schluss_min[t]} noetig",
-                    "fehler")
+            noetig, anlass = self.mindestwert(t, "schluss_min", b.schluss_min.get(t, 0))
+            if schluss < noetig:
+                add("schluss_besetzung", noetig - schluss,
+                    f"{TAG_LANG[t]}: nur {schluss} bis Ladenschluss, {noetig} noetig"
+                    + (f" ({anlass})" if anlass else ""), "fehler")
 
             belegt = [0] * len(self.slots[t])
             start = self.slots[t][0]
@@ -369,8 +420,9 @@ class Bewerter:
                     f"{m.name}: {tage} Arbeitstage, erlaubt sind {m.max_tage}", "fehler")
 
             folge = max_folge = 0
-            for t in self.tage:
-                folge = folge + 1 if reihe[t].arbeitet else 0
+            for t in TAGE:      # ueber alle Wochentage, nicht nur die offenen -
+                zelle = reihe.get(t)   # ein Feiertag unterbricht die Serie
+                folge = folge + 1 if (zelle is not None and zelle.arbeitet) else 0
                 max_folge = max(max_folge, folge)
             if max_folge > m.max_tage_in_folge:
                 add("tage_in_folge", max_folge - m.max_tage_in_folge,
@@ -408,7 +460,10 @@ class Bewerter:
             for a, b_ in zip(self.tage, self.tage[1:]):
                 za, zb = reihe[a], reihe[b_]
                 if za.arbeitet and zb.arbeitet:
-                    pause = (48 - za.schicht.bis) + zb.schicht.von
+                    # self.tage enthaelt keine geschlossenen Tage, zwei Eintraege
+                    # koennen also mehr als einen Kalendertag auseinanderliegen.
+                    abstand = TAGE.index(b_) - TAGE.index(a)
+                    pause = (48 * abstand - za.schicht.bis) + zb.schicht.von
                     if pause < ruhe_hart:
                         add("ruhezeit_verletzung", (ruhe_hart - pause) / 2,
                             f"{m.name}: nur {pause / 2:.1f} h Ruhe zwischen "
@@ -460,20 +515,36 @@ class Bewerter:
                     if fehl else "", "warnung")
 
             if m.freie_tage_zusammenhaengend:
-                frei = [i for i, t_ in enumerate(self.tage) if not reihe[t_].arbeitet
-                        and reihe[t_].art == "frei"]
+                frei = [TAGE.index(t_) for t_ in self.tage
+                        if reihe[t_].art == "frei"]
                 if len(frei) >= 2:
-                    bloecke = 1 + sum(1 for x, y in zip(frei, frei[1:]) if y - x > 1)
+                    # Ein geschlossener Tag zwischen zwei freien Tagen trennt sie
+                    # nicht - der Mitarbeiter hat trotzdem am Stueck frei.
+                    geschlossen = {TAGE.index(t_) for t_ in TAGE
+                                   if t_ not in self.tage}
+                    bloecke = 1
+                    for x, y in zip(frei, frei[1:]):
+                        if any(i not in geschlossen for i in range(x + 1, y)):
+                            bloecke += 1
                     add("freie_tage_zusammenhaengend", bloecke - 1,
                         f"{m.name}: freie Tage liegen in {bloecke} Bloecken "
-                        f"({', '.join(TAG_LANG[self.tage[i]] for i in frei)})"
+                        f"({', '.join(TAG_LANG[TAGE[i]] for i in frei)})"
                         if bloecke > 1 else "")
             if m.stamm_schichten:
                 fremd = sum(1 - m.stamm_schichten.get(z.schicht.id, 0.0)
                             for z in reihe.values() if z.arbeitet)
                 add("stammschicht", fremd)
-            verschieden = {z.schicht.id for z in reihe.values() if z.arbeitet}
-            add("zersplitterung", max(0, len(verschieden) - 2))
+            if m.max_spaet_pro_woche is not None:
+                spaet = sum(1 for z in reihe.values()
+                            if z.arbeitet and z.schicht.kategorie == "spaet")
+                add("zu_viel_spaet", max(0, spaet - m.max_spaet_pro_woche),
+                    f"{m.name}: {spaet} Spaetschichten, hoechstens "
+                    f"{m.max_spaet_pro_woche} vorgesehen"
+                    if spaet > m.max_spaet_pro_woche else "", "warnung")
+
+            if not m.springer:
+                verschieden = {z.schicht.id for z in reihe.values() if z.arbeitet}
+                add("zersplitterung", max(0, len(verschieden) - 2))
 
             if self.stamm.regeln.samstage_frei_pro_x and "sa" in self.tage:
                 fenster = self.vorwochen[-(self.stamm.regeln.samstage_frei_pro_x - 1):]

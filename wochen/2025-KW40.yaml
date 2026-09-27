@@ -1,0 +1,55 @@
+# Feiertage diese Woche: Freitag Tag der Deutschen Einheit
+# Wochenvorgabe 2025-KW40 - alles, was sich von Woche zu Woche aendert.
+# Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
+
+woche: 2025-KW40
+datum_von: 2025-09-29          # Montag
+datum_bis: 2025-10-04          # Samstag
+filiale: Winterbach
+
+# Tage, an denen der Laden zu ist. Aus dem BW-Feiertagskalender vorbelegt.
+geschlossen: [fr]
+
+# --- Abwesenheiten (hart) ---
+urlaub:
+  marino_a: alle
+#  reich_s: alle
+#  kohl_b: [do, fr, sa]
+
+schule:
+  menzler_a: [mi, do]               # Berufsschule Azubi
+#  menzler_a: [mi, do]
+
+krank: {}
+sonstige: {}
+
+# --- Harte Vorgaben: genau diese Schicht / genau frei ---
+fest: {}
+#  kurka_j: {sa: 6-14}
+#  marino_a: {mo: frei}
+
+# --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
+wunsch_frei: {}
+#  nachtrieb_i: [mi]
+
+wunsch_schicht: {}
+#  kohl_b: {fr: 6-13:30}
+
+# --- Termine: Schicht muss zu dieser Zeit enden ---
+termine: []
+#  - name: Teamleitersitzung
+#    tag: di
+#    ab: "13:30"
+#    kandidaten: [kurka_j, rohwer_c]
+#    anzahl: 1
+#    abwechselnd: true      # nicht dieselbe Person wie beim letzten Mal
+
+# --- Zusatzaufgaben, die im Plan vermerkt werden ---
+zusatz: {}
+#  rohwer_c: {sa: [grossputz]}
+
+# --- Abweichendes Wochensoll (z. B. Stundenabbau) ---
+soll_stunden: {}
+#  kurz_u: 12
+
+notiz: ""

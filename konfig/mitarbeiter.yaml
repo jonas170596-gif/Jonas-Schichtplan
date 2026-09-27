@@ -128,12 +128,19 @@ mitarbeiter:
   menzler_a:
     name: "A. Menzler"
     faehigkeiten: [f, w]
-    soll_stunden: 32
-    soll_tage: 4
+    soll_stunden: 40               # Wochensoll inklusive Berufsschule
+    soll_tage: 5
+    praesenztage: 5                # Schichten + Schultage ergeben immer 5 Tage
+    abwesenheit_stunden: {schule: 8}   # ein Schultag deckt 8 h des Wochensolls
+    max_spaet_pro_woche: 1         # Azubi soll nicht staendig spaet stehen
+    springer: true                 # wechselnde Schichten sind bei ihm gewollt
     zaehlt_stundenbudget: false    # Azubistunden zaehlen nicht gegen die 255 h
     erlaubte_schichten: [8-16, 6-14, 11-20, 12-20, 6-13:30, 9-18, 10-18, 11-18, 12-18]
-    stamm_schichten: {8-16: 0.61, 6-14: 0.11, 11-20: 0.11}
-    notiz: "Berufsschultage je Woche in der Wochenvorgabe unter 'schule' eintragen."
+    stamm_schichten: {8-16: 0.45, 6-14: 0.20, 11-20: 0.10, 9-18: 0.10, 10-18: 0.10}
+    notiz: >-
+      Springer. Berufsschultage je Woche in der Wochenvorgabe unter 'schule'
+      eintragen. Ohne Schultag arbeitet er fuenf Schichten, mit einem vier -
+      dadurch ist er auch bei Vollbesetzung dabei.
 
   kurz_t:
     name: "T. Kurz"

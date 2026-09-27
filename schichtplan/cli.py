@@ -9,6 +9,7 @@
   python -m schichtplan ausgleich                  Frueh/Spaet-Bilanz je Mitarbeiter
   python -m schichtplan uebernehmen ausgabe/2025-KW43.json
                                                    fertigen Plan in die Historie legen
+  python -m schichtplan feiertage 2026             Feiertagskalender Baden-Wuerttemberg
 """
 from __future__ import annotations
 
@@ -26,9 +27,10 @@ from . import export
 from .bewertung import Bewerter
 from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
+from .feiertage import Kalender, feiertage_bw, sondertage
 from .historie import lade_historie
 from .konfig import KONFIG_DIR, lade_stammdaten, lade_wochenvorgabe
-from .modelle import TAGE, Plan, Zelle, zu_index
+from .modelle import TAGE, TAG_LANG, Plan, Zelle, zu_index
 
 VORLAGE = """# Wochenvorgabe {woche} - alles, was sich von Woche zu Woche aendert.
 # Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
@@ -38,8 +40,8 @@ datum_von: {von}          # Montag
 datum_bis: {bis}          # Samstag
 filiale: Winterbach
 
-# Tage, an denen der Laden zu ist (Feiertage)
-geschlossen: []
+# Tage, an denen der Laden zu ist. Aus dem BW-Feiertagskalender vorbelegt.
+geschlossen: {geschlossen}
 
 # --- Abwesenheiten (hart) ---
 urlaub: {{}}
@@ -122,10 +124,49 @@ def cmd_neu(args) -> int:
         print(f"{pfad} existiert bereits (--ueberschreiben erzwingt)", file=sys.stderr)
         return 1
     pfad.parent.mkdir(parents=True, exist_ok=True)
-    pfad.write_text(VORLAGE.format(woche=woche, von=montag,
-                                   bis=montag + dt.timedelta(days=5)), encoding="utf-8")
+    kalender = Kalender()
+    feiertage = {TAGE[i]: name for i in range(6)
+                 if (name := kalender.name(montag + dt.timedelta(days=i)))}
+    kopf = ""
+    if feiertage:
+        kopf = "# Feiertage diese Woche: " + ", ".join(
+            f"{TAG_LANG[t]} {n}" for t, n in feiertage.items()) + "\n"
+    weihnachten = kalender.weihnachtswoche(montag)
+    if weihnachten:
+        kopf += (
+            "#\n"
+            "# ACHTUNG Sonderwoche: " + weihnachten + "\n"
+            "# Die ueblichen Regeln passen hier nicht (Kopfzahl, Oeffnungszeiten,\n"
+            "# Stundenbudget). Diese Woche von Hand planen oder die Vorgaben unter\n"
+            "# 'fest' komplett durchschreiben.\n")
+
+    inhalt = VORLAGE.format(woche=woche, von=montag,
+                            bis=montag + dt.timedelta(days=5),
+                            geschlossen=("[" + ", ".join(feiertage) + "]"
+                                         if feiertage else "[]"))
+    pfad.write_text(kopf + inhalt, encoding="utf-8")
     print("angelegt:", pfad)
+    if feiertage:
+        print("Feiertage eingetragen:", ", ".join(
+            f"{TAG_LANG[t]} ({n})" for t, n in feiertage.items()))
+    if weihnachten:
+        print(f"\n  ACHTUNG Sonderwoche: {weihnachten}")
+        print("  Diese Woche von Hand planen - die ueblichen Regeln passen nicht.\n")
     print("Mitarbeiterkuerzel:", ", ".join(_mitarbeiterliste()))
+    return 0
+
+
+def cmd_feiertage(args) -> int:
+    jahr = args.jahr or dt.date.today().year
+    print(f"Gesetzliche Feiertage Baden-Wuerttemberg {jahr}\n")
+    for datum, name in feiertage_bw(jahr).items():
+        kw = datum.isocalendar()
+        marke = "  (Sonntag, ohnehin zu)" if datum.weekday() == 6 else ""
+        print(f"  {datum:%d.%m.%Y}  {TAG_LANG[TAGE[datum.weekday()]] if datum.weekday() < 6 else 'Sonntag':<11}"
+              f"KW{kw.week:<3} {name}{marke}")
+    print("\nKeine Feiertage, aber Sonderfaelle im Verkauf:")
+    for datum, name in sondertage(jahr).items():
+        print(f"  {datum:%d.%m.%Y}  KW{datum.isocalendar().week:<3} {name}")
     return 0
 
 
@@ -133,6 +174,16 @@ def cmd_plan(args) -> int:
     stamm = lade_stammdaten(args.konfig)
     vorgabe = lade_wochenvorgabe(args.vorgabe)
     vorwochen = lade_historie(args.historie) if args.historie else []
+
+    kalender = Kalender(stamm.bedarf.feiertagsregeln.bundesland)
+    try:
+        montag = dt.date.fromisoformat(vorgabe.datum_von)
+    except ValueError:
+        montag = None
+    if montag and (sonder := kalender.weihnachtswoche(montag)):
+        print(f"ACHTUNG Sonderwoche: {sonder}")
+        print("Die ueblichen Regeln passen hier nicht - Ergebnis nur als Entwurf "
+              "verwenden.\n")
 
     erg = erzeuge(stamm, vorgabe, vorwochen,
                   iterationen=args.iterationen, neustarts=args.neustarts, seed=args.seed)
@@ -154,6 +205,11 @@ def cmd_plan(args) -> int:
         pathlib.Path(pfad).write_text(inhalt, encoding="utf-8")
 
     print(_textplan(plan, stamm, bewerter))
+    if bewerter.feiertagsumfeld:
+        print()
+        for tag, eintrag in bewerter.feiertagsumfeld.items():
+            felder = ", ".join(f"{k} {v}" for k, v in eintrag.items() if k != "anlass")
+            print(f"Feiertagsumfeld {TAG_LANG[tag]}: {eintrag['anlass']} -> {felder}")
     print(f"\nStrafpunkte: {bew.punkte:.0f}  (Greedy-Start: {erg.startpunkte:.0f})")
     _zeige_befunde(bew)
     print("\nGeschrieben:")
@@ -358,6 +414,10 @@ def main(argv=None) -> int:
     ue.add_argument("--historie", default="daten/historie")
     ue.add_argument("--ueberschreiben", action="store_true")
     ue.set_defaults(func=cmd_uebernehmen)
+
+    ft = sub.add_parser("feiertage", help="Feiertagskalender Baden-Wuerttemberg")
+    ft.add_argument("jahr", nargs="?", type=int)
+    ft.set_defaults(func=cmd_feiertage)
 
     v = sub.add_parser("pruefen", help="bestehenden Plan gegen die Regeln pruefen")
     v.add_argument("plan")

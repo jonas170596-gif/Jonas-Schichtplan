@@ -77,9 +77,11 @@ soll_stunden:                    # abweichendes Wochensoll
   kurz_u: 12
 ```
 
-Wiederkehrende Termine, fuer die jemand frueher Schluss machen muss, kommen
-in dieselbe Datei - der Planer sucht sich dann einen der Kandidaten aus und
-gibt ihm eine Schicht, die genau zu der Zeit endet:
+Termine, fuer die jemand frueher Schluss machen muss, kommen in dieselbe Datei.
+Die Teamleitersitzung ist unregelmaessig - in Wochen ohne Sitzung laesst man den
+Block einfach weg. `abwechselnd: true` heisst: nicht dieselbe Person wie beim
+letzten Mal, egal wie lange das her ist. Wer zuletzt dran war, erkennt der
+Planer am Schichtende in der Historie, er braucht dafuer keinen festen Turnus:
 
 ```yaml
 termine:
@@ -94,6 +96,40 @@ termine:
 (`feste_freie_tage`) und gelten in jeder Woche, ohne dass man sie neu eintraegt.
 Nicht jeder hat welche - das Feld darf leer bleiben.
 
+## Feiertage
+
+Der Feiertagskalender fuer Baden-Wuerttemberg wird gerechnet, nicht gepflegt -
+Ostersonntag nach der Gaussschen Osterformel, alles Bewegliche haengt daran.
+`python -m schichtplan neu 2025-KW40` traegt die Feiertage der Woche gleich
+unter `geschlossen` ein.
+
+```bash
+python -m schichtplan feiertage 2026
+```
+
+Rund um Feiertage verschiebt sich das Geschaeft, geregelt in
+`konfig/bedarf.yaml` unter `feiertagsregeln`:
+
+* **vor** einem Feiertag vier Personen bis Ladenschluss
+* **nach** einem Feiertag drei Personen ab 6 Uhr
+
+Welcher Tag betroffen ist, rechnet der Planer aus dem Kalender. Der Samstag vor
+einem Feiertagsmontag zaehlt als Vortag, weil sonntags ohnehin zu ist. Die Werte
+heben die normalen Mindestwerte an, senken sie nie.
+
+Ein geschlossener Tag mitten in der Woche verkuerzt keine Abstaende: zwischen
+einer Spaetschicht am Donnerstag und einer Fruehschicht am Samstag liegen bei
+einem Feiertagsfreitag 34 Stunden, nicht 10. Genauso unterbricht er die Zaehlung
+der Arbeitstage am Stueck und trennt zwei freie Tage nicht voneinander.
+
+### Weihnachten
+
+Die Woche mit dem 24.-26.12. und die mit Silvester/Neujahr werden erkannt und
+mit einer Warnung versehen - in `neu` steht sie oben in der Datei, beim Rechnen
+auf der Konsole. Wie diese Wochen genau geplant werden, ist noch nicht
+hinterlegt; bis dahin sind sie Handarbeit oder ein Entwurf, den man ueber
+`fest` durchschreibt.
+
 ## Die Wochenmodelle
 
 | | kann | Stunden | Tage | fest frei | bevorzugt frei | Besonderheit |
@@ -107,7 +143,13 @@ Nicht jeder hat welche - das Feld darf leer bleiben.
 | B. Kohl | w | 30 | 4 | - | - | zwei freie Tage, moeglichst zusammenhaengend |
 | C. Kurz | f w o | 20 | 3 | Di | Fr, Sa | Muster Mo 8-14 / Mi 8-13 / Do 8-14 |
 | U. Kurz | f w | Reserve | - | Di | - | so wenig wie moeglich, breit einsetzbar |
-| A. Menzler | f w | 32 | 4 | - | - | Azubi, zaehlt nicht gegen das Stundenbudget |
+| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer, hoechstens 1 Spaetschicht |
+
+\* Menzler rechnet anders: 5 Praesenztage, Schichten **und** Schultage
+zusammen. Ein Schultag deckt 8 h des Wochensolls ab, also vier Schichten bei
+einem Schultag, drei bei zweien, fuenf ohne. Dadurch ist er auch dann dabei,
+wenn sonst niemand fehlt. Seine Stunden zaehlen nicht gegen das 255-h-Budget,
+und als Springer bekommt er keine Strafe fuer wechselnde Schichtarten.
 
 **fest frei** gilt immer. **bevorzugt frei** soll frei bleiben, darf aber
 weichen, wenn die Besetzung es verlangt - der Plan weist es dann als Hinweis aus.
@@ -187,13 +229,17 @@ dieselbe Schicht**. Zum Vergleich:
 | nur Muster aus den Fotos | 65 % | 42 % |
 | + Wochenmodelle, Teamregeln, Termine | 75 % | 49 % |
 | + Faehigkeiten, Frueh/Spaet-Ausgleich | 76 % | 48 % |
+| + Feiertagsregeln, Azubimodell | 74 % | 44 % |
 
-Die letzte Zeile zeigt, worauf man beim Messen achten muss: die
-Faehigkeitsregeln haben die Anwesenheit noch leicht verbessert, die exakte
-Schicht aber nicht. Das ist kein Rueckschritt - der Planer verteilt Frueh und
-Spaet jetzt bewusst anders als frueher von Hand geplant wurde, und genau das
-war ja gewollt. Wo der Backtest gegen eine absichtliche Aenderung misst, ist
-die Quote das falsche Mass.
+Die beiden letzten Zeilen zeigen, worauf man beim Messen achten muss: die Quote
+faellt, obwohl die Regeln besser geworden sind. Das ist kein Rueckschritt,
+sondern der Punkt, an dem der Planer bewusst anders plant als frueher von Hand:
+Frueh und Spaet werden ausgeglichen, Menzler hat jetzt fest fuenf Praesenztage,
+vor Feiertagen stehen vier Leute bis zum Schluss. Der Backtest misst gegen die
+alte Praxis - wo die absichtlich verlassen wird, ist die Quote das falsche Mass.
+
+Nuetzlich bleibt er trotzdem: faellt die Quote **ohne** dass eine Regel bewusst
+geaendert wurde, stimmt etwas nicht.
 
 Was noch fehlt: Umsatzspitzen, einzelne Absprachen. Regel in `konfig/`
 ergaenzen, Backtest laufen lassen, Quote pruefen.
@@ -230,6 +276,7 @@ hoch, dass sie praktisch hart sind:
 | Regel | was sie will |
 |---|---|
 | `faehigkeit` | f und w durchgehend besetzt, o in der Fruehschicht |
+| `zu_viel_spaet` | Azubi hoechstens eine Spaetschicht pro Woche |
 | `gruppenbesetzung` | in jeder Fruehschicht einer von Kurka / Rohwer / Marino |
 | `unvertraeglich` | Paare, die nicht zusammenarbeiten duerfen (derzeit keins aktiv) |
 | `termin` | Teamleitersitzung o. Ae. ist abgedeckt |

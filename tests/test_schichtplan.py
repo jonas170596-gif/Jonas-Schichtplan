@@ -1,4 +1,5 @@
 """Tests ohne externe Abhaengigkeiten: python3 -m pytest tests  (oder unittest)."""
+import datetime
 import pathlib
 import sys
 import unittest
@@ -7,6 +8,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from schichtplan.backtest import plan_aus_historie, vorgabe_aus_historie
 from schichtplan.bewertung import Bewerter, pruefen
+from schichtplan.feiertage import Kalender, feiertage_bw, ostersonntag
 from schichtplan.generator import erzeuge, grundgeruest
 from schichtplan.historie import lade_historie
 from schichtplan.konfig import lade_stammdaten, lade_wochenvorgabe
@@ -268,6 +270,91 @@ class TestBewertung(unittest.TestCase):
         self._setze(plan, "kurz_u", "mo", "14-20")
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
         self.assertIn("sparsam_einsetzen", regeln)
+
+
+class TestGeschlosseneTage(unittest.TestCase):
+    """Ein Feiertag mitten in der Woche darf Abstaende nicht verkuerzen."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW40.yaml")
+        self.plan = grundgeruest(self.stamm, self.vorgabe)
+
+    def _setze(self, mid, tag, sid):
+        self.plan.zellen[mid][tag].art = "schicht"
+        self.plan.zellen[mid][tag].schicht = self.stamm.schichten[sid]
+
+    def test_freitag_ist_geschlossen(self):
+        self.assertNotIn("fr", self.plan.offene_tage)
+
+    def test_spaet_do_frueh_sa_ist_kein_kurzer_wechsel(self):
+        self._setze("nachtrieb_i", "do", "14-20")
+        self._setze("nachtrieb_i", "sa", "6-14")
+        regeln = {b.regel for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("wechsel", regeln)
+        self.assertNotIn("ruhezeit_verletzung", regeln)
+
+    def test_spaet_mi_frueh_do_bleibt_ein_kurzer_wechsel(self):
+        self._setze("nachtrieb_i", "mi", "14-20")
+        self._setze("nachtrieb_i", "do", "6-14")
+        regeln = {b.regel for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("wechsel", regeln)
+
+    def test_feiertag_unterbricht_die_serie(self):
+        for tag in ("mo", "di", "mi", "do", "sa"):
+            self._setze("kurka_j", tag, "6-14")
+        befunde = [b for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde
+                   if b.regel == "tage_in_folge"]
+        self.assertEqual(befunde, [])   # 4 am Stueck, dann Feiertag, dann 1
+
+    def test_freie_tage_um_einen_feiertag_gelten_als_zusammenhaengend(self):
+        for tag in ("mo", "di", "mi"):
+            self._setze("kohl_b", tag, "12-20")
+        # frei sind Do und Sa, dazwischen nur der geschlossene Freitag
+        regeln = {b.regel for b in pruefen(self.plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("freie_tage_zusammenhaengend", regeln)
+
+
+class TestFeiertage(unittest.TestCase):
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2025-KW40.yaml")
+
+    def test_ostern_stimmt(self):
+        self.assertEqual(ostersonntag(2025), datetime.date(2025, 4, 20))
+        self.assertEqual(ostersonntag(2026), datetime.date(2026, 4, 5))
+        self.assertEqual(ostersonntag(2027), datetime.date(2027, 3, 28))
+
+    def test_bw_feiertage_2025(self):
+        ft = feiertage_bw(2025)
+        self.assertEqual(ft[datetime.date(2025, 4, 18)], "Karfreitag")
+        self.assertEqual(ft[datetime.date(2025, 6, 19)], "Fronleichnam")
+        self.assertEqual(ft[datetime.date(2025, 10, 3)], "Tag der Deutschen Einheit")
+        self.assertIn(datetime.date(2025, 1, 6), ft)        # nur in BW und BY
+        self.assertNotIn(datetime.date(2025, 4, 20), ft)    # Ostersonntag, ohnehin zu
+
+    def test_samstag_vor_feiertagsmontag_zaehlt_als_vortag(self):
+        k = Kalender()
+        # Pfingstmontag 2025 ist der 09.06., der Samstag davor der 07.06.
+        self.assertEqual(k.vor_feiertag(datetime.date(2025, 6, 7)), "Pfingstmontag")
+        self.assertEqual(k.nach_feiertag(datetime.date(2025, 6, 10)), "Pfingstmontag")
+
+    def test_weihnachtswoche_wird_erkannt(self):
+        k = Kalender()
+        self.assertIsNotNone(k.weihnachtswoche(datetime.date(2025, 12, 22)))
+        self.assertIsNone(k.weihnachtswoche(datetime.date(2025, 10, 13)))
+
+    def test_umfeld_hebt_die_mindestwerte(self):
+        b = Bewerter(self.stamm, self.vorgabe)
+        self.assertEqual(b.mindestwert("do", "schluss_min", 2)[0], 4)   # vor Feiertag
+        self.assertEqual(b.mindestwert("sa", "frueh_min", 3)[0], 3)     # nach Feiertag
+        self.assertEqual(b.mindestwert("mo", "schluss_min", 2)[0], 2)   # unberuehrt
+
+    def test_generierter_plan_haelt_die_feiertagsvorgaben(self):
+        erg = erzeuge(self.stamm, self.vorgabe, iterationen=30000, seed=4)
+        harte = [b.text for b in erg.bewertung.befunde
+                 if b.regel in ("schluss_besetzung", "frueh_besetzung")]
+        self.assertEqual(harte, [])
 
 
 class TestAusgleich(unittest.TestCase):

@@ -74,6 +74,10 @@ class Mitarbeiter:
     vermeiden: list[str] = field(default_factory=list)     # Kategorien oder Schicht-IDs
     schichtwunsch: dict[str, str] = field(default_factory=dict)   # tag -> kategorie
     frueh_spaet_ausgleich: bool = True
+    max_spaet_pro_woche: int | None = None
+    springer: bool = False
+    praesenztage: int | None = None          # Arbeitstage + gezaehlte Abwesenheiten
+    abwesenheit_stunden: dict[str, float] = field(default_factory=dict)
     moeglichst_wenig: bool = False
     zaehlt_stundenbudget: bool = True
     stunden_toleranz_h: float | None = None
