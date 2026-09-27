@@ -1,0 +1,38 @@
+# Zielgewichte des Planers. Der Generator minimiert die Summe aller
+# Strafpunkte - hohe Gewichte = "eher hart", niedrige = "nice to have".
+# Zum Nachjustieren: erst das Gewicht der Regel erhoehen, die verletzt wird,
+# und `python -m schichtplan pruefen` auf das Ergebnis laufen lassen.
+
+ruhezeit_h: 11            # Zielruhe zwischen zwei Schichten (ArbZG §5 Abs. 1)
+ruhezeit_min_h: 10        # harte Untergrenze (Spaet 11-20 -> Frueh 6-14 sind genau 10 h;
+                          # kommt in den Altplaenen regelmaessig vor)
+stunden_toleranz_h: 3     # Abweichung vom Wochensoll, die straffrei bleibt
+max_tage_in_folge: 6
+samstage_frei_pro_x: 0    # Ziel: je X Wochen mind. 1 freier Samstag. 0 = aus.
+                          # In den Altplaenen wird durchgehend samstags gearbeitet -
+                          # auf 4 setzen, wenn das kuenftig anders sein soll.
+
+gewichte:
+  # --- Besetzung (das Wichtigste) ---
+  kopfzahl: 400             # je Kopf Abweichung von bedarf.kopfzahl
+  besetzung_unter: 250      # je fehlender Person und Halbstunde
+  besetzung_ueber: 10       # je ueberzaehliger Person und Halbstunde
+  frueh_besetzung: 600      # je fehlender Fruehschicht
+  schluss_besetzung: 600    # je fehlender Schlussschicht
+
+  # --- Arbeitszeit der Mitarbeiter ---
+  wochenstunden: 25         # je Stunde Abweichung vom Soll
+  arbeitstage: 90           # je Tag Abweichung vom Soll
+  max_tage: 5000            # Ueberschreitung von max_tage (praktisch hart)
+  tage_in_folge: 300        # je Tag ueber max_tage_in_folge
+
+  # --- Wuensche ---
+  wunsch_frei: 200          # nicht erfuellter Wunschfreitag
+  wunsch_schicht: 120       # nicht erfuellte Wunschschicht
+
+  # --- Qualitaet / Gewohnheit ---
+  ruhezeit: 90              # Ruhe zwischen ruhezeit_min_h und ruhezeit_h
+  ruhezeit_verletzung: 3000 # Ruhe unter ruhezeit_min_h (praktisch hart)
+  stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
+  samstag_fairness: 120     # kein freier Samstag im Betrachtungsfenster
+  zersplitterung: 20        # viele verschiedene Schichtarten in einer Woche

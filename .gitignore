@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+ausgabe/
+daten/fotos/*.jpg
+daten/fotos/*.jpeg
+daten/fotos/*.png

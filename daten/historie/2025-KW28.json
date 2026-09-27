@@ -1,0 +1,372 @@
+{
+  "woche": "2025-KW28",
+  "datum_von": "2025-07-06",
+  "datum_bis": "2025-07-11",
+  "filiale": "Winterbach",
+  "status": "final",
+  "quelle_foto": "528ce64e-image.jpg",
+  "tage": [
+    "mo",
+    "di",
+    "mi",
+    "do",
+    "fr",
+    "sa"
+  ],
+  "plan": {
+    "kurka_j": {
+      "mo": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "di": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "do": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      }
+    },
+    "rohwer_c": {
+      "mo": {
+        "art": "urlaub",
+        "zusatz": []
+      },
+      "di": {
+        "art": "urlaub",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "urlaub",
+        "zusatz": []
+      },
+      "do": {
+        "art": "urlaub",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "urlaub",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "urlaub",
+        "zusatz": []
+      }
+    },
+    "marino_a": {
+      "mo": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "di": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "do": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "urlaub",
+        "zusatz": []
+      }
+    },
+    "kurz_c": {
+      "mo": {
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "di": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "13:00",
+        "zusatz": []
+      },
+      "do": {
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "frei",
+        "zusatz": []
+      }
+    },
+    "sannzenbacher_n": {
+      "mo": {
+        "art": "schicht",
+        "von": "12:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "di": {
+        "art": "schicht",
+        "von": "12:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "do": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      }
+    },
+    "reich_s": {
+      "mo": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "di": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "do": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "14:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "18:00",
+        "zusatz": []
+      }
+    },
+    "nachtrieb_i": {
+      "mo": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "di": {
+        "art": "schicht",
+        "von": "11:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "schicht",
+        "von": "14:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "do": {
+        "art": "schicht",
+        "von": "14:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "14:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "12:00",
+        "bis": "18:00",
+        "zusatz": []
+      }
+    },
+    "kurz_u": {
+      "mo": {
+        "art": "krank",
+        "zusatz": []
+      },
+      "di": {
+        "art": "krank",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "krank",
+        "zusatz": []
+      },
+      "do": {
+        "art": "krank",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "krank",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "09:00",
+        "bis": "18:00",
+        "zusatz": []
+      }
+    },
+    "kohl_b": {
+      "mo": {
+        "art": "schicht",
+        "von": "12:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "di": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "schicht",
+        "von": "12:00",
+        "bis": "20:00",
+        "zusatz": []
+      },
+      "do": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "13:30",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "06:00",
+        "bis": "13:30",
+        "zusatz": []
+      }
+    },
+    "menzler_a": {
+      "mo": {
+        "art": "schule",
+        "zusatz": []
+      },
+      "di": {
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "16:00",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "schule",
+        "zusatz": []
+      },
+      "do": {
+        "art": "frei",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "16:00",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "schicht",
+        "von": "08:00",
+        "bis": "16:00",
+        "zusatz": []
+      }
+    },
+    "kurz_t": {
+      "mo": {
+        "art": "nicht_im_plan",
+        "zusatz": []
+      },
+      "di": {
+        "art": "nicht_im_plan",
+        "zusatz": []
+      },
+      "mi": {
+        "art": "nicht_im_plan",
+        "zusatz": []
+      },
+      "do": {
+        "art": "nicht_im_plan",
+        "zusatz": []
+      },
+      "fr": {
+        "art": "nicht_im_plan",
+        "zusatz": []
+      },
+      "sa": {
+        "art": "nicht_im_plan",
+        "zusatz": []
+      }
+    }
+  }
+}

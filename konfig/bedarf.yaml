@@ -1,0 +1,75 @@
+# Personalbedarf je Wochentag - aus der Historie abgeleitet.
+# kopfzahl / frueh_min / schluss_min sind die harten Eckpfeiler,
+# besetzung_min ist die Feinkurve ueber den Tag.
+
+offene_tage: [mo, di, mi, do, fr, sa]
+
+oeffnung:                     # Planungsfenster, nicht Ladenoeffnung
+  mo: {von: "06:00", bis: "20:00"}
+  di: {von: "06:00", bis: "20:00"}
+  mi: {von: "06:00", bis: "20:00"}
+  do: {von: "06:00", bis: "20:00"}
+  fr: {von: "06:00", bis: "20:00"}
+  sa: {von: "06:00", bis: "18:00"}
+
+kopfzahl_toleranz: 1          # Abweichung von kopfzahl, die straffrei bleibt
+kopfzahl:                     # Zielanzahl eingeteilter Mitarbeiter
+  mo: 5
+  di: 5
+  mi: 5
+  do: 5
+  fr: 7
+  sa: 7
+
+frueh_bis: "07:00"            # Schichtstart <= dieser Zeit zaehlt als Frueh
+frueh_min:                    # Mindestanzahl Fruehschichten (Produktion/Aufbau)
+  mo: 2
+  di: 2
+  mi: 2
+  do: 2
+  fr: 3
+  sa: 3
+
+schluss_min:                  # Mindestanzahl Schichten bis Ladenschluss
+  mo: 2
+  di: 2
+  mi: 2
+  do: 2
+  fr: 3
+  sa: 3
+
+besetzung_min:                # Mindestbesetzung je Zeitfenster
+  mo:
+    - {von: "06:00", bis: "08:00", min: 2}
+    - {von: "08:00", bis: "12:00", min: 3}
+    - {von: "12:00", bis: "13:30", min: 4}
+    - {von: "13:30", bis: "20:00", min: 2}
+  di:
+    - {von: "06:00", bis: "08:00", min: 2}
+    - {von: "08:00", bis: "12:00", min: 3}
+    - {von: "12:00", bis: "13:30", min: 4}
+    - {von: "13:30", bis: "20:00", min: 2}
+  mi:
+    - {von: "06:00", bis: "08:00", min: 2}
+    - {von: "08:00", bis: "12:00", min: 3}
+    - {von: "12:00", bis: "13:00", min: 4}
+    - {von: "13:00", bis: "20:00", min: 2}
+  do:
+    - {von: "06:00", bis: "08:00", min: 2}
+    - {von: "08:00", bis: "12:00", min: 3}
+    - {von: "12:00", bis: "13:30", min: 4}
+    - {von: "13:30", bis: "20:00", min: 2}
+  fr:
+    - {von: "06:00", bis: "08:00", min: 2}
+    - {von: "08:00", bis: "11:00", min: 3}
+    - {von: "11:00", bis: "12:00", min: 4}
+    - {von: "12:00", bis: "13:30", min: 5}
+    - {von: "13:30", bis: "14:00", min: 4}
+    - {von: "14:00", bis: "20:00", min: 3}
+  sa:
+    - {von: "06:00", bis: "08:00", min: 2}
+    - {von: "08:00", bis: "10:00", min: 3}
+    - {von: "10:00", bis: "11:00", min: 4}
+    - {von: "11:00", bis: "13:30", min: 5}
+    - {von: "13:30", bis: "14:00", min: 4}
+    - {von: "14:00", bis: "18:00", min: 3}

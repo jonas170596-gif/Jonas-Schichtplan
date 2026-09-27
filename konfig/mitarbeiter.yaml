@@ -1,0 +1,95 @@
+# Stammdaten der Mitarbeiter.
+# Startwerte aus 14 Altplaenen (KW28-KW41/2025) abgeleitet - bitte pruefen
+# und korrigieren, die Historie zeigt nur was war, nicht was gilt.
+#
+#   soll_stunden       Brutto-Wochenstunden inkl. Pause (so wie auf dem Papierplan gerechnet)
+#   soll_tage          angestrebte Arbeitstage pro Woche
+#   max_tage           Obergrenze Arbeitstage pro Woche
+#   feste_freie_tage   gelten immer, ohne Eintrag in der Wochenvorgabe (nicht jeder hat welche)
+#   erlaubte_schichten was der/die MA ueberhaupt arbeiten darf
+#   stamm_schichten    Gewicht 0..1 - je hoeher, desto lieber vergibt der Planer diese Schicht
+#   max_tage_in_folge  Obergrenze Arbeitstage am Stueck
+
+mitarbeiter:
+
+  kurka_j:
+    name: "J. Kurka"
+    soll_stunden: 40
+    soll_tage: 5
+    feste_freie_tage: []          # historisch am haeufigsten Di frei (43 %), aber nicht fix
+    erlaubte_schichten: [6-14, 6-13:30, 6-12, 6-11, 11-20]
+    stamm_schichten: {6-14: 0.88, 6-13:30: 0.05, 11-20: 0.04}
+    notiz: "Frueh-Anker: praktisch immer 6-14."
+
+  rohwer_c:
+    name: "C. Rohwer"
+    soll_stunden: 40
+    soll_tage: 5
+    feste_freie_tage: []          # historisch fast immer Mi frei (86 %) - ggf. auf [mi] setzen
+    erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-12, 9-18, 10-18, 11-18, 8-18]
+    stamm_schichten: {6-14: 0.56, 11-20: 0.30}
+
+  marino_a:
+    name: "A. Marino"
+    soll_stunden: 40
+    soll_tage: 5
+    feste_freie_tage: []          # historisch haeufig Mo frei (57 %)
+    erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-11, 9-18, 10-18]
+    stamm_schichten: {11-20: 0.48, 6-14: 0.41, 9-18: 0.06}
+
+  kurz_c:
+    name: "C. Kurz"
+    soll_stunden: 17
+    soll_tage: 3
+    max_tage: 4
+    feste_freie_tage: [di, fr, sa]   # sehr stabiles Muster Mo 8-14 / Mi 8-13 / Do 8-14
+    erlaubte_schichten: [8-14, 8-13, 8-11, 6-12, 6-14]
+    stamm_schichten: {8-14: 0.64, 8-13: 0.28}
+
+  sannzenbacher_n:
+    name: "N. Sannzenbacher"
+    soll_stunden: 32
+    soll_tage: 4
+    erlaubte_schichten: [6-14, 12-20, 11-20, 14-20, 6-13:30, 10-18, 11-18, 12-18]
+    stamm_schichten: {6-14: 0.40, 12-20: 0.38, 10-18: 0.10}
+
+  reich_s:
+    name: "S. Reich"
+    soll_stunden: 30
+    soll_tage: 4
+    erlaubte_schichten: [6-14, 11-20, 14-20, 8-16, 9-16, 11-18, 12-18, 10-18]
+    stamm_schichten: {6-14: 0.34, 11-20: 0.24, 14-20: 0.17, 11-18: 0.12}
+
+  nachtrieb_i:
+    name: "I. Nachtrieb"
+    soll_stunden: 25
+    soll_tage: 4
+    erlaubte_schichten: [14-20, 6-14, 11-20, 12-20, 13-20, 8-16, 9-16, 12-18, 11-18, 9-18]
+    stamm_schichten: {14-20: 0.35, 6-14: 0.23, 11-20: 0.10, 12-18: 0.08}
+
+  kurz_u:
+    name: "U. Kurz"
+    soll_stunden: 20
+    soll_tage: 3
+    erlaubte_schichten: [14-20, 12-20, 11-20, 8-16, 8-14, 8-11, 6-14, 9-18, 10-18, 12-18, 8-18]
+    stamm_schichten: {14-20: 0.56, 12-18: 0.08}
+
+  kohl_b:
+    name: "B. Kohl"
+    soll_stunden: 30
+    soll_tage: 4
+    erlaubte_schichten: [12-20, 6-13:30, 6-12, 8-15:30, 10-18, 12-18]
+    stamm_schichten: {12-20: 0.44, 6-13:30: 0.40, 10-18: 0.07}
+
+  menzler_a:
+    name: "A. Menzler"
+    soll_stunden: 32
+    soll_tage: 4
+    erlaubte_schichten: [8-16, 6-14, 11-20, 12-20, 6-13:30, 9-18, 10-18, 11-18, 12-18]
+    stamm_schichten: {8-16: 0.61, 6-14: 0.11, 11-20: 0.11}
+    notiz: "Azubi - Berufsschultage je Woche in der Wochenvorgabe unter 'schule' eintragen."
+
+  kurz_t:
+    name: "T. Kurz"
+    im_plan: false                # Zeile erscheint im Ausdruck, wird aber nicht belegt ("-")
+    notiz: "In der Historie nie in Winterbach eingeplant."

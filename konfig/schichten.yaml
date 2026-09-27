@@ -1,0 +1,38 @@
+# Schichtkatalog - abgeleitet aus 14 finalen Altplaenen (KW28-KW41/2025).
+# Die ID ist bewusst die Schreibweise vom Papierplan ("6-14"), damit
+# Konfiguration und Ausdruck identisch lesbar sind.
+#
+#   kategorie: frueh (Start <= 07:00) | mittel | spaet
+#   tage:      auf welchen Wochentagen die Schicht vergeben werden darf
+#              (weglassen = alle offenen Tage)
+#
+# Nach jedem neuen Stapel Altplaene neu vorschlagen lassen mit:
+#   python -m schichtplan analyse --konfig-vorschlag
+
+schichten:
+  # --- Frueh ---
+  6-14:      {von: "06:00", bis: "14:00", kategorie: frueh}     # 164x - Standardfrueh
+  6-13:30:   {von: "06:00", bis: "13:30", kategorie: frueh}     #  25x
+  6-12:      {von: "06:00", bis: "12:00", kategorie: frueh}     #   4x - Kurzfrueh
+  6-11:      {von: "06:00", bis: "11:00", kategorie: frueh}     #   2x - Kurzfrueh
+
+  # --- Mittel ---
+  8-16:      {von: "08:00", bis: "16:00", kategorie: mittel}    #  36x - Azubi-Standard
+  8-14:      {von: "08:00", bis: "14:00", kategorie: mittel}    #  25x
+  8-15:30:   {von: "08:00", bis: "15:30", kategorie: mittel}    #   2x
+  9-16:      {von: "09:00", bis: "16:00", kategorie: mittel}    #   2x
+  8-13:      {von: "08:00", bis: "13:00", kategorie: mittel, tage: [mi]}   # 10x - nur Mi
+  8-11:      {von: "08:00", bis: "11:00", kategorie: mittel}    #   2x - Kurzeinsatz
+
+  # --- Spaet (Mo-Fr, Laden bis 20:00) ---
+  11-20:     {von: "11:00", bis: "20:00", kategorie: spaet, tage: [mo, di, mi, do, fr]}  # 66x
+  14-20:     {von: "14:00", bis: "20:00", kategorie: spaet, tage: [mo, di, mi, do, fr]}  # 46x
+  12-20:     {von: "12:00", bis: "20:00", kategorie: spaet, tage: [mo, di, mi, do, fr]}  # 41x
+  13-20:     {von: "13:00", bis: "20:00", kategorie: spaet, tage: [mo, di, mi, do, fr]}  #  1x
+
+  # --- Samstag (Laden bis 18:00) ---
+  9-18:      {von: "09:00", bis: "18:00", kategorie: mittel, tage: [sa]}   # 10x
+  10-18:     {von: "10:00", bis: "18:00", kategorie: mittel, tage: [sa]}   # 11x
+  11-18:     {von: "11:00", bis: "18:00", kategorie: spaet,  tage: [sa]}   #  8x
+  12-18:     {von: "12:00", bis: "18:00", kategorie: spaet,  tage: [sa]}   # 10x
+  8-18:      {von: "08:00", bis: "18:00", kategorie: mittel, tage: [sa]}   #  2x
