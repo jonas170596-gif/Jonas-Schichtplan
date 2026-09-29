@@ -1,0 +1,80 @@
+# Feiertage diese Woche: Samstag Tag der Deutschen Einheit
+# Wochenvorgabe 2026-KW40 - alles, was sich von Woche zu Woche aendert.
+# Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
+
+woche: 2026-KW40
+datum_von: 2026-09-28          # Montag
+datum_bis: 2026-10-03          # Samstag
+filiale: Winterbach
+
+# Tage, an denen der Laden zu ist. Aus dem BW-Feiertagskalender vorbelegt.
+geschlossen: [sa]
+
+# --- Abwesenheiten (hart) ---
+urlaub: {}
+#  reich_s: alle
+#  kohl_b: [do, fr, sa]
+
+schule: 
+  menzler_a: [mi, do]         # Gruppe B
+
+krank: {}
+sonstige: {}
+
+# --- Harte Vorgaben: genau diese Schicht / genau frei ---
+fest: {}
+#  kurka_j: {sa: 6-14}
+#  marino_a: {mo: frei}
+
+# --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
+wunsch_frei: {}
+
+wunsch_schicht: {}
+#  kohl_b: {fr: 6-13:30}
+
+# Wunsch nach einer Schichtart statt einer bestimmten Schicht
+wunsch_kategorie: {}
+#  menzler_a: {sa: frueh}
+
+# Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
+arbeitet: {}
+#  kurz_c: [di]
+
+# --- Termine: Schicht muss zu dieser Zeit enden ---
+termine: []
+#  - name: Teamleitersitzung
+#    tag: di
+#    ab: "13:30"
+#    kandidaten: [kurka_j]
+#    anzahl: 1
+#    abwechselnd: false     # true: nicht dieselbe Person wie beim letzten Mal
+#                           # (nur sinnvoll bei mehreren Kandidaten)
+
+# --- Zusatzaufgaben, die im Plan vermerkt werden ---
+zusatz: {}
+#  rohwer_c: {sa: [grossputz]}
+
+# --- Abweichendes Wochensoll (z. B. Stundenabbau) ---
+soll_stunden: {}
+#  kurz_u: 12
+
+# --- Sonderwochen ---
+# modus: manuell   -> der Planer rechnet nichts, er prueft nur, was unter
+#                     'fest' steht, und exportiert es. Fuer Weihnachten und
+#                     aehnliche Wochen. 'neu --manuell' schreibt das Raster gleich mit.
+# regeln_aus:      -> Regeln, die in dieser Woche nicht gelten sollen,
+#                     z. B. [gesamtstunden, kopfzahl, wochenstunden]
+modus: auto
+regeln_aus: []
+
+# Bedarf dieser Woche abweichend vom Normalfall (konfig/bedarf.yaml).
+# Alles optional, nur was hier steht wird ueberschrieben.
+bedarf: {}
+#  oeffnung:
+#    mi: {von: "05:00", bis: "14:00"}    # Heiligabend
+#  kopfzahl: {mi: 10}
+#  frueh_min: {mi: 6}
+#  schluss_min: {mi: 3}
+#  wochenstunden_gesamt: 300
+
+notiz: ""
