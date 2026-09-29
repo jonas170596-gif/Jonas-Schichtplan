@@ -25,7 +25,7 @@ import yaml
 from . import analyse as _analyse
 from . import backtest as _backtest
 from . import export
-from .bewertung import Bewerter
+from .bewertung import SCHWEREGRADE, Bewerter
 from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .feiertage import Kalender, feiertage_bw, sondertage
@@ -601,13 +601,24 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
 
 
 def _zeige_befunde(bew) -> None:
+    """Befunde nach Schweregrad gruppiert, innerhalb der Gruppe die teuersten
+    zuerst - die Strafpunkte sagen, wie weh die Abweichung dem Planer tut."""
     if not bew.befunde:
-        print("Keine Regelverletzungen.")
+        print("\nKeine Regelverletzungen.")
         return
-    for schwere, marke in (("fehler", "FEHLER "), ("warnung", "Warnung"), ("hinweis", "Hinweis")):
-        for b in bew.befunde:
-            if b.schwere == schwere:
-                print(f"  {marke}  {b.text}  ({b.regel}, {b.punkte:.0f})")
+    nach_schwere = {s: [b for b in bew.befunde if b.schwere == s]
+                    for s, _, _ in SCHWEREGRADE}
+    kopf = ", ".join(f"{len(nach_schwere[s])} {t.capitalize()}"
+                     for s, t, _ in SCHWEREGRADE if nach_schwere[s])
+    print(f"\nBefunde: {kopf}")
+    for schwere, titel, erklaerung in SCHWEREGRADE:
+        gruppe = sorted(nach_schwere[schwere], key=lambda b: -b.punkte)
+        if not gruppe:
+            continue
+        summe = sum(b.punkte for b in gruppe)
+        print(f"\n  {titel} ({len(gruppe)}, {summe:.0f} Punkte) - {erklaerung}")
+        for b in gruppe:
+            print(f"    - {b.text}  ({b.regel}, {b.punkte:.0f})")
 
 
 def main(argv=None) -> int:

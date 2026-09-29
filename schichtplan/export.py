@@ -7,6 +7,7 @@ import html
 import io
 import json
 
+from .bewertung import SCHWEREGRADE
 from .konfig import Stammdaten
 from .modelle import TAG_LANG, Plan, zu_zeit
 
@@ -109,9 +110,20 @@ th.summe { font-size:9.5pt; }
 .fuss { margin-top:4mm; font-size:8.5pt; color:#555; display:flex; justify-content:space-between; }
 .budget { margin-top:4mm; font-size:10pt; }
 .hinweise { margin-top:5mm; font-size:9pt; }
-.hinweise li { margin-bottom:1mm; }
-.fehler { color:#b00020; }
-@media print { .hinweise { page-break-before:avoid; } }
+.hinweise ul { margin:1mm 0 0; padding-left:5mm; }
+.hinweise li { margin-bottom:0.8mm; }
+.grad { margin-top:3mm; padding:1.5mm 0 1.5mm 3mm; border-left:1.2mm solid #999; }
+.grad h4 { margin:0; font-size:9pt; letter-spacing:0.3pt; }
+.grad .was { font-weight:400; color:#555; }
+.grad.fehler  { border-color:#b00020; background:#fdf2f3; }
+.grad.fehler h4  { color:#b00020; }
+.grad.warnung { border-color:#c47f00; background:#fdf8ee; }
+.grad.warnung h4 { color:#8a5a00; }
+.grad.hinweis { border-color:#8d9199; background:#f7f8f9; }
+.grad.hinweis h4 { color:#4a4f57; }
+.grad .pkt { color:#777; }
+@media print { .hinweise { page-break-before:avoid; }
+               .grad { break-inside:avoid; } }
 """
 
 
@@ -165,13 +177,24 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
 
     hinweise = ""
     if bewertung is not None:
-        punkte = [(b.schwere, b.text) for b in bewertung.befunde]
-        if punkte:
-            eintraege = "".join(
-                f'<li class="{"fehler" if s == "fehler" else ""}">'
-                f'{"!" if s == "fehler" else "-"} {e(t)}</li>' for s, t in punkte)
+        if bewertung.befunde:
+            bloecke = []
+            for schwere, titel, erklaerung in SCHWEREGRADE:
+                gruppe = sorted((b for b in bewertung.befunde if b.schwere == schwere),
+                                key=lambda b: -b.punkte)
+                if not gruppe:
+                    continue
+                summe = sum(b.punkte for b in gruppe)
+                eintraege = "".join(
+                    f'<li>{e(b.text)} <span class="pkt">({e(b.regel)}, '
+                    f'{b.punkte:.0f})</span></li>' for b in gruppe)
+                bloecke.append(
+                    f'<div class="grad {schwere}"><h4>{titel} &middot; {len(gruppe)} '
+                    f'&middot; {summe:.0f} Punkte <span class="was">- {erklaerung}'
+                    f'</span></h4><ul>{eintraege}</ul></div>')
             hinweise = (f'<div class="hinweise"><b>Hinweise des Planers '
-                        f'({bewertung.punkte:.0f} Strafpunkte)</b><ul>{eintraege}</ul></div>')
+                        f'({bewertung.punkte:.0f} Strafpunkte)</b>'
+                        f'{"".join(bloecke)}</div>')
         else:
             hinweise = ('<div class="hinweise"><b>Keine Regelverletzungen.</b></div>')
 

@@ -15,7 +15,8 @@
 #   bevorzugte_freie_tage        sollen frei bleiben, duerfen aber weichen
 #   vermeiden                    Schichtkategorien oder -IDs, die nur im Notfall kommen
 #   schichtwunsch                tag -> kategorie, weicher Wunsch je Wochentag
-#   schicht_verteilung           ueber mehrere Tage je Kategorie eine Schicht
+#   schicht_wochenwechsel        Tagesblock, der von Woche zu Woche die Seite
+#                                wechselt (eine Woche frueh, die naechste spaet)
 #   frueh_spaet_ausgleich        false = nimmt am Frueh/Spaet-Ausgleich nicht teil
 #   freie_tage_zusammenhaengend  true = freie Tage sollen aneinandergrenzen
 #   erlaubte_schichten           was der/die MA ueberhaupt arbeiten darf
@@ -48,9 +49,10 @@ mitarbeiter:
     schichtwunsch: {mo: frueh, di: frueh, mi: frueh, do: frueh}
     frueh_spaet_ausgleich: false  # Mo-Do frueh ist gesetzt, damit ist er frueh-lastig;
                                   # der Ausgleich passiert bei ihm nur ueber Fr/Sa
-    schicht_verteilung:
-      - tage: [fr, sa]            # freitags und samstags im Wechsel
-        kategorien: [frueh, spaet]
+    schicht_wochenwechsel:
+      - tage: [fr, sa]            # Freitag und Samstag gehoeren zusammen:
+                                  # eine Woche beide frueh, die naechste beide
+                                  # spaet, dann wieder frueh
     erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-12, 9-18, 10-18, 11-18, 8-18]
     stamm_schichten: {6-14: 0.56, 11-20: 0.30}
     notiz: "Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet."

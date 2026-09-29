@@ -352,15 +352,36 @@ class TestBewertung(unittest.TestCase):
                  if b.regel == "bevorzugter_freier_tag"]
         self.assertTrue(any("C. Kurz" in x and "Freitag" in x for x in texte), texte)
 
-    def test_rohwer_fr_sa_im_wechsel(self):
+    def test_rohwer_fr_und_sa_auf_derselben_seite(self):
+        """Freitag und Samstag gehoeren zusammen - beide frueh oder beide spaet."""
         plan = grundgeruest(self.stamm, self.vorgabe)
         self._setze(plan, "rohwer_c", "fr", "11-20")     # spaet
-        self._setze(plan, "rohwer_c", "sa", "11-18")     # ebenfalls spaet
+        self._setze(plan, "rohwer_c", "sa", "6-14")      # frueh -> auseinander
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
-        self.assertIn("schicht_verteilung", regeln)
-        self._setze(plan, "rohwer_c", "sa", "6-14")      # jetzt frueh
+        self.assertIn("wochenwechsel_uneinheitlich", regeln)
+        self._setze(plan, "rohwer_c", "sa", "11-18")     # Samstagsspaetschicht
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
-        self.assertNotIn("schicht_verteilung", regeln)
+        self.assertNotIn("wochenwechsel_uneinheitlich", regeln)
+
+    def test_rohwer_wechselt_die_seite_von_woche_zu_woche(self):
+        """In KW41 lag Fr/Sa frueh, also ist jetzt spaet an der Reihe."""
+        vorwochen = lade_historie(WURZEL / "daten/historie")
+        b = Bewerter(self.stamm, self.vorgabe, vorwochen)
+        self.assertEqual(b._letzte_seite.get(("rohwer_c", 0)), "frueh")
+
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "rohwer_c", "fr", "6-14")
+        self._setze(plan, "rohwer_c", "sa", "6-14")
+        regeln = {x.regel for x in
+                  pruefen(plan, self.stamm, self.vorgabe, vorwochen).befunde}
+        self.assertIn("wochenwechsel", regeln)
+
+        self._setze(plan, "rohwer_c", "fr", "11-20")
+        self._setze(plan, "rohwer_c", "sa", "11-18")
+        regeln = {x.regel for x in
+                  pruefen(plan, self.stamm, self.vorgabe, vorwochen).befunde}
+        self.assertNotIn("wochenwechsel", regeln)
+        self.assertNotIn("wochenwechsel_uneinheitlich", regeln)
 
     def test_rohwer_will_mo_bis_do_frueh(self):
         plan = grundgeruest(self.stamm, self.vorgabe)

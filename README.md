@@ -495,7 +495,8 @@ hoch, dass sie praktisch hart sind:
 | `frueh_ueber` | keine dritte Fruehschicht, wo zwei reichen |
 | `vermiedene_schicht` | Kurka spaet nur im Notfall |
 | `schichtwunsch` | Rohwer Mo-Do frueh |
-| `schicht_verteilung` | Rohwer Fr/Sa im Wechsel frueh/spaet |
+| `wochenwechsel_uneinheitlich` | Rohwer Fr und Sa liegen nicht auf derselben Seite |
+| `wochenwechsel` | Rohwer Fr/Sa zweite Woche in Folge dieselbe Seite |
 | `bevorzugter_freier_tag` | weiche freie Tage (Sannzenbacher Mi/Do, C. Kurz Fr/Sa) |
 | `stammschicht` | jeder bekommt moeglichst seine gewohnte Schicht |
 | `sparsam_einsetzen` | U. Kurz nur einsetzen, wenn es die Besetzung braucht |

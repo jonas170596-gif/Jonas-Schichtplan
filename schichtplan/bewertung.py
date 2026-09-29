@@ -19,6 +19,15 @@ class Befund:
     schwere: str = "hinweis"        # fehler | warnung | hinweis
 
 
+# Schweregrade in der Reihenfolge, in der sie ausgegeben werden: Kuerzel,
+# Ueberschrift, und was der Grad fuer den Aushang bedeutet.
+SCHWEREGRADE = (
+    ("fehler",  "FEHLER",  "so nicht aushaengen"),
+    ("warnung", "WARNUNG", "geht, ist aber ein Zugestaendnis"),
+    ("hinweis", "HINWEIS", "nur zur Kenntnis"),
+)
+
+
 @dataclass
 class Bewertung:
     punkte: float = 0.0
@@ -65,6 +74,7 @@ class Bewerter:
         self._hist_bilanz = self._historische_bilanz()
         self._samstagskonto = self._historisches_samstagskonto()
         self._fehltage = self._historische_fehltage()
+        self._letzte_seite = self._letzte_wochenseite()
         self.feiertagsumfeld = self._feiertagsumfeld()
 
     def _einsetzbar(self, mid: str, tag: str) -> bool:
@@ -118,6 +128,28 @@ class Bewerter:
                 frei += not z.verwertbar
             konto[mid] = (moeglich, frei)
         return konto
+
+    def _letzte_wochenseite(self) -> dict[tuple[str, int], str]:
+        """Welche Seite der Wechselblock zuletzt hatte - fuer den Takt.
+
+        Gesucht wird die juengste Woche, in der die Person an den Tagen des
+        Blocks ueberhaupt gearbeitet hat und einheitlich auf einer Seite war.
+        Urlaubs- und Mischwochen unterbrechen den Takt nicht."""
+        letzte = {}
+        for mid, regeln in self.stamm.wochenwechsel.items():
+            for i, regel in enumerate(regeln):
+                for w in reversed(self.vorwochen):
+                    offen = w.offene_tage()
+                    seiten = set()
+                    for tag in regel.tage:
+                        z = w.plan.get(mid, {}).get(tag)
+                        if tag in offen and z is not None and z.verwertbar:
+                            kat = self.stamm.kategorie_von(z.von, z.bis)
+                            seiten.add("frueh" if kat == "frueh" else "spaet")
+                    if len(seiten) == 1:
+                        letzte[(mid, i)] = seiten.pop()
+                        break
+        return letzte
 
     def _historische_fehltage(self) -> dict[str, float]:
         """Aufgelaufene Fehltage (unter Soll) im Ausgleichsfenster."""
@@ -794,17 +826,22 @@ class Bewerter:
                         f"{m.name}: {TAG_LANG[tag]} {z.schicht.kategorie} statt "
                         f"{m.bevorzugte_kategorie}")
 
-            for regel in self.stamm.verteilung.get(mid, []):
-                kats = [reihe[tag].schicht.kategorie for tag in regel.tage
-                        if tag in self.tage and reihe[tag].arbeitet]
-                if len(kats) < len(regel.kategorien):
+            for i, regel in enumerate(self.stamm.wochenwechsel.get(mid, [])):
+                seiten = [regel.seite(reihe[tag].schicht) for tag in regel.tage
+                          if tag in self.tage and reihe[tag].arbeitet]
+                if not seiten:
                     continue
-                fehl = sum(max(0, 1 - kats.count(k)) for k in regel.kategorien)
-                fehl += sum(1 for k in kats if k not in regel.kategorien)
-                add("schicht_verteilung", fehl,
-                    f"{m.name}: {'/'.join(TAG_LANG[t][:2] for t in regel.tage)} sollen "
-                    f"{' und '.join(regel.kategorien)} sein, sind {'/'.join(kats)}"
-                    if fehl else "", "warnung")
+                kuerzel = "/".join(TAG_LANG[t][:2] for t in regel.tage)
+                if len(set(seiten)) > 1:
+                    add("wochenwechsel_uneinheitlich", len(set(seiten)) - 1,
+                        f"{m.name}: {kuerzel} sollen beide dieselbe Seite haben, "
+                        f"sind {'/'.join(seiten)}", "warnung")
+                    continue
+                letzte = self._letzte_seite.get((mid, i))
+                if letzte and letzte == seiten[0]:
+                    add("wochenwechsel", 1,
+                        f"{m.name}: {kuerzel} schon die zweite Woche in Folge "
+                        f"{seiten[0]}", "warnung")
 
             if m.freie_tage_zusammenhaengend:
                 frei = [TAGE.index(t_) for t_ in self.tage

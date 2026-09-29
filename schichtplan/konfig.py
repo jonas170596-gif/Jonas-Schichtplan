@@ -48,11 +48,19 @@ class Bedarf:
 
 
 @dataclass
-class Verteilungsregel:
-    """Ueber mehrere Tage hinweg soll je Kategorie hoechstens/mindestens eine
-    Schicht liegen - z. B. Rohwer freitags und samstags im Wechsel frueh/spaet."""
+class Wochenwechsel:
+    """Mehrere Tage bilden einen Block, der von Woche zu Woche die Seite wechselt.
+
+    Rohwer hat Freitag und Samstag zusammen: in einer Woche beide frueh, in
+    der naechsten beide spaet, dann wieder frueh. Unterschieden wird nur
+    frueh gegen nicht-frueh - eine Samstagsschicht von 10-18 zaehlt als
+    spaet, auch wenn der Katalog sie als mittel fuehrt, weil der Laden um
+    18 Uhr schliesst."""
     tage: list[str]
-    kategorien: list[str]
+
+    @staticmethod
+    def seite(schicht) -> str:
+        return "frueh" if schicht.kategorie == "frueh" else "spaet"
 
 
 @dataclass
@@ -169,7 +177,7 @@ class Stammdaten:
     unvertraeglich: list[Gruppenregel] = field(default_factory=list)
     abdeckung: list[Abdeckungsregel] = field(default_factory=list)
     faehigkeit_namen: dict[str, str] = field(default_factory=dict)
-    verteilung: dict[str, list[Verteilungsregel]] = field(default_factory=dict)
+    wochenwechsel: dict[str, list[Wochenwechsel]] = field(default_factory=dict)
 
     _kat_tabelle: dict[tuple[int, int], str] = field(default_factory=dict, repr=False)
 
@@ -334,8 +342,8 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
 
     verteilung = {}
     for mid, m in roh_m["mitarbeiter"].items():
-        regeln_v = [Verteilungsregel(tage=list(r["tage"]), kategorien=list(r["kategorien"]))
-                    for r in (m.get("schicht_verteilung") or [])]
+        regeln_v = [Wochenwechsel(tage=list(r["tage"]))
+                    for r in (m.get("schicht_wochenwechsel") or [])]
         if regeln_v:
             verteilung[mid] = regeln_v
 
@@ -348,7 +356,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         abdeckung=abdeckung,
         faehigkeit_namen={k: (v or {}).get("name", k)
                           for k, v in (roh_t.get("faehigkeiten") or {}).items()},
-        verteilung=verteilung,
+        wochenwechsel=verteilung,
     )
 
 

@@ -83,7 +83,8 @@ gewichte:
   spaet_anteil: 250         # Abweichung vom Zielanteil Spaetschichten (Azubi)
   schichtwunsch: 130        # Wochentag hat nicht die gewuenschte Kategorie
   bevorzugte_kategorie: 120 # je Schicht ausserhalb der Lieblingskategorie
-  schicht_verteilung: 220   # z. B. Rohwer Fr/Sa nicht im Wechsel frueh/spaet
+  wochenwechsel_uneinheitlich: 300  # Fr und Sa liegen auf verschiedenen Seiten
+  wochenwechsel: 220        # zweite Woche in Folge dieselbe Seite
   bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
