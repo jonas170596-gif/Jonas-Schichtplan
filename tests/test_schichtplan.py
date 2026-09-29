@@ -431,12 +431,29 @@ class TestBewertung(unittest.TestCase):
         self.assertAlmostEqual(Bewerter(self.stamm, v).gesamtbudget(), voll)
 
     def test_erreichbare_stunden_sinken_bei_abwesenheit(self):
+        """Urlaub kostet Stunden - aber hoechstens die des Abwesenden.
+
+        Marino bringt 40 h Anwesenheit auf 5 Schichten mit, netto 37.5 h.
+        Weniger als das darf die Woche verlieren, weil andere in ihre
+        freigewordenen Plaetze nachruecken koennen."""
         v = self._sauber()
         voll = Bewerter(self.stamm, v).erreichbare_stunden()
         v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
-        # Marino: 40 h Anwesenheit auf 5 Schichten, netto also 37.5 h
-        self.assertAlmostEqual(Bewerter(self.stamm, v).erreichbare_stunden(),
-                               voll - 37.5)
+        ohne = Bewerter(self.stamm, v).erreichbare_stunden()
+        self.assertLess(ohne, voll)
+        self.assertGreaterEqual(ohne, voll - 37.5)
+
+    def test_erreichbare_stunden_deckelt_an_der_kopfzahl(self):
+        """Mehr als die Zielkopfzahl je Tag passt nicht in den Laden.
+
+        Sonst mahnt das Budget Stunden an, fuer die es keine Plaetze gibt -
+        in einer kurzen Woche mit Feiertag ist das der Regelfall."""
+        v = self._sauber()
+        b = Bewerter(self.stamm, v)
+        plaetze = sum(b.bedarf.kopfzahl[t] for t in b.tage)
+        laengste = max(s.dauer_h for s in self.stamm.schichten.values())
+        self.assertLessEqual(b.erreichbare_stunden(),
+                             plaetze * (laengste - b.bedarf.pause_h))
 
     def test_unterdeckung_durch_abwesenheit_ist_nur_ein_hinweis(self):
         """Was die Mannschaft nicht leisten kann, darf der Planer nicht
@@ -968,6 +985,93 @@ class TestKalenderVollstaendig(unittest.TestCase):
                   if e.ma == "kurka_j" and e.art == "urlaub"]
         self.assertEqual(len(urlaub), 1)
         self.assertEqual(urlaub[0].von, datetime.date(2026, 10, 17))
+
+
+class TestUeberbesetzung(unittest.TestCase):
+    """Eine Woche ohne Urlaub gibt mehr Personentage her, als der Laden
+    braucht. Dann bekommt jemand einen zusaetzlichen freien Tag - und die
+    Konten entscheiden, wen es trifft."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.wochen = lade_historie(WURZEL / "daten/historie")
+
+    def test_zielkopfzahl_ist_eine_obergrenze(self):
+        self.assertEqual(self.stamm.bedarf.kopfzahl_toleranz_ueber, 0)
+
+    def test_ein_kopf_zu_viel_kostet_mehr_als_ein_freier_tag(self):
+        """Sonst stellt der Planer lieber jemanden ueberzaehlig in den Laden."""
+        g = self.stamm.regeln.gewichte
+        freier_tag = (g["arbeitstage_unter"] + g["wochenstunden_unter"] * 8
+                      + g["gesamtstunden_unter"] * 8)
+        self.assertGreater(g["kopfzahl_ueber"] + g["besetzung_ueber"] * 16,
+                           freier_tag * 0.9)
+
+    def test_ueberzaehliger_kopf_wird_gemeldet(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        ziel = self.stamm.bedarf.kopfzahl["mo"]
+        frei = [mid for mid, m in self.stamm.mitarbeiter.items()
+                if m.im_plan and "mo" not in m.feste_freie_tage][:ziel + 1]
+        for mid in frei:
+            plan.zellen[mid]["mo"].art = "schicht"
+            plan.zellen[mid]["mo"].schicht = self.stamm.schichten["6-14"]
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("kopfzahl_ueber", regeln)
+
+    def test_unter_soll_ist_billiger_als_ueber_soll(self):
+        """Ueberstunden muss jemand leisten, Minusstunden entstehen von selbst."""
+        g = self.stamm.regeln.gewichte
+        self.assertLess(g["wochenstunden_unter"], g["wochenstunden"])
+        self.assertLess(g["arbeitstage_unter"], g["arbeitstage"])
+
+    def test_stundenkonto_misst_gegen_den_teamschnitt(self):
+        """Wer genau im Schnitt liegt, zahlt nichts - egal wie gross das
+        Minus der ganzen Mannschaft ist."""
+        b = Bewerter(self.stamm, self.vorgabe, self.wochen)
+        konto = b.stundenkonto()
+        self.assertTrue(konto)
+        self.assertNotIn("kurz_u", konto)      # Reserve verzerrt den Schnitt
+        self.assertNotIn("menzler_a", konto)   # Azubi haengt an praesenztage
+
+    def test_gleichmaessiges_minus_kostet_nichts(self):
+        """Alle gleich weit zurueck heisst: gerecht verteilt."""
+        v = self.vorgabe
+        b = Bewerter(self.stamm, v, self.wochen)
+        gruppe = b._kontogruppe()
+        # Der leere Plan legt jedem sein volles Wochensoll aufs Konto; die
+        # Historie wird so gesetzt, dass danach alle gleich weit zurueckliegen.
+        b._minusstunden = {mid: 60.0 - b._ziel(mid)[0] for mid in gruppe}
+        erg = b.bewerte(grundgeruest(self.stamm, v), detail=True)
+        self.assertEqual([x.text for x in erg.befunde
+                          if x.regel == "minusstunden_konto"], [])
+
+    def test_einseitiges_minus_kostet(self):
+        v = self.vorgabe
+        b = Bewerter(self.stamm, v, self.wochen)
+        gruppe = b._kontogruppe()
+        b._minusstunden = {mid: 60.0 - b._ziel(mid)[0] for mid in gruppe}
+        b._minusstunden["kohl_b"] += 60.0                 # einer haengt hinterher
+        erg = b.bewerte(grundgeruest(self.stamm, v), detail=True)
+        texte = [x.text for x in erg.befunde if x.regel == "minusstunden_konto"]
+        self.assertTrue(any("B. Kohl" in x for x in texte), texte)
+
+    def test_ueberhang_nennt_kandidaten(self):
+        plan = erzeuge(self.stamm, self.vorgabe, self.wochen,
+                       iterationen=2000, seed=1).plan
+        texte = [b.text for b in
+                 pruefen(plan, self.stamm, self.vorgabe, self.wochen).befunde
+                 if b.regel == "ueberhang"]
+        self.assertEqual(len(texte), 1, texte)
+        self.assertIn("Personentage", texte[0])
+        self.assertIn("Stundenkonto", texte[0])
+
+    def test_widerspruechliche_stammdaten_werden_gemeldet(self):
+        """C. Kurz: 20 h Vertrag auf 3 Tage, gewohnt sind 8-14 und 8-13."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "stammdaten"]
+        self.assertTrue(any("C. Kurz" in x for x in texte), texte)
 
 
 class TestArbeitszeitgrenzen(unittest.TestCase):

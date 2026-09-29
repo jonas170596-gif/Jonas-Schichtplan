@@ -165,7 +165,7 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
         ampel = "#1b7f3b" if abs(ist - ziel) <= \
             stamm.bedarf.wochenstunden_gesamt_toleranz else "#b00020"
         erreichbar = bewerter.erreichbare_stunden()
-        zusatz = (f", Sollstunden der anwesenden Mannschaft {erreichbar:.0f} h"
+        zusatz = (f", diese Woche unterzubringen sind hoechstens {erreichbar:.0f} h"
                   if erreichbar < ziel - stamm.bedarf.wochenstunden_gesamt_toleranz
                   else "")
         budget = (f'<div class="budget">Verkaeuferstunden gesamt: '

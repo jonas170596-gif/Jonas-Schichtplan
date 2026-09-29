@@ -590,7 +590,7 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
     if bewerter is not None and bewerter.gesamtbudget():
         ist, ziel = bewerter.gesamtstunden(plan), bewerter.gesamtbudget()
         erreichbar = bewerter.erreichbare_stunden()
-        zusatz = (f", Sollstunden der anwesenden Mannschaft {erreichbar:.0f} h"
+        zusatz = (f", diese Woche unterzubringen sind hoechstens {erreichbar:.0f} h"
                   if erreichbar < ziel - bewerter.bedarf.wochenstunden_gesamt_toleranz
                   else "")
         brutto = bewerter.bruttostunden(plan)

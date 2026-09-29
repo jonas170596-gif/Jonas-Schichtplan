@@ -24,7 +24,9 @@ wochenstunden_gesamt: 255
 wochenstunden_gesamt_toleranz: 5
 
 kopfzahl_toleranz_unter: 0    # unter der Zielkopfzahl wird sofort bestraft
-kopfzahl_toleranz_ueber: 1    # ein Kopf zu viel ist unkritisch
+kopfzahl_toleranz_ueber: 0    # ueberbesetzt wird nicht: wenn die Mannschaft
+                              # mehr Tage hergibt als der Tag braucht, bekommt
+                              # jemand einen zusaetzlichen freien Tag
 kopfzahl:                     # Zielanzahl eingeteilter Mitarbeiter
   mo: 5
   di: 5

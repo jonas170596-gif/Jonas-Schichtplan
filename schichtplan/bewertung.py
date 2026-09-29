@@ -64,6 +64,17 @@ class Bewerter:
             mid: vorgabe.soll_stunden.get(mid, m.soll_stunden)
             for mid, m in stamm.mitarbeiter.items()
         }
+        # Laengste Schicht, die der/die MA ueberhaupt arbeiten darf. C. Kurz hat
+        # 20 h auf 3 Tage im Vertrag, ihre laengste erlaubte Schicht sind aber
+        # 6 h - sie kann ihr Soll gar nicht erreichen. Ohne diese Deckelung
+        # wuerde ihr Stundenkonto Woche fuer Woche weiter ins Minus laufen und
+        # sie stuende dauerhaft ganz oben auf der Liste, obwohl das nichts mit
+        # der Planung zu tun hat.
+        self.laengste_schicht = {
+            mid: max((stamm.schichten[sid].dauer_h for sid in m.erlaubte_schichten
+                      if sid in stamm.schichten), default=0.0)
+            for mid, m in stamm.mitarbeiter.items()
+        }
         # Urlaub kuerzt nicht die Stunden pro Tag, sondern die Anzahl moeglicher
         # Tage. Wer 40 h auf 5 Tage hat und einen Tag Urlaub nimmt, arbeitet die
         # restlichen Tage normal weiter - genau so steht es in den Altplaenen.
@@ -74,6 +85,7 @@ class Bewerter:
         self._hist_bilanz = self._historische_bilanz()
         self._samstagskonto = self._historisches_samstagskonto()
         self._fehltage = self._historische_fehltage()
+        self._minusstunden = self._historische_minusstunden()
         self._letzte_seite = self._letzte_wochenseite()
         self.feiertagsumfeld = self._feiertagsumfeld()
 
@@ -180,6 +192,58 @@ class Bewerter:
             konto[mid] = summe
         return konto
 
+    def _kontogruppe(self) -> list[str]:
+        """Wer beim Fairnessvergleich mitzaehlt.
+
+        Die Reserve (U. Kurz) hat ihr Soll als Obergrenze und baut deshalb
+        per Definition Minusstunden auf; der Azubi haengt an `praesenztage`
+        und der Berufsschule. Beide wuerden den Schnitt verzerren."""
+        return [mid for mid, m in self.stamm.mitarbeiter.items()
+                if m.im_plan and m.aktiv and not m.nur_obergrenze
+                and not m.moeglichst_wenig and m.praesenztage is None
+                and m.soll_stunden > 0]
+
+    def _historische_minusstunden(self) -> dict[str, float]:
+        """Aufgelaufenes Stundenkonto (Soll minus Ist) im Ausgleichsfenster.
+
+        Vorzeichenbehaftet: eine Woche mit Ueberstunden zahlt eine Woche mit
+        Minusstunden zurueck, wie auf einem echten Arbeitszeitkonto. Gerechnet
+        wird brutto, also in Anwesenheitsstunden - so wie `soll_stunden`."""
+        fenster = self.stamm.regeln.ausgleich_fenster_wochen
+        vor = self.vorwochen[-(fenster - 1):] if fenster > 1 else []
+        konto = {}
+        for mid in self._kontogruppe():
+            m = self.stamm.mitarbeiter[mid]
+            summe = 0.0
+            for w in vor:
+                offen = w.offene_tage()
+                reihe = w.plan.get(mid, {})
+                if not reihe:
+                    continue
+                abwesend = sum(1 for t in offen if reihe[t].art in ABWESEND)
+                moeglich = len(offen) - abwesend
+                if moeglich <= 0:
+                    continue
+                # Urlaub kuerzt das Wochensoll anteilig - genau wie in _ziel.
+                tage = min(m.soll_tage, moeglich)
+                pro_tag = m.soll_stunden / m.soll_tage if m.soll_tage else 0.0
+                pro_tag = min(pro_tag, self.laengste_schicht.get(mid) or pro_tag)
+                soll = pro_tag * tage
+                summe += soll - sum(z.stunden for z in reihe.values())
+            konto[mid] = summe
+        return konto
+
+    def stundenkonto(self, plan: Plan | None = None) -> dict[str, float]:
+        """Minusstunden je Mitarbeiter, Historie plus laufende Woche."""
+        konto = dict(self._minusstunden)
+        if plan is None:
+            return konto
+        for mid in konto:
+            soll_h, _ = self._ziel(mid)
+            ist = sum(z.stunden for z in plan.zellen.get(mid, {}).values())
+            konto[mid] += soll_h - ist
+        return konto
+
     def _feiertagsumfeld(self) -> dict[str, dict[str, object]]:
         """Je Tag: welche Mindestwerte der Feiertag drumherum anhebt.
 
@@ -262,6 +326,7 @@ class Bewerter:
             return max(0.0, stunden), tage
         tage = min(m.soll_tage, moeglich)
         pro_tag = self.soll_stunden[mid] / m.soll_tage if m.soll_tage else 0.0
+        pro_tag = min(pro_tag, self.laengste_schicht.get(mid) or pro_tag)
         return pro_tag * tage, tage
 
     # ------------------------------------------------------------------ #
@@ -278,6 +343,9 @@ class Bewerter:
         self._stundenbudget(plan, add)
         self._wuensche(plan, add)
         self._qualitaet(plan, add)
+        if detail:
+            self._ueberhang(plan, add)
+            self._stammdaten_pruefung(add)
         return erg
 
     def _sammler(self, erg: Bewertung, detail: bool):
@@ -307,12 +375,12 @@ class Bewerter:
             ziel, _ = self.mindestwert(t, "kopfzahl", b.kopfzahl.get(t, koepfe))
             if koepfe < ziel:
                 weg = max(0, ziel - koepfe - b.kopfzahl_toleranz_unter)
-                wort = "nur"
+                regel, wort = "kopfzahl", "nur"
             else:
                 weg = max(0, koepfe - ziel - b.kopfzahl_toleranz_ueber)
-                wort = "schon"
+                regel, wort = "kopfzahl_ueber", "schon"
             if weg:
-                add("kopfzahl", weg,
+                add(regel, weg,
                     f"{TAG_LANG[t]}: {wort} {koepfe} Mitarbeiter statt {ziel}",
                     "fehler" if weg > 1 else "warnung")
 
@@ -544,19 +612,114 @@ class Bewerter:
                 if rueckstand > self.stamm.regeln.samstag_toleranz else "",
                 "warnung")
 
-        for mid, m in self.stamm.mitarbeiter.items():
-            if not (m.im_plan and m.aktiv) or m.nur_obergrenze:
-                continue
+        # Fehltage und Minusstunden werden gegen den Teamschnitt gemessen,
+        # nicht gegen das eigene Soll. In einer Woche ohne Urlaub gibt die
+        # Mannschaft mehr Tage her, als der Laden braucht - dann muss jemand
+        # zurueckstecken, und die Frage ist nur, wen es trifft. Absolute
+        # Strafpunkte wuerden den Planer stattdessen dazu bringen, einen
+        # ueberzaehligen Kopf in den Laden zu stellen.
+        gruppe = self._kontogruppe()
+        fenster = self.stamm.regeln.ausgleich_fenster_wochen
+
+        fehltage = {}
+        for mid in gruppe:
             _, soll_t = self._ziel(mid)
             tage = sum(1 for z in plan.zellen[mid].values() if z.arbeitet)
-            konto = self._fehltage.get(mid, 0.0) + max(0, soll_t - tage)
+            fehltage[mid] = self._fehltage.get(mid, 0.0) + max(0, soll_t - tage)
+        schnitt_t = sum(fehltage.values()) / len(fehltage) if fehltage else 0.0
+        for mid, konto in fehltage.items():
+            m = self.stamm.mitarbeiter[mid]
             # Wer eine hohe Einsatzprioritaet hat, soll seine Tage eher
             # bekommen - bei ihm wiegt derselbe Rueckstand schwerer.
-            weg = max(0.0, konto - self.stamm.regeln.fehltage_toleranz)
+            weg = max(0.0, konto - schnitt_t - self.stamm.regeln.fehltage_toleranz)
             add("fehltage_konto", weg * m.einsatzprioritaet,
-                f"{m.name}: {konto:.0f} Fehltage unter Soll in "
-                f"{self.stamm.regeln.ausgleich_fenster_wochen} Wochen"
-                if weg else "", "warnung")
+                f"{m.name}: {konto:.1f} Fehltage in {fenster} Wochen, "
+                f"im Schnitt sind es {schnitt_t:.1f}" if weg else "", "warnung")
+
+        stunden = self.stundenkonto(plan)
+        schnitt_h = sum(stunden.values()) / len(stunden) if stunden else 0.0
+        for mid, konto in stunden.items():
+            m = self.stamm.mitarbeiter[mid]
+            weg = max(0.0, konto - schnitt_h
+                      - self.stamm.regeln.minusstunden_toleranz_h)
+            add("minusstunden_konto", weg * m.einsatzprioritaet,
+                f"{m.name}: {konto:+.1f} h Stundenkonto in {fenster} Wochen, "
+                f"im Schnitt sind es {schnitt_h:+.1f} h" if weg else "", "warnung")
+
+    def _stammdaten_pruefung(self, add):
+        """Vertragsstunden, die die gewohnten Schichten gar nicht hergeben.
+
+        C. Kurz hat 20 h auf 3 Tage im Vertrag, arbeitet aber 8-14 und 8-13 -
+        hoechstens 18 h. Ihr Stundenkonto laeuft deshalb jede Woche weiter ins
+        Minus, ohne dass der Planer etwas falsch macht, und sie steht dauerhaft
+        oben auf der Liste. Das ist in den Stammdaten zu klaeren, nicht im Plan -
+        deshalb ohne Punkte."""
+        for mid, m in self.stamm.mitarbeiter.items():
+            if not (m.im_plan and m.aktiv and m.soll_tage and m.stamm_schichten):
+                continue
+            if m.nur_obergrenze or m.praesenztage is not None:
+                continue
+            laengste = max((self.stamm.schichten[sid].dauer_h
+                            for sid in m.stamm_schichten
+                            if sid in self.stamm.schichten), default=0.0)
+            moeglich = laengste * m.soll_tage
+            if moeglich and moeglich < self.soll_stunden[mid] - 0.5:
+                add("stammdaten", 1,
+                    f"{m.name}: Vertrag {self.soll_stunden[mid]:.0f} h auf "
+                    f"{m.soll_tage} Tage, die gewohnten Schichten geben hoechstens "
+                    f"{moeglich:.1f} h her - das Stundenkonto laeuft dauerhaft ins "
+                    f"Minus. In konfig/mitarbeiter.yaml klaeren.",
+                    "hinweis", nur_melden=True)
+
+    def _ueberhang(self, plan: Plan, add):
+        """Wer den zusaetzlichen freien Tag bekommt - und wer sonst in Frage kaeme.
+
+        In einer Woche ohne Urlaub gibt die Mannschaft mehr Personentage her,
+        als der Laden braucht. Dann ist nicht die Frage, ob jemand unter sein
+        Soll faellt, sondern wer. Der Planer entscheidet das ueber die Konten;
+        der Hinweis macht die Entscheidung sichtbar und nennt die naechsten
+        Kandidaten, damit man sie ueberstimmen kann. Kostet keine Punkte -
+        es gibt nichts zu reparieren."""
+        nachfrage = sum(self.mindestwert(t, "kopfzahl",
+                                         self.bedarf.kopfzahl.get(t, 0))[0]
+                        for t in self.tage)
+        angebot = reserve = 0
+        fehlt: dict[str, int] = {}
+        for mid, m in self.stamm.mitarbeiter.items():
+            if not (m.im_plan and m.aktiv):
+                continue
+            tage = sum(1 for z in plan.zellen[mid].values() if z.arbeitet)
+            if m.moeglichst_wenig:
+                reserve += tage        # belegt Plaetze, ohne Soll zu haben
+                continue
+            soll_t = self._ziel(mid)[1]
+            angebot += soll_t
+            if tage < soll_t:
+                fehlt[mid] = soll_t - tage
+        if angebot <= nachfrage and not fehlt:
+            return
+
+        konto = self.stundenkonto(plan)
+        def beschriftung(mid, zusatz=""):
+            stand = konto.get(mid)
+            stand = f"{stand:+.1f} h" if stand is not None else "kein Konto"
+            return f"{self.stamm.mitarbeiter[mid].name} ({stand}{zusatz})"
+
+        rang = sorted(konto, key=lambda x: konto[x])
+        offen = [beschriftung(x) for x in rang if x not in fehlt]
+        vergeben = [beschriftung(x, f", {fehlt[x]} Tage" if fehlt[x] > 1 else "")
+                    for x in sorted(fehlt, key=lambda x: -konto.get(x, 0))]
+
+        text = (f"Die Mannschaft gibt {angebot} Personentage her, der Laden braucht "
+                f"{nachfrage}")
+        if reserve:
+            text += f", die Reserve belegt davon {reserve}"
+        text += f". {sum(fehlt.values())} Tage unter Soll sind vergeben"
+        text += (": " + ", ".join(vergeben)) if vergeben else ""
+        if offen:
+            text += (". Als naechstes waeren nach Stundenkonto dran: "
+                     + ", ".join(offen[:3]))
+        add("ueberhang", 1, text, "hinweis", nur_melden=True)
 
     def _termine(self, plan: Plan, add):
         for tm in self.vorgabe.termine:
@@ -601,16 +764,44 @@ class Bewerter:
         return self.bedarf.wochenstunden_gesamt
 
     def erreichbare_stunden(self) -> float:
-        """Was die anwesende Mannschaft ueberhaupt leisten kann."""
-        summe = 0.0
+        """Was die anwesende Mannschaft ueberhaupt leisten kann - netto.
+
+        Drei Grenzen zugleich: das Wochensoll samt Toleranz, die laengste
+        Schicht, die der/die Einzelne arbeiten darf, und - seit die
+        Zielkopfzahl eine Obergrenze ist - die Anzahl der Plaetze im Laden.
+        In einer kurzen Woche mit Feiertag ist die letzte die engste: dann
+        passen die Sollstunden aller gar nicht mehr hinein. Ohne diese
+        Deckelung mahnt das Budget Stunden an, die niemand unterbringen kann,
+        und der Planer baut anderswo Unsinn, um sie loszuwerden."""
+        plaetze = sum(self.mindestwert(t, "kopfzahl",
+                                       self.bedarf.kopfzahl.get(t, 0))[0]
+                      for t in self.tage)
+        kandidaten = []
         for mid, m in self.stamm.mitarbeiter.items():
-            if not (m.im_plan and m.aktiv and m.zaehlt_stundenbudget):
+            if not (m.im_plan and m.aktiv):
                 continue
             if m.moeglichst_wenig:
                 ziel, tage = self.soll_stunden[mid], m.soll_tage
             else:
                 ziel, tage = self._ziel(mid)
-            summe += max(0.0, ziel - tage * self.bedarf.pause_h)
+            tage = min(tage, len(self.tage))
+            if tage <= 0:
+                continue
+            toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
+                        else self.stamm.regeln.stunden_toleranz_h)
+            deckel = self.laengste_schicht.get(mid) or 0.0
+            brutto = min(ziel + toleranz, tage * deckel) if deckel else ziel
+            kandidaten.append((brutto / tage, tage, m.zaehlt_stundenbudget))
+
+        summe = 0.0
+        for pro_tag, tage, zaehlt in sorted(kandidaten, reverse=True):
+            # Die ergiebigsten Plaetze zuerst - das ist die Obergrenze.
+            tage = min(tage, plaetze)
+            plaetze -= tage
+            if zaehlt:
+                summe += max(0.0, tage * (pro_tag - self.bedarf.pause_h))
+            if plaetze <= 0:
+                break
         return summe
 
     def gesamtstunden(self, plan: Plan) -> float:
@@ -653,9 +844,10 @@ class Bewerter:
                 if machbar - ist > toleranz else "", "warnung")
             if erreichbar < ziel - toleranz:
                 add("gesamtstunden_unter", 0,
-                    f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - die anwesende "
-                    f"Mannschaft hat nur {erreichbar:.0f} h Sollstunden, der Rest "
-                    f"waere Mehrarbeit",
+                    f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - mehr als "
+                    f"{erreichbar:.0f} h sind diese Woche nicht unterzubringen "
+                    f"(Sollstunden der Anwesenden und Zielkopfzahl je Tag), "
+                    f"der Rest waere Mehrarbeit oder Ueberbesetzung",
                     "hinweis", nur_melden=True)
 
     # ---- Arbeitszeit --------------------------------------------------- #
@@ -678,18 +870,23 @@ class Bewerter:
             soll_h, soll_t = self._ziel(mid)
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
                         else self.stamm.regeln.stunden_toleranz_h)
-            if m.nur_obergrenze:
-                # Soll ist eine Obergrenze, kein Ziel: weniger ist in Ordnung.
-                weg_h = max(0.0, stunden - soll_h - toleranz)
-                weg_t = max(0, tage - soll_t)
-            else:
-                weg_h = max(0.0, abs(stunden - soll_h) - toleranz)
-                weg_t = abs(tage - soll_t)
-            add("wochenstunden", weg_h,
-                f"{m.name}: {stunden:.1f} h statt {soll_h:.1f} h" if weg_h >= 2 else "",
+            # Ueber dem Soll ist teuer - das sind Ueberstunden, die jemand
+            # nehmen muss. Unter dem Soll ist nur ein leichter Zug nach oben:
+            # ob es ueberhaupt Minusstunden gibt, entscheidet die Besetzung,
+            # und wen sie treffen, entscheiden die Konten in _konten.
+            ueber_h = max(0.0, stunden - soll_h - toleranz)
+            unter_h = 0.0 if m.nur_obergrenze else max(0.0, soll_h - stunden - toleranz)
+            ueber_t = max(0, tage - soll_t)
+            unter_t = 0 if m.nur_obergrenze else max(0, soll_t - tage)
+            add("wochenstunden", ueber_h,
+                f"{m.name}: {stunden:.1f} h statt {soll_h:.1f} h" if ueber_h >= 2 else "",
                 "warnung")
-            add("arbeitstage", weg_t,
-                f"{m.name}: {tage} Arbeitstage statt {soll_t}" if weg_t >= 2 else "")
+            add("wochenstunden_unter", unter_h,
+                f"{m.name}: {stunden:.1f} h statt {soll_h:.1f} h" if unter_h >= 2 else "")
+            add("arbeitstage", ueber_t,
+                f"{m.name}: {tage} Arbeitstage statt {soll_t}" if ueber_t >= 2 else "")
+            add("arbeitstage_unter", unter_t,
+                f"{m.name}: {tage} Arbeitstage statt {soll_t}" if unter_t >= 2 else "")
             if tage > m.max_tage:
                 add("max_tage", tage - m.max_tage,
                     f"{m.name}: {tage} Arbeitstage, erlaubt sind {m.max_tage}", "fehler")

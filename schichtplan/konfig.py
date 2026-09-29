@@ -131,6 +131,8 @@ class Regeln:
     samstag_fenster_wochen: int = 0     # Fenster fuers Samstagskonto, 0 = ganze Historie
     samstag_toleranz: float = 1.0       # so viele Samstage Rueckstand bleiben straffrei
     fehltage_toleranz: float = 1.0      # so viele Fehltage im Fenster bleiben straffrei
+    minusstunden_toleranz_h: float = 4.0  # Rueckstand gegenueber dem Teamschnitt,
+                                        # der straffrei bleibt
     max_wochenstunden: float = 48.0     # Obergrenze je MA und Woche (ArbZG)
     wechsel_max_pro_woche: int = 1      # kurze Wechsel (Spaet -> Frueh) je MA und Woche
     ausgleich_fenster_wochen: int = 4   # Fenster fuer den Frueh/Spaet-Ausgleich
@@ -275,7 +277,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             for t, fenster in roh_b.get("besetzung_min", {}).items()
         },
         kopfzahl_toleranz_unter=int(roh_b.get("kopfzahl_toleranz_unter", 0)),
-        kopfzahl_toleranz_ueber=int(roh_b.get("kopfzahl_toleranz_ueber", 1)),
+        kopfzahl_toleranz_ueber=int(roh_b.get("kopfzahl_toleranz_ueber", 0)),
         wochenstunden_gesamt=float(roh_b.get("wochenstunden_gesamt", 0)),
         wochenstunden_gesamt_toleranz=float(roh_b.get("wochenstunden_gesamt_toleranz", 5)),
         pause_minuten=int(roh_b.get("pause_minuten", 30)),
@@ -300,6 +302,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         samstag_fenster_wochen=int(roh_r.get("samstag_fenster_wochen", 0)),
         samstag_toleranz=float(roh_r.get("samstag_toleranz", 1)),
         fehltage_toleranz=float(roh_r.get("fehltage_toleranz", 1)),
+        minusstunden_toleranz_h=float(roh_r.get("minusstunden_toleranz_h", 4)),
         max_wochenstunden=float(roh_r.get("max_wochenstunden", 48)),
         wechsel_max_pro_woche=int(roh_r.get("wechsel_max_pro_woche", 1)),
         ausgleich_fenster_wochen=int(roh_r.get("ausgleich_fenster_wochen", 4)),

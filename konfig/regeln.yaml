@@ -24,6 +24,8 @@ samstag_toleranz: 1       # so viele Samstage Rueckstand bleiben straffrei
 # Fehltage: wer unter seinem Soll bleibt, sammelt das auf. Ueber das
 # Ausgleichsfenster soll es sich verteilen, statt immer denselben zu treffen.
 fehltage_toleranz: 1
+minusstunden_toleranz_h: 4   # dasselbe in Stunden: so weit darf man hinter dem
+                             # Teamschnitt liegen, ohne dass es Punkte kostet
 
 # Harte Obergrenze je Mitarbeiter und Woche. Ohne sie schiebt der Planer in
 # Wochen mit mehreren Abwesenden die Luecke auf die Verbliebenen - in KW44
@@ -33,7 +35,12 @@ max_wochenstunden: 48
 
 gewichte:
   # --- Besetzung (das Wichtigste) ---
-  kopfzahl: 400             # je Kopf Abweichung von bedarf.kopfzahl
+  kopfzahl: 400             # je fehlendem Kopf gegenueber bedarf.kopfzahl
+  # Ueberbesetzung muss teurer sein als ein zusaetzlicher freier Tag
+  # (arbeitstage_unter + wochenstunden_unter + Konten), sonst stellt der Planer
+  # in gut besetzten Wochen lieber einen ueberzaehligen Kopf in den Laden, als
+  # jemanden zu Hause zu lassen.
+  kopfzahl_ueber: 900       # je Kopf ueber der Zielkopfzahl
   besetzung_unter: 250      # je fehlender Person und Halbstunde
   besetzung_ueber: 10       # je ueberzaehliger Person und Halbstunde
   # Frueh- und Schlussbesetzung sind ausdrueckliche Mindestvorgaben und muessen
@@ -44,11 +51,13 @@ gewichte:
   frueh_ueber: 80           # je Fruehschicht ueber dem Bedarf - wer um 6 Uhr
                             # nicht gebraucht wird, fehlt mittags
   kategorieprofil: 500      # je Schicht Abweichung vom Tagesgeruest Mo-Do
-  # Ueber Budget ist eine Planungsentscheidung und verschlechtert den Umsatz
-  # je Verkaeuferstunde. Unter Budget liegt meist an Abwesenheiten und laesst
-  # sich nicht wegplanen - deshalb nur leicht gewichtet.
-  gesamtstunden_ueber: 30   # je Stunde ueber dem Wochenbudget (ohne Azubi)
-  gesamtstunden_unter: 25   # je Stunde darunter, aber nur wenn die Mannschaft
+  # Ueber Budget verschlechtert den Umsatz je Verkaeuferstunde und wiegt
+  # deshalb am schwersten. Unter Budget wiegt seit der harten Kopfzahl-
+  # Obergrenze aber auch schwer: die Kopfzahl deckelt die Anzahl der Leute,
+  # also ist das Budget der einzige Zug zu laengeren Schichten. 34 Personen-
+  # tage mal 8 h brutto sind genau die 255 h netto.
+  gesamtstunden_ueber: 90   # je Stunde ueber dem Wochenbudget (ohne Azubi)
+  gesamtstunden_unter: 60   # je Stunde darunter, aber nur wenn die Mannschaft
                             # sie haette leisten koennen - sonst nur ein Hinweis
 
   # --- Team und Faehigkeiten ---
@@ -59,8 +68,14 @@ gewichte:
   termin_wechsel: 400       # dieselbe Person wie beim letzten Mal
 
   # --- Arbeitszeit der Mitarbeiter ---
-  wochenstunden: 25         # je Stunde Abweichung vom Soll
-  arbeitstage: 90           # je Tag Abweichung vom Soll
+  # Ueber dem Soll sind Ueberstunden, die jemand wirklich leisten muss - das
+  # wiegt schwer. Unter dem Soll ist kein Fehler des Planers: ob es ueberhaupt
+  # Minusstunden gibt, entscheidet die Besetzung der Woche. Deshalb hier nur
+  # ein leichter Zug nach oben; wen es trifft, regeln die beiden Konten.
+  wochenstunden: 25         # je Stunde ueber dem Soll
+  wochenstunden_unter: 6    # je Stunde darunter
+  arbeitstage: 90           # je Tag ueber dem Soll
+  arbeitstage_unter: 25     # je Tag darunter
   max_tage: 5000            # Ueberschreitung von max_tage (praktisch hart)
   max_stunden: 800          # je Stunde ueber max_wochenstunden
   praesenztage: 900         # Schichten + Schultage weichen von der Vorgabe ab
@@ -89,8 +104,11 @@ gewichte:
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
   samstag_konto: 180        # je Samstag Rueckstand gegenueber dem Schnitt
-  fehltage_konto: 260       # je Fehltag ueber der Toleranz, mal Einsatzprioritaet.
-                            # Muss einen zusaetzlichen Kopf (400) schlagen koennen,
-                            # sonst bleibt immer dieselbe Person unter Soll.
+  # Die beiden Konten verteilen die Minusstunden gerecht: gemessen wird nicht
+  # gegen das eigene Soll, sondern gegen den Schnitt der Mannschaft ueber das
+  # rollierende Fenster. Wer schon mehr Rueckstand hat als die anderen, ist
+  # teuer - also trifft der naechste freie Tag jemand anderen.
+  fehltage_konto: 260       # je Tag Rueckstand ueber dem Schnitt, mal Einsatzprioritaet
+  minusstunden_konto: 110   # je Stunde Rueckstand ueber dem Schnitt, mal Einsatzprioritaet
   zu_viel_spaet: 350        # mehr Spaetschichten als vorgesehen (Azubi)
   zersplitterung: 20        # viele verschiedene Schichtarten in einer Woche

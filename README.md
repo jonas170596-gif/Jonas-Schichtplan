@@ -482,12 +482,13 @@ hoch, dass sie praktisch hart sind:
 | `termin_wechsel` | Sitzung nicht zweimal hintereinander dieselbe Person |
 | `ruhezeit_verletzung` | nie unter 10 h Ruhe |
 | `max_stunden` | nie ueber 48 h in einer Woche (ArbZG §3) |
-| `kopfzahl` | Zielkopfzahl je Tag; ein Kopf zu viel ist frei, zu wenig nicht |
+| `kopfzahl` / `kopfzahl_ueber` | Zielkopfzahl je Tag - sie ist zugleich Untergrenze und Obergrenze |
 | `besetzung_unter` / `_ueber` | Mindestbesetzungskurve ueber den Tag |
 | `frueh_besetzung` / `schluss_besetzung` | genug Leute zum Aufbau und bis Ladenschluss |
 | `gesamtstunden` | 255 h je Woche, ohne Azubi, gekuerzt um Ausfaelle |
 | `wechsel_ueber_limit` | hoechstens 1 kurzer Wechsel (20 Uhr -> 6 Uhr) je MA und Woche |
-| `wochenstunden` / `arbeitstage` | individuelles Wochenmodell |
+| `wochenstunden` / `arbeitstage` | ueber dem individuellen Wochenmodell - Ueberstunden |
+| `wochenstunden_unter` / `arbeitstage_unter` | darunter; leicht gewichtet, die Verteilung regeln die Konten |
 | `wunsch_frei` / `wunsch_schicht` | Wuensche der Woche |
 | `freie_tage_zusammenhaengend` | Kohls freie Tage aneinander |
 | `frueh_spaet_ausgleich` | Frueh und Spaet gleichen sich ueber 4 Wochen aus |
@@ -502,7 +503,45 @@ hoch, dass sie praktisch hart sind:
 | `sparsam_einsetzen` | U. Kurz nur einsetzen, wenn es die Besetzung braucht |
 | `zersplitterung` | nicht jeden Tag eine andere Schichtart |
 | `samstag_konto` | Rueckstand bei freien Samstagen gegenueber dem Schnitt |
-| `fehltage_konto` | aufgelaufene Tage unter Soll, mal Einsatzprioritaet |
+| `fehltage_konto` | Tage unter Soll gegenueber dem Teamschnitt, mal Einsatzprioritaet |
+| `minusstunden_konto` | Stundenkonto gegenueber dem Teamschnitt, mal Einsatzprioritaet |
+| `ueberhang` | Hinweis ohne Punkte: wer den zusaetzlichen freien Tag bekam und wer sonst dran waere |
+| `stammdaten` | Hinweis ohne Punkte: Vertragsstunden, die die gewohnten Schichten nicht hergeben |
+
+### Ueberbesetzung und Minusstunden
+
+Die Zielkopfzahl je Tag ist eine Obergrenze, kein Richtwert: mehr Leute als
+`bedarf.kopfzahl` stehen nicht im Laden. In einer Woche, in der niemand Urlaub
+hat, gibt die Mannschaft aber mehr Personentage her, als der Laden braucht -
+dann bekommt jemand einen zusaetzlichen freien Tag.
+
+Wen es trifft, entscheiden zwei rollierende Konten ueber
+`ausgleich_fenster_wochen` (4 Wochen). Beide messen nicht gegen das eigene
+Soll, sondern gegen den Schnitt der Mannschaft:
+
+* `fehltage_konto` - Arbeitstage unter Soll,
+* `minusstunden_konto` - Stunden unter Soll, vorzeichenbehaftet, sodass eine
+  Woche mit Ueberstunden eine Woche mit Minusstunden zurueckzahlt.
+
+Wer schon mehr Rueckstand hat als die anderen, ist teuer - der naechste freie
+Tag trifft also jemand anderen. Liegen alle gleich weit zurueck, kostet das
+nichts: dass es ueberhaupt Minusstunden gibt, ist keine Entscheidung des
+Planers, sondern Folge der Besetzung.
+
+Deshalb ist das persoenliche Wochensoll nach unten nur noch leicht gewichtet
+(`wochenstunden_unter`, `arbeitstage_unter`). Nach oben bleibt es teuer -
+Ueberstunden muss jemand tatsaechlich leisten.
+
+Der Plan gibt die Entscheidung als Hinweis `ueberhang` aus: wie viele
+Personentage die Woche uebrig hat, wer die zusaetzlichen freien Tage bekommen
+hat und mit welchem Stundenkonto, und wer nach Konto als naechstes dran waere.
+Damit laesst sich die Entscheidung von Hand ueberstimmen - dann den Tag in der
+Wochenvorgabe unter `fest` eintragen.
+
+Ein Sonderfall bleibt: wessen Vertragsstunden die gewohnten Schichten gar nicht
+hergeben (C. Kurz, 20 h auf drei Tage mit 8-14 und 8-13), laeuft dauerhaft ins
+Minus, ohne dass der Planer etwas falsch macht. Das meldet der Hinweis
+`stammdaten`; zu klaeren ist es in `konfig/mitarbeiter.yaml`.
 
 ### Pausen
 
