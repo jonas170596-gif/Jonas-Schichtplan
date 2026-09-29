@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .konfig import Stammdaten, Wochenvorgabe, effektiver_bedarf
-from .modelle import TAGE, TAG_LANG, Plan
+from .modelle import ABWESEND, TAGE, TAG_LANG, Plan
 
 
 @dataclass
@@ -63,7 +63,74 @@ class Bewerter:
             for mid in stamm.mitarbeiter
         }
         self._hist_bilanz = self._historische_bilanz()
+        self._samstagskonto = self._historisches_samstagskonto()
+        self._fehltage = self._historische_fehltage()
         self.feiertagsumfeld = self._feiertagsumfeld()
+
+    # ---- Konten aus der Historie (einmal vorberechnet) ------------------ #
+    def _teilnehmer_samstag(self) -> list[str]:
+        """Wer am Samstagsausgleich teilnimmt - wer den Tag ohnehin fest oder
+        bevorzugt frei hat, verzerrt sonst den Durchschnitt."""
+        return [mid for mid, m in self.stamm.mitarbeiter.items()
+                if m.im_plan and m.aktiv and m.samstag_konto
+                and "sa" not in m.feste_freie_tage
+                and "sa" not in m.bevorzugte_freie_tage]
+
+    def samstag_zwingend(self, mid: str) -> bool:
+        """Lassen feste freie Tage und Solltage ueberhaupt einen freien
+        Samstag zu? Wer fuenf Tage arbeiten soll und schon einen festen
+        freien Tag hat, muss samstags ran - dann waere ein Rueckstand im
+        Konto eine Forderung, die der Planer nie erfuellen kann."""
+        m = self.stamm.mitarbeiter[mid]
+        verfuegbar = len(set(self.stamm.bedarf.offene_tage) - set(m.feste_freie_tage))
+        return verfuegbar - m.soll_tage <= 0
+
+    def _historisches_samstagskonto(self) -> dict[str, tuple[int, int]]:
+        """(moegliche Samstage, davon frei) je Mitarbeiter im Fenster."""
+        fenster = self.stamm.regeln.samstag_fenster_wochen
+        vor = self.vorwochen[-fenster:] if fenster else self.vorwochen
+        konto = {}
+        for mid in self.stamm.mitarbeiter:
+            moeglich = frei = 0
+            for w in vor:
+                if "sa" not in w.offene_tage():
+                    continue
+                z = w.plan.get(mid, {}).get("sa")
+                if z is None or z.art in ABWESEND:
+                    continue
+                moeglich += 1
+                frei += not z.verwertbar
+            konto[mid] = (moeglich, frei)
+        return konto
+
+    def _historische_fehltage(self) -> dict[str, float]:
+        """Aufgelaufene Fehltage (unter Soll) im Ausgleichsfenster."""
+        fenster = self.stamm.regeln.ausgleich_fenster_wochen
+        vor = self.vorwochen[-(fenster - 1):] if fenster > 1 else []
+        konto = {}
+        for mid, m in self.stamm.mitarbeiter.items():
+            summe = 0.0
+            for w in vor:
+                offen = w.offene_tage()
+                reihe = w.plan.get(mid, {})
+                if not reihe:
+                    continue
+                abwesend = sum(1 for t in offen if reihe[t].art in ABWESEND)
+                moeglich = len(offen) - abwesend
+                if moeglich <= 0:
+                    continue
+                tage = sum(1 for t in offen if reihe[t].verwertbar)
+                if m.praesenztage is not None:
+                    # Beim Azubi zaehlen Schultage als Praesenz mit, sonst
+                    # erschiene jede Schulwoche als Fehltag.
+                    gezaehlt = sum(1 for t in offen
+                                   if reihe[t].art in m.abwesenheit_stunden)
+                    soll = max(0, min(m.praesenztage - gezaehlt, moeglich))
+                else:
+                    soll = min(m.soll_tage, moeglich)
+                summe += max(0, soll - tage)
+            konto[mid] = summe
+        return konto
 
     def _feiertagsumfeld(self) -> dict[str, dict[str, object]]:
         """Je Tag: welche Mindestwerte der Feiertag drumherum anhebt.
@@ -157,6 +224,7 @@ class Bewerter:
         self._team(plan, add)
         self._faehigkeiten(plan, add)
         self._ausgleich(plan, add)
+        self._konten(plan, add)
         self._termine(plan, add)
         self._arbeitszeit(plan, add)
         self._stundenbudget(plan, add)
@@ -364,6 +432,57 @@ class Bewerter:
             add("frueh_spaet_ausgleich", weg,
                 f"{m.name}: {frueh} Frueh gegen {spaet} Spaet in {wochen} Wochen "
                 f"(Toleranz {toleranz})" if weg else "", "warnung")
+
+    # ---- Konten: freie Samstage und Fehltage --------------------------- #
+    def samstagskonto(self, plan: Plan | None = None
+                      ) -> dict[str, tuple[int, int, float]]:
+        """(moeglich, frei, Soll nach Gruppenschnitt) je Teilnehmer.
+
+        Der Gruppenschnitt ist die Quote freier Samstage ueber alle
+        Teilnehmer zusammen. Wer darunter liegt, hat Rueckstand."""
+        teilnehmer = self._teilnehmer_samstag()
+        roh = {}
+        for mid in teilnehmer:
+            moeglich, frei = self._samstagskonto.get(mid, (0, 0))
+            if plan is not None and "sa" in self.tage:
+                z = plan.zellen.get(mid, {}).get("sa")
+                if z is not None and z.art not in ABWESEND:
+                    moeglich += 1
+                    frei += not z.arbeitet
+            roh[mid] = (moeglich, frei)
+        gesamt_m = sum(m for m, _ in roh.values())
+        gesamt_f = sum(f for _, f in roh.values())
+        quote = gesamt_f / gesamt_m if gesamt_m else 0.0
+        return {mid: (m, f, quote * m) for mid, (m, f) in roh.items()}
+
+    def _konten(self, plan: Plan, add):
+        for mid, (moeglich, frei, soll) in self.samstagskonto(plan).items():
+            if moeglich < 3:          # zu duenne Datenlage fuer eine Aussage
+                continue
+            if self.samstag_zwingend(mid):
+                continue              # unerfuellbar, siehe samstag_zwingend
+            m = self.stamm.mitarbeiter[mid]
+            rueckstand = soll - frei
+            add("samstag_konto",
+                max(0.0, rueckstand - self.stamm.regeln.samstag_toleranz),
+                f"{m.name}: {frei} von {moeglich} Samstagen frei, "
+                f"im Schnitt waeren es {soll:.1f}"
+                if rueckstand > self.stamm.regeln.samstag_toleranz else "",
+                "warnung")
+
+        for mid, m in self.stamm.mitarbeiter.items():
+            if not (m.im_plan and m.aktiv) or m.nur_obergrenze:
+                continue
+            _, soll_t = self._ziel(mid)
+            tage = sum(1 for z in plan.zellen[mid].values() if z.arbeitet)
+            konto = self._fehltage.get(mid, 0.0) + max(0, soll_t - tage)
+            # Wer eine hohe Einsatzprioritaet hat, soll seine Tage eher
+            # bekommen - bei ihm wiegt derselbe Rueckstand schwerer.
+            weg = max(0.0, konto - self.stamm.regeln.fehltage_toleranz)
+            add("fehltage_konto", weg * m.einsatzprioritaet,
+                f"{m.name}: {konto:.0f} Fehltage unter Soll in "
+                f"{self.stamm.regeln.ausgleich_fenster_wochen} Wochen"
+                if weg else "", "warnung")
 
     def _termine(self, plan: Plan, add):
         for tm in self.vorgabe.termine:
@@ -603,17 +722,6 @@ class Bewerter:
                 verschieden = {z.schicht.id for z in reihe.values() if z.arbeitet}
                 add("zersplitterung", max(0, len(verschieden) - 2))
 
-            if self.stamm.regeln.samstage_frei_pro_x and "sa" in self.tage:
-                fenster = self.vorwochen[-(self.stamm.regeln.samstage_frei_pro_x - 1):]
-                sa_gearbeitet = sum(
-                    1 for w in fenster
-                    if mid in w.plan and w.plan[mid].get("sa")
-                    and w.plan[mid]["sa"].arbeitet)
-                if reihe["sa"].arbeitet:
-                    sa_gearbeitet += 1
-                if sa_gearbeitet >= self.stamm.regeln.samstage_frei_pro_x:
-                    add("samstag_fairness", 1,
-                        f"{m.name}: {sa_gearbeitet} Samstage in Folge gearbeitet", "warnung")
 
 
 def pruefen(plan: Plan, stamm: Stammdaten, vorgabe: Wochenvorgabe,

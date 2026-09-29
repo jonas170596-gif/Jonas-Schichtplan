@@ -12,9 +12,18 @@ wechsel_max_pro_woche: 1  # kurze Wechsel (Spaetschicht bis 20 Uhr -> Frueh ab 6
                           # je Mitarbeiter und Woche; jeder weitere wird teuer
 ausgleich_fenster_wochen: 4  # rollierendes Fenster fuer den Frueh/Spaet-Ausgleich
 ausgleich_toleranz: 2     # so viele Schichten Ungleichgewicht bleiben straffrei
-samstage_frei_pro_x: 0    # Ziel: je X Wochen mind. 1 freier Samstag. 0 = aus.
-                          # In den Altplaenen wird durchgehend samstags gearbeitet -
-                          # auf 4 setzen, wenn das kuenftig anders sein soll.
+
+# Freie Samstage sind begehrt und in den Altplaenen sehr ungleich verteilt
+# (Rohwer 0 von 12, C. Kurz 10 von 11). Das Konto vergleicht jeden mit dem
+# Schnitt aller Teilnehmer: wer zurueckliegt, bekommt Vorrang. Wer Samstag
+# ohnehin fest oder bevorzugt frei hat, zaehlt nicht mit, sonst verzerrt er
+# den Schnitt.
+samstag_fenster_wochen: 0 # 0 = ganze Historie; sonst die letzten X Wochen
+samstag_toleranz: 1       # so viele Samstage Rueckstand bleiben straffrei
+
+# Fehltage: wer unter seinem Soll bleibt, sammelt das auf. Ueber das
+# Ausgleichsfenster soll es sich verteilen, statt immer denselben zu treffen.
+fehltage_toleranz: 1
 
 gewichte:
   # --- Besetzung (das Wichtigste) ---
@@ -63,6 +72,7 @@ gewichte:
   bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
-  samstag_fairness: 120     # kein freier Samstag im Betrachtungsfenster
+  samstag_konto: 180        # je Samstag Rueckstand gegenueber dem Schnitt
+  fehltage_konto: 160       # je Fehltag ueber der Toleranz, mal Einsatzprioritaet
   zu_viel_spaet: 350        # mehr Spaetschichten als vorgesehen (Azubi)
   zersplitterung: 20        # viele verschiedene Schichtarten in einer Woche

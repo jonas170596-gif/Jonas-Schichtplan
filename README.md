@@ -230,6 +230,43 @@ zwei da sind. Eine eigene Paarregel waere strenger als noetig - sie wuerde die
 beiden auch trennen, wenn jemand mit `f` danebensteht. Sie liegt deshalb nur
 als auskommentierte Vorlage in `team.yaml`.
 
+## Konten: freie Samstage und Fehltage
+
+Beides sind Fairnessfragen, die sich nicht in einer Woche entscheiden. Der
+Planer fuehrt sie deshalb als Konto ueber mehrere Wochen.
+
+### Freie Samstage
+
+```bash
+python -m schichtplan samstage
+```
+
+```
+Mitarbeiter        moeglich  frei  Schnitt   Konto  Verlauf
+C. Rohwer                12     0      2.2    -2.2  uAAAAAAAAAAA.A  <-- vertraglich zwingend
+I. Nachtrieb             12     1      2.2    -1.2  AAAuAAAAAA_A.A  <-- Rueckstand
+J. Kurka                 13     5      2.3    +2.7  A___A_A_AAAA.A
+```
+
+'Schnitt' ist die Quote freier Samstage ueber alle Teilnehmer, auf die eigenen
+moeglichen Samstage gerechnet. Wer darunter liegt, bekommt Vorrang. Wer
+Samstag ohnehin fest oder bevorzugt frei hat (C. Kurz), zaehlt nicht mit -
+sonst verzerrt er den Schnitt.
+
+**Drei Leute koennen rechnerisch nie samstags frei haben:** Rohwer, Marino und
+Reich. Ihre festen freien Tage plus Solltage fuellen die offene Woche exakt aus
+- Rohwer hat Mi frei und soll fuenf Tage arbeiten, also bleiben genau Mo, Di,
+Do, Fr, Sa. Der Planer bestraft sie dafuer nicht, sonst zahlte er eine Steuer,
+die er nie vermeiden kann. Wer ihnen einen freien Samstag geben will, muss den
+festen freien Tag wandern lassen oder eine kuerzere Woche in Kauf nehmen.
+
+### Fehltage
+
+Wer unter seinem Soll bleibt, sammelt das im Ausgleichsfenster auf. Ueber
+`einsatzprioritaet` laesst sich steuern, wen es bevorzugt treffen soll: Marino
+steht auf 1.6, Rohwer auf 1.0 - derselbe Rueckstand wiegt bei Marino also
+schwerer, ein zusaetzlicher freier Tag geht eher an Rohwer.
+
 ## Frueh/Spaet-Ausgleich
 
 ```bash
@@ -376,7 +413,8 @@ hoch, dass sie praktisch hart sind:
 | `stammschicht` | jeder bekommt moeglichst seine gewohnte Schicht |
 | `sparsam_einsetzen` | U. Kurz nur einsetzen, wenn es die Besetzung braucht |
 | `zersplitterung` | nicht jeden Tag eine andere Schichtart |
-| `samstag_fairness` | freier Samstag im Turnus (standardmaessig aus) |
+| `samstag_konto` | Rueckstand bei freien Samstagen gegenueber dem Schnitt |
+| `fehltage_konto` | aufgelaufene Tage unter Soll, mal Einsatzprioritaet |
 
 ### Stundenbudget
 

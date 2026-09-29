@@ -114,7 +114,9 @@ class Regeln:
     ruhezeit_min_h: float = 10.0
     stunden_toleranz_h: float = 0.0
     max_tage_in_folge: int = 6
-    samstage_frei_pro_x: int = 0        # 0 = aus; sonst: 1 freier Samstag je X Wochen
+    samstag_fenster_wochen: int = 0     # Fenster fuers Samstagskonto, 0 = ganze Historie
+    samstag_toleranz: float = 1.0       # so viele Samstage Rueckstand bleiben straffrei
+    fehltage_toleranz: float = 1.0      # so viele Fehltage im Fenster bleiben straffrei
     wechsel_max_pro_woche: int = 1      # kurze Wechsel (Spaet -> Frueh) je MA und Woche
     ausgleich_fenster_wochen: int = 4   # Fenster fuer den Frueh/Spaet-Ausgleich
     ausgleich_toleranz: int = 2         # erlaubtes Ungleichgewicht im Fenster
@@ -224,6 +226,8 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             nur_obergrenze=bool(m.get("nur_obergrenze", False)),
             spaet_anteil=(float(m["spaet_anteil"])
                           if m.get("spaet_anteil") is not None else None),
+            einsatzprioritaet=float(m.get("einsatzprioritaet", 1.0)),
+            samstag_konto=bool(m.get("samstag_konto", True)),
             springer=bool(m.get("springer", False)),
             praesenztage=(int(m["praesenztage"])
                           if m.get("praesenztage") is not None else None),
@@ -273,7 +277,9 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         ruhezeit_min_h=float(roh_r.get("ruhezeit_min_h", 10)),
         stunden_toleranz_h=float(roh_r.get("stunden_toleranz_h", 0)),
         max_tage_in_folge=int(roh_r.get("max_tage_in_folge", 6)),
-        samstage_frei_pro_x=int(roh_r.get("samstage_frei_pro_x", 0)),
+        samstag_fenster_wochen=int(roh_r.get("samstag_fenster_wochen", 0)),
+        samstag_toleranz=float(roh_r.get("samstag_toleranz", 1)),
+        fehltage_toleranz=float(roh_r.get("fehltage_toleranz", 1)),
         wechsel_max_pro_woche=int(roh_r.get("wechsel_max_pro_woche", 1)),
         ausgleich_fenster_wochen=int(roh_r.get("ausgleich_fenster_wochen", 4)),
         ausgleich_toleranz=int(roh_r.get("ausgleich_toleranz", 2)),

@@ -633,6 +633,71 @@ class TestHandplan(unittest.TestCase):
         self.assertEqual(fehler, [])
 
 
+class TestKonten(unittest.TestCase):
+    """Freie Samstage und Fehltage ueber mehrere Wochen ausgleichen."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.historie = lade_historie(WURZEL / "daten/historie")
+        self.b = Bewerter(self.stamm, self.vorgabe, self.historie)
+
+    def test_wer_samstags_fest_frei_hat_zaehlt_nicht_mit(self):
+        konto = self.b.samstagskonto()
+        self.assertNotIn("kurz_c", konto)      # Samstag bevorzugt frei
+        self.assertIn("rohwer_c", konto)
+
+    def test_rueckstand_wird_erkannt(self):
+        moeglich, frei, soll = self.b.samstagskonto()["rohwer_c"]
+        self.assertEqual(frei, 0)              # 12 Samstage, keiner frei
+        self.assertGreater(soll, 1)
+
+    def test_strukturell_unmoegliche_samstage(self):
+        """Wer fuenf Tage soll und einen festen freien Tag hat, muss samstags
+        ran - dafuer darf ihn der Planer nicht bestrafen."""
+        for mid in ("rohwer_c", "marino_a", "reich_s"):
+            self.assertTrue(self.b.samstag_zwingend(mid), mid)
+        for mid in ("nachtrieb_i", "kohl_b", "sannzenbacher_n", "kurka_j"):
+            self.assertFalse(self.b.samstag_zwingend(mid), mid)
+
+    def test_zwingende_samstage_erzeugen_keine_strafe(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag in ("di", "do", "fr", "sa"):
+            plan.zellen["rohwer_c"][tag].art = "schicht"
+            plan.zellen["rohwer_c"][tag].schicht = self.stamm.schichten[
+                "6-14" if tag != "sa" else "11-18"]
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe,
+                                         self.historie).befunde
+                 if b.regel == "samstag_konto"]
+        self.assertFalse(any("Rohwer" in x for x in texte), texte)
+
+    def test_freier_samstag_verbessert_das_konto(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        ohne = self.b.samstagskonto(plan)["nachtrieb_i"]
+        plan.zellen["nachtrieb_i"]["sa"].art = "schicht"
+        plan.zellen["nachtrieb_i"]["sa"].schicht = self.stamm.schichten["6-14"]
+        mit = self.b.samstagskonto(plan)["nachtrieb_i"]
+        self.assertEqual(ohne[1], mit[1] + 1)          # ein freier Samstag mehr
+        self.assertEqual(ohne[0], mit[0])              # gleich viele moeglich
+
+    def test_einsatzprioritaet_gewichtet_fehltage(self):
+        self.assertGreater(self.stamm.mitarbeiter["marino_a"].einsatzprioritaet,
+                           self.stamm.mitarbeiter["rohwer_c"].einsatzprioritaet)
+
+    def test_fehltage_bei_marino_wiegen_schwerer_als_bei_rohwer(self):
+        def punkte(mid):
+            plan = grundgeruest(self.stamm, self.vorgabe)
+            b = Bewerter(self.stamm, self.vorgabe, self.historie)
+            return sum(x.punkte for x in b.bewerte(plan, detail=True).befunde
+                       if x.regel == "fehltage_konto"
+                       and self.stamm.mitarbeiter[mid].name in x.text)
+        self.assertGreater(punkte("marino_a"), punkte("rohwer_c"))
+
+    def test_schultage_zaehlen_als_praesenz_im_fehltagekonto(self):
+        """Ohne diese Ausnahme erschiene jede Schulwoche als Fehltag."""
+        self.assertLessEqual(self.b._fehltage["menzler_a"], 1.0)
+
+
 class TestSchulplan(unittest.TestCase):
     """Berufsschultage aus dem Jahresplan H2FV 2026/27, Menzler ist Gruppe B."""
 

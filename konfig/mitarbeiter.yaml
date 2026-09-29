@@ -57,6 +57,9 @@ mitarbeiter:
     soll_stunden: 40
     soll_tage: 5
     feste_freie_tage: [mo]
+    einsatzprioritaet: 1.6         # soll seine Tage eher bekommen als Rohwer;
+                                   # ein zusaetzlicher freier Tag geht lieber
+                                   # an Rohwer
     erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-11, 9-18, 10-18]
     stamm_schichten: {11-20: 0.48, 6-14: 0.41, 9-18: 0.06}
 

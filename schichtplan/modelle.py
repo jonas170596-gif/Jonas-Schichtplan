@@ -94,6 +94,8 @@ class Mitarbeiter:
     max_spaet_pro_woche: int | None = None
     nur_obergrenze: bool = False        # Soll ist Obergrenze, weniger ist frei
     spaet_anteil: float | None = None   # Zielanteil Spaetschichten im Fenster
+    einsatzprioritaet: float = 1.0      # >1: bekommt eher Tage als andere
+    samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
     springer: bool = False
     praesenztage: int | None = None          # Arbeitstage + gezaehlte Abwesenheiten
     abwesenheit_stunden: dict[str, float] = field(default_factory=dict)

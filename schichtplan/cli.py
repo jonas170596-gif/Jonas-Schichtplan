@@ -7,6 +7,7 @@
   python -m schichtplan pruefen ausgabe/2026-KW42.json wochen/2026-KW42.yaml
   python -m schichtplan backtest                   Konfig gegen die Altplaene messen
   python -m schichtplan ausgleich                  Frueh/Spaet-Bilanz je Mitarbeiter
+  python -m schichtplan samstage                   Konto der freien Samstage
   python -m schichtplan uebernehmen ausgabe/2026-KW43.json
                                                    fertigen Plan in die Historie legen
   python -m schichtplan feiertage 2026             Feiertagskalender Baden-Wuerttemberg
@@ -29,9 +30,9 @@ from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .feiertage import Kalender, feiertage_bw, sondertage
 from .historie import kalenderabgleich, lade_historie
-from .konfig import (KONFIG_DIR, lade_schulplaene, lade_stammdaten,
-                     lade_wochenvorgabe)
-from .modelle import TAGE, TAG_LANG, Plan, Zelle, zu_index
+from .konfig import (KONFIG_DIR, Wochenvorgabe, lade_schulplaene,
+                     lade_stammdaten, lade_wochenvorgabe)
+from .modelle import ABWESEND, TAGE, TAG_LANG, Plan, Zelle, zu_index
 
 VORLAGE = """# Wochenvorgabe {woche} - alles, was sich von Woche zu Woche aendert.
 # Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
@@ -370,6 +371,64 @@ def cmd_ausgleich(args) -> int:
     return 0
 
 
+def cmd_samstage(args) -> int:
+    """Konto der freien Samstage - wer liegt gegenueber dem Schnitt zurueck?"""
+    stamm = lade_stammdaten(args.konfig)
+    wochen = lade_historie(args.historie)
+    if not wochen:
+        print("Keine Altplaene in", args.historie, file=sys.stderr)
+        return 1
+    if args.fenster:
+        wochen = wochen[-args.fenster:]
+    leer = Wochenvorgabe(woche="-", datum_von=wochen[-1].datum_von)
+    bewerter = Bewerter(stamm, leer, wochen)
+    konto = bewerter.samstagskonto()
+
+    spanne = f"{wochen[0].woche} bis {wochen[-1].woche}"
+    print(f"Freie Samstage ueber {len(wochen)} Wochen ({spanne})\n")
+    print(f"{'Mitarbeiter':<18}{'moeglich':>9}{'frei':>6}{'Schnitt':>9}"
+          f"{'Konto':>8}  Verlauf")
+    print("-" * 74)
+    for mid, (moeglich, frei, soll) in sorted(konto.items(),
+                                              key=lambda kv: kv[1][1] - kv[1][2]):
+        verlauf = []
+        for w in wochen:
+            if "sa" not in w.offene_tage():
+                verlauf.append(".")
+                continue
+            z = w.plan.get(mid, {}).get("sa")
+            verlauf.append("u" if z is None or z.art in ABWESEND
+                           else ("A" if z.verwertbar else "_"))
+        stand = frei - soll
+        if bewerter.samstag_zwingend(mid):
+            marke = "  <-- Samstag vertraglich zwingend"
+        elif stand < -stamm.regeln.samstag_toleranz:
+            marke = "  <-- Rueckstand"
+        else:
+            marke = ""
+        print(f"{stamm.mitarbeiter[mid].name:<18}{moeglich:>9}{frei:>6}"
+              f"{soll:>9.1f}{stand:>+8.1f}  {''.join(verlauf)}{marke}")
+    ausgenommen = [m.name for mid, m in stamm.mitarbeiter.items()
+                   if m.im_plan and m.aktiv and mid not in konto]
+    print("\nA = gearbeitet, _ = frei, u = Urlaub/krank/Schule, . = Feiertag")
+    print("'Schnitt' ist die Quote freier Samstage ueber alle Teilnehmer,")
+    print("auf die eigenen moeglichen Samstage gerechnet. 'Konto' ist die")
+    print("Abweichung davon - negativ heisst Rueckstand.")
+    if ausgenommen:
+        print("\nNicht im Konto (Samstag fest oder bevorzugt frei): "
+              + ", ".join(ausgenommen))
+    zwingend = [stamm.mitarbeiter[mid].name for mid in konto
+                if bewerter.samstag_zwingend(mid)]
+    if zwingend:
+        print("\nBei diesen geht rechnerisch kein freier Samstag: "
+              + ", ".join(zwingend) + ".")
+        print("Feste freie Tage plus Solltage fuellen die Woche schon aus. Der")
+        print("Planer bestraft sie deshalb nicht dafuer - wer ihnen einen freien")
+        print("Samstag geben will, muss den festen freien Tag wandern lassen oder")
+        print("eine kuerzere Woche in Kauf nehmen.")
+    return 0
+
+
 def cmd_uebernehmen(args) -> int:
     """Fertigen Plan in die Historie legen, damit Ausgleich und Fairness ihn sehen."""
     stamm = lade_stammdaten(args.konfig)
@@ -503,6 +562,11 @@ def main(argv=None) -> int:
     au.add_argument("--historie", default="daten/historie")
     au.add_argument("--fenster", type=int, help="Anzahl Wochen (sonst aus regeln.yaml)")
     au.set_defaults(func=cmd_ausgleich)
+
+    sam = sub.add_parser("samstage", help="Konto der freien Samstage")
+    sam.add_argument("--historie", default="daten/historie")
+    sam.add_argument("--fenster", type=int, help="nur die letzten X Wochen")
+    sam.set_defaults(func=cmd_samstage)
 
     ue = sub.add_parser("uebernehmen", help="fertigen Plan in die Historie legen")
     ue.add_argument("plan", help="JSON aus ausgabe/")
