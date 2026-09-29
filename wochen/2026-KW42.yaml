@@ -10,8 +10,7 @@ filiale: Winterbach
 geschlossen: []
 
 # --- Abwesenheiten (hart) ---
-urlaub:
-  marino_a: alle
+urlaub: {}
 #  reich_s: alle
 #  kohl_b: [do, fr, sa]
 
@@ -27,13 +26,10 @@ fest: {}
 #  marino_a: {mo: frei}
 
 # --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
-wunsch_frei:
-  nachtrieb_i: [mi]
-  kohl_b: [di]
+wunsch_frei: {}
 #  nachtrieb_i: [mi]
 
-wunsch_schicht:
-  kurka_j: {sa: 6-14}
+wunsch_schicht: {}
 #  kohl_b: {fr: 6-13:30}
 
 # --- Termine: Schicht muss zu dieser Zeit enden ---
@@ -41,15 +37,15 @@ termine:
   - name: Teamleitersitzung
     tag: di
     ab: "13:30"
-    kandidaten: [kurka_j, rohwer_c]
+    kandidaten: [kurka_j]
     anzahl: 1
-    abwechselnd: true
 #  - name: Teamleitersitzung
 #    tag: di
 #    ab: "13:30"
-#    kandidaten: [kurka_j, rohwer_c]
+#    kandidaten: [kurka_j]
 #    anzahl: 1
-#    abwechselnd: true      # nicht dieselbe Person wie beim letzten Mal
+#    abwechselnd: false     # true: nicht dieselbe Person wie beim letzten Mal
+#                           # (nur sinnvoll bei mehreren Kandidaten)
 
 # --- Zusatzaufgaben, die im Plan vermerkt werden ---
 zusatz: {}
@@ -78,4 +74,4 @@ bedarf: {}
 #  schluss_min: {mi: 3}
 #  wochenstunden_gesamt: 300
 
-notiz: ""
+notiz: "Beispielwoche ohne Urlaub oder Wuensche - nur Menzlers Berufsschultage aus dem Schulplan und die Teamleitersitzung."

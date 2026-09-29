@@ -28,6 +28,14 @@ gruppenbesetzung:
     kategorie: frueh
     grund: "In der Fruehschicht muss einer der drei da sein."
 
+  - name: "Montags-Anker Kurka"
+    gruppe: [kurka_j]
+    min: 1
+    kategorie: frueh
+    tage: [mo]
+    grund: "Kurka faengt die Woche in der Fruehschicht an; sein freier Tag
+      liegt deshalb zwischen Dienstag und Samstag."
+
 # Hoechstens `max_gleichzeitig` Personen aus `gruppe`.
 #
 # Kohl und Reich koennen beide nur Wurst. Dass sie nicht zusammen in der

@@ -32,7 +32,8 @@ mitarbeiter:
     frueh_spaet_ausgleich: false  # nimmt am Ausgleich bewusst nicht teil
     erlaubte_schichten: [6-14, 6-13:30, 6-12, 6-11, 11-20]
     stamm_schichten: {6-14: 0.88, 6-13:30: 0.05, 11-20: 0.04}
-    notiz: "Hauptsaechlicher Frueh-Anker. Teamleitersitzung im Wechsel mit Rohwer."
+    notiz: "Hauptsaechlicher Frueh-Anker, montags gesetzt (siehe team.yaml).
+      Einziger Kandidat fuer die Teamleitersitzung am Dienstag."
 
   rohwer_c:
     name: "C. Rohwer"
@@ -48,7 +49,7 @@ mitarbeiter:
         kategorien: [frueh, spaet]
     erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-12, 9-18, 10-18, 11-18, 8-18]
     stamm_schichten: {6-14: 0.56, 11-20: 0.30}
-    notiz: "Mo-Do frueh. Teamleitersitzung im Wechsel mit Kurka."
+    notiz: "Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet."
 
   marino_a:
     name: "A. Marino"
@@ -114,15 +115,19 @@ mitarbeiter:
   kurz_u:
     name: "U. Kurz"
     faehigkeiten: [f, w]
-    moeglichst_wenig: true
-    frueh_spaet_ausgleich: false   # Reserve bekommt, was uebrig bleibt         # nur einsetzen, wenn die Besetzung es verlangt
-    soll_stunden: 0
-    soll_tage: 0
-    max_tage: 5
+    moeglichst_wenig: true         # leichter Gegendruck, damit sie nicht
+                                   # ohne Not eingeteilt wird
+    nur_obergrenze: true           # soll_stunden/soll_tage sind Obergrenzen -
+                                   # weniger ist frei, mehr kostet
+    soll_stunden: 22               # entspricht etwa drei Schichten
+    soll_tage: 3                   # drei Tage sind ausdruecklich in Ordnung
+    max_tage: 4
+    frueh_spaet_ausgleich: false   # Reserve bekommt, was uebrig bleibt
     feste_freie_tage: [di]
     erlaubte_schichten: [14-20, 12-20, 11-20, 8-16, 8-14, 8-11, 6-14, 9-18, 10-18, 12-18, 8-18]
     stamm_schichten: {14-20: 0.56, 12-18: 0.08}
-    notiz: "Flexible Reserve. Breit einsetzbar, soll aber so wenig wie moeglich arbeiten."
+    notiz: "Flexible Reserve, breit einsetzbar. Bis zu drei Tage pro Woche sind
+      unproblematisch, darueber wird es teuer."
 
   # ---------------- Azubi ----------------
   menzler_a:
@@ -133,9 +138,11 @@ mitarbeiter:
     praesenztage: 5                # Schichten + Schultage ergeben immer 5 Tage
     abwesenheit_stunden: {schule: 8}   # ein Schultag deckt 8 h des Wochensolls
     springer: true                 # wechselnde Schichten sind bei ihm gewollt;
-                                   # Spaetschichten sind moeglich, wenn noetig.
-                                   # Der Spaet-Frueh-Wechsel gilt fuer ihn wie
+                                   # der Spaet-Frueh-Wechsel gilt fuer ihn wie
                                    # fuer alle anderen.
+    spaet_anteil: 0.25             # rund ein Viertel seiner Schichten spaet,
+                                   # gemessen ueber das rollierende Fenster -
+                                   # statt des 50/50-Ausgleichs der anderen
     zaehlt_stundenbudget: false    # Azubistunden zaehlen nicht gegen die 255 h
     erlaubte_schichten: [8-16, 6-14, 11-20, 12-20, 6-13:30, 9-18, 10-18, 11-18, 12-18]
     stamm_schichten: {8-16: 0.45, 6-14: 0.20, 11-20: 0.10, 9-18: 0.10, 10-18: 0.10}

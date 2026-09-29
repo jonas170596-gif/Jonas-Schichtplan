@@ -164,8 +164,9 @@ class TestBewertung(unittest.TestCase):
         self.assertGreater(pruefen(leer, self.stamm, self.vorgabe).punkte, 1000)
 
     def test_urlaub_kuerzt_das_stundensoll(self):
+        self.vorgabe.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
         b = Bewerter(self.stamm, self.vorgabe)
-        soll_h, soll_t = b._ziel("marino_a")       # ganze Woche Urlaub
+        soll_h, soll_t = b._ziel("marino_a")
         self.assertEqual(soll_t, 0)
         self.assertEqual(soll_h, 0.0)
         soll_h, _ = b._ziel("kurka_j")
@@ -202,9 +203,29 @@ class TestBewertung(unittest.TestCase):
     def test_frueh_anker_erfuellt(self):
         plan = grundgeruest(self.stamm, self.vorgabe)
         self._setze(plan, "rohwer_c", "mo", "6-14")
-        montag = [b for b in pruefen(plan, self.stamm, self.vorgabe).befunde
-                  if b.regel == "gruppenbesetzung" and "Montag" in b.text]
-        self.assertEqual(montag, [])
+        offen = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "gruppenbesetzung" and "Montag" in b.text]
+        self.assertFalse(any("Frueh-Anker" in x for x in offen), offen)
+
+    def test_kurka_ist_montags_gesetzt(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "rohwer_c", "mo", "6-14")      # Anker ja, aber nicht Kurka
+        offen = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "gruppenbesetzung"]
+        self.assertTrue(any("Montags-Anker" in x for x in offen), offen)
+        self._setze(plan, "kurka_j", "mo", "6-14")
+        offen = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "gruppenbesetzung"]
+        self.assertFalse(any("Montags-Anker" in x for x in offen), offen)
+
+    def test_kurka_montags_im_urlaub_blockiert_nicht(self):
+        """Eine Gruppenregel darf nicht an Abwesenden scheitern."""
+        self.vorgabe.abwesend["kurka_j"] = {t: "urlaub" for t in TAGE}
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "rohwer_c", "mo", "6-14")
+        offen = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "gruppenbesetzung"]
+        self.assertFalse(any("Montags-Anker" in x for x in offen), offen)
 
     def _faehigkeitsluecken(self, plan, tag):
         return [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
@@ -320,9 +341,11 @@ class TestBewertung(unittest.TestCase):
         self.assertEqual(b.gesamtstunden(plan), vorher + 8)
 
     def test_budget_sinkt_bei_urlaub(self):
-        b = Bewerter(self.stamm, self.vorgabe)          # Marino ganze Woche Urlaub
-        self.assertAlmostEqual(b.gesamtbudget(),
-                               self.stamm.bedarf.wochenstunden_gesamt - 40)
+        voll = Bewerter(self.stamm, self.vorgabe).gesamtbudget()
+        self.assertAlmostEqual(voll, self.stamm.bedarf.wochenstunden_gesamt)
+        self.vorgabe.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
+        b = Bewerter(self.stamm, self.vorgabe)          # Marino 40 h faellt weg
+        self.assertAlmostEqual(b.gesamtbudget(), voll - 40)
 
     def test_reserve_wird_je_stunde_bestraft(self):
         plan = grundgeruest(self.stamm, self.vorgabe)
@@ -492,15 +515,27 @@ class TestTerminWechsel(unittest.TestCase):
         self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
         self.historie = lade_historie(WURZEL / "daten/historie")
 
-    def test_termin_ist_als_abwechselnd_konfiguriert(self):
-        self.assertTrue(self.vorgabe.termine[0].abwechselnd)
+    def test_nur_noch_kurka_ist_kandidat(self):
+        self.assertEqual(self.vorgabe.termine[0].kandidaten, ["kurka_j"])
+        self.assertFalse(self.vorgabe.termine[0].abwechselnd)
+
+    def _mit_wechsel(self):
+        """Termin mit zwei Kandidaten - so laesst sich der Wechsel pruefen,
+        auch wenn in der Beispielwoche nur Kurka zugelassen ist."""
+        from schichtplan.konfig import Termin
+        tm = Termin(name="Teamleitersitzung", tag="di", ab=zu_index("13:30"),
+                    kandidaten=["kurka_j", "rohwer_c"], anzahl=1, abwechselnd=True)
+        self.vorgabe.termine = [tm]
+        return tm
 
     def test_letzter_halter_wird_aus_der_historie_erkannt(self):
+        tm = self._mit_wechsel()
         b = Bewerter(self.stamm, self.vorgabe, self.historie)
         # KW41: Kurka Di 6-13:30 - er war zuletzt dran
-        self.assertEqual(b._letzter_terminhalter(self.vorgabe.termine[0]), "kurka_j")
+        self.assertEqual(b._letzter_terminhalter(tm), "kurka_j")
 
     def test_wiederholung_wird_bemaengelt(self):
+        self._mit_wechsel()
         plan = grundgeruest(self.stamm, self.vorgabe)
         plan.zellen["kurka_j"]["di"].art = "schicht"
         plan.zellen["kurka_j"]["di"].schicht = self.stamm.schichten["6-13:30"]
@@ -509,6 +544,7 @@ class TestTerminWechsel(unittest.TestCase):
         self.assertIn("termin_wechsel", regeln)
 
     def test_wechsel_auf_rohwer_ist_in_ordnung(self):
+        self._mit_wechsel()
         plan = grundgeruest(self.stamm, self.vorgabe)
         plan.zellen["rohwer_c"]["di"].art = "schicht"
         plan.zellen["rohwer_c"]["di"].schicht = self.stamm.schichten["6-13:30"]
@@ -726,10 +762,10 @@ class TestExport(unittest.TestCase):
         self.assertEqual(doc["woche"], "2026-KW42")
         self.assertEqual(set(doc["plan"]), set(self.plan.zellen))
 
-    def test_abwesenheits_csv_listet_urlaub(self):
+    def test_abwesenheits_csv_listet_abwesenheiten(self):
         text = export.als_abwesenheits_csv(self.plan, self.stamm)
-        self.assertIn("urlaub", text)
-        self.assertIn("A. Marino", text)
+        self.assertIn("schule", text)
+        self.assertIn("A. Menzler", text)
 
 
 if __name__ == "__main__":

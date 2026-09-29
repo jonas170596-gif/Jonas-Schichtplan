@@ -79,9 +79,10 @@ soll_stunden:                    # abweichendes Wochensoll
 
 Termine, fuer die jemand frueher Schluss machen muss, kommen in dieselbe Datei.
 Die Teamleitersitzung ist unregelmaessig - in Wochen ohne Sitzung laesst man den
-Block einfach weg. `abwechselnd: true` heisst: nicht dieselbe Person wie beim
-letzten Mal, egal wie lange das her ist. Wer zuletzt dran war, erkennt der
-Planer am Schichtende in der Historie, er braucht dafuer keinen festen Turnus:
+Block einfach weg. Zugelassen ist derzeit nur Kurka. Gaebe es mehrere
+Kandidaten, sorgt `abwechselnd: true` dafuer, dass nicht zweimal dieselbe
+Person drankommt; wer zuletzt dran war, erkennt der Planer am Schichtende in
+der Historie, ohne festen Turnus:
 
 ```yaml
 termine:
@@ -173,7 +174,7 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 
 | | kann | Stunden | Tage | fest frei | bevorzugt frei | Besonderheit |
 |---|---|---|---|---|---|---|
-| J. Kurka | f w o | 40 | 5 | - | - | Frueh-Anker, Spaet nur im Notfall; freier Tag variabel |
+| J. Kurka | f w o | 40 | 5 | - | - | Frueh-Anker, **montags gesetzt**; Spaet nur im Notfall; freier Tag variabel (Di-Sa) |
 | C. Rohwer | f w o | 40 | 5 | Mi | - | Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet |
 | A. Marino | f w o | 40 | 5 | Mo | - | |
 | N. Sannzenbacher | f w | 30 | 4 | - | Mi, Do | freie Tage duerfen wandern, aber zusammen |
@@ -181,8 +182,8 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 | I. Nachtrieb | f w | 24 | 3 (bis 5) | - | - | Monatsmittel, Wochentoleranz +/- 8 h |
 | B. Kohl | w | 30 | 4 | - | - | zwei freie Tage, moeglichst zusammenhaengend |
 | C. Kurz | f w o | 20 | 3 | Di | Fr, Sa | Muster Mo 8-14 / Mi 8-13 / Do 8-14 |
-| U. Kurz | f w | Reserve | - | Di | - | so wenig wie moeglich, breit einsetzbar |
-| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer, breit einsetzbar |
+| U. Kurz | f w | bis 22 | bis 3 | Di | - | Reserve: Soll ist Obergrenze, drei Tage sind in Ordnung |
+| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer, rund ein Viertel der Schichten spaet |
 
 \* Menzler rechnet anders: 5 Praesenztage, Schichten **und** Schultage
 zusammen. Ein Schultag deckt 8 h des Wochensolls ab, also vier Schichten bei
@@ -192,6 +193,14 @@ und als Springer bekommt er keine Strafe fuer wechselnde Schichtarten.
 Spaetschichten sind moeglich, wenn die Besetzung es braucht - eine feste
 Obergrenze gibt es nicht. Die Regel gegen Spaet-Frueh-Wechsel gilt fuer ihn
 wie fuer alle anderen.
+
+Zwei Stellschrauben fuer Soll-Werte:
+
+* `nur_obergrenze: true` macht `soll_stunden`/`soll_tage` zur Obergrenze -
+  weniger ist straffrei, mehr kostet. So ist bei U. Kurz "so wenig wie
+  moeglich" abgebildet, ohne dass drei Tage ein Verstoss waeren.
+* `spaet_anteil: 0.25` gibt statt des 50/50-Ausgleichs einen festen Zielanteil
+  Spaetschichten vor, gemessen ueber dasselbe rollierende Fenster.
 
 **fest frei** gilt immer. **bevorzugt frei** soll frei bleiben, darf aber
 weichen, wenn die Besetzung es verlangt - der Plan weist es dann als Hinweis aus.
@@ -207,6 +216,13 @@ die Abdeckungsregeln in `konfig/team.yaml`:
 
 * **f und w muessen durchgehend besetzt sein**, jede Halbstunde der Oeffnungszeit.
 * **o muss morgens da sein**, mindestens eine Fruehschicht mit Ofen.
+* **Kurka steht montags in der Fruehschicht** - dieselbe Mechanik, Gruppe mit
+  einer Person und `tage: [mo]`.
+
+Eine Gruppenregel senkt ihren Anspruch automatisch, wenn die Beteiligten an dem
+Tag im Urlaub, krank oder in der Schule sind. Sonst stuende bei jedem Urlaub
+eine unerfuellbare Forderung im Plan, gegen die der Solver alles andere
+abwaegt.
 
 Dass Kohl und Reich nicht zusammen in der Spaetschicht stehen duerfen, folgt
 daraus von selbst: beide koennen nur `w`, also fehlt Fleisch, sobald nur die
@@ -351,6 +367,8 @@ hoch, dass sie praktisch hart sind:
 | `wunsch_frei` / `wunsch_schicht` | Wuensche der Woche |
 | `freie_tage_zusammenhaengend` | Kohls freie Tage aneinander |
 | `frueh_spaet_ausgleich` | Frueh und Spaet gleichen sich ueber 4 Wochen aus |
+| `spaet_anteil` | fester Zielanteil Spaetschichten statt 50/50 (Azubi: 25 %) |
+| `frueh_ueber` | keine dritte Fruehschicht, wo zwei reichen |
 | `vermiedene_schicht` | Kurka spaet nur im Notfall |
 | `schichtwunsch` | Rohwer Mo-Do frueh |
 | `schicht_verteilung` | Rohwer Fr/Sa im Wechsel frueh/spaet |

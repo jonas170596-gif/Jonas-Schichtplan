@@ -26,6 +26,8 @@ gewichte:
   # Planer lieber einen Kopf, als die Vorgabe zu erfuellen.
   frueh_besetzung: 1200     # je fehlender Fruehschicht
   schluss_besetzung: 1200   # je fehlender Schlussschicht
+  frueh_ueber: 80           # je Fruehschicht ueber dem Bedarf - wer um 6 Uhr
+                            # nicht gebraucht wird, fehlt mittags
   gesamtstunden: 30         # je Stunde Abweichung vom Wochenbudget (ohne Azubi)
 
   # --- Team und Faehigkeiten ---
@@ -50,9 +52,12 @@ gewichte:
   wechsel: 150              # erster kurzer Wechsel Spaet -> Frueh in der Woche
   wechsel_ueber_limit: 1200 # jeder weitere kurze Wechsel
   ruhezeit_verletzung: 3000 # Ruhe unter ruhezeit_min_h (praktisch hart)
-  sparsam_einsetzen: 45     # je Stunde bei MA mit moeglichst_wenig
+  sparsam_einsetzen: 10     # je Stunde bei MA mit moeglichst_wenig. Bewusst
+                            # klein: die Obergrenze aus soll_tage begrenzt den
+                            # Einsatz, das hier ist nur der leichte Gegendruck.
   vermiedene_schicht: 700   # Schicht, die der MA nur im Notfall macht (Kurka spaet)
   frueh_spaet_ausgleich: 200  # je Schicht Ungleichgewicht ueber das Fenster hinaus
+  spaet_anteil: 250         # Abweichung vom Zielanteil Spaetschichten (Azubi)
   schichtwunsch: 130        # Wochentag hat nicht die gewuenschte Kategorie
   schicht_verteilung: 220   # z. B. Rohwer Fr/Sa nicht im Wechsel frueh/spaet
   bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen

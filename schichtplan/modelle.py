@@ -92,6 +92,8 @@ class Mitarbeiter:
     schichtwunsch: dict[str, str] = field(default_factory=dict)   # tag -> kategorie
     frueh_spaet_ausgleich: bool = True
     max_spaet_pro_woche: int | None = None
+    nur_obergrenze: bool = False        # Soll ist Obergrenze, weniger ist frei
+    spaet_anteil: float | None = None   # Zielanteil Spaetschichten im Fenster
     springer: bool = False
     praesenztage: int | None = None          # Arbeitstage + gezaehlte Abwesenheiten
     abwesenheit_stunden: dict[str, float] = field(default_factory=dict)

@@ -221,6 +221,9 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             frueh_spaet_ausgleich=bool(m.get("frueh_spaet_ausgleich", True)),
             max_spaet_pro_woche=(int(m["max_spaet_pro_woche"])
                                  if m.get("max_spaet_pro_woche") is not None else None),
+            nur_obergrenze=bool(m.get("nur_obergrenze", False)),
+            spaet_anteil=(float(m["spaet_anteil"])
+                          if m.get("spaet_anteil") is not None else None),
             springer=bool(m.get("springer", False)),
             praesenztage=(int(m["praesenztage"])
                           if m.get("praesenztage") is not None else None),

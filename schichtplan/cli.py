@@ -71,9 +71,10 @@ termine: []
 #  - name: Teamleitersitzung
 #    tag: di
 #    ab: "13:30"
-#    kandidaten: [kurka_j, rohwer_c]
+#    kandidaten: [kurka_j]
 #    anzahl: 1
-#    abwechselnd: true      # nicht dieselbe Person wie beim letzten Mal
+#    abwechselnd: false     # true: nicht dieselbe Person wie beim letzten Mal
+#                           # (nur sinnvoll bei mehreren Kandidaten)
 
 # --- Zusatzaufgaben, die im Plan vermerkt werden ---
 zusatz: {{}}

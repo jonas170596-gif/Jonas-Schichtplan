@@ -109,20 +109,24 @@ class Bewerter:
             self.schichtmaske[schicht.id] = m
         return m
 
-    def _historische_bilanz(self) -> dict[str, tuple[int, int, int]]:
-        """Frueh/Spaet der Vorwochen - aendert sich waehrend der Suche nicht."""
+    def _historische_bilanz(self) -> dict[str, tuple[int, int, int, int]]:
+        """(frueh, spaet, Schichten gesamt, Wochen) der Vorwochen.
+
+        Aendert sich waehrend der Suche nicht und wird deshalb einmal
+        vorberechnet."""
         fenster = self.stamm.regeln.ausgleich_fenster_wochen
         vor = self.vorwochen[-(fenster - 1):] if fenster > 1 else []
         bilanz = {}
         for mid in self.stamm.mitarbeiter:
-            frueh = spaet = 0
+            frueh = spaet = gesamt = 0
             for w in vor:
                 for z in w.plan.get(mid, {}).values():
                     if z.verwertbar:
                         kat = self.stamm.kategorie_von(z.von, z.bis)
                         frueh += kat == "frueh"
                         spaet += kat == "spaet"
-            bilanz[mid] = (frueh, spaet, len(vor))
+                        gesamt += 1
+            bilanz[mid] = (frueh, spaet, gesamt, len(vor))
         return bilanz
 
     def _ziel(self, mid: str) -> tuple[float, int]:
@@ -196,6 +200,13 @@ class Bewerter:
                 add("frueh_besetzung", noetig - frueh,
                     f"{TAG_LANG[t]}: nur {frueh} Fruehschichten, {noetig} noetig"
                     + (f" ({anlass})" if anlass else ""), "fehler")
+            elif frueh > noetig:
+                # Wer um 6 Uhr nicht gebraucht wird, fehlt mittags. Ein
+                # spaeterer Start (8-16 statt 6-14) deckt die Spitze besser ab.
+                add("frueh_ueber", frueh - noetig,
+                    f"{TAG_LANG[t]}: {frueh} Fruehschichten, noetig sind {noetig} - "
+                    f"ein spaeterer Start waere moeglich"
+                    if frueh - noetig > 1 else "")
 
             schluss_zeit = b.oeffnung[t][1]
             schluss = sum(1 for z in zellen if z.schicht.bis >= schluss_zeit)
@@ -233,12 +244,21 @@ class Bewerter:
             for tag in self.tage:
                 if not regel.gilt_am(tag):
                     continue
+                # Wer an dem Tag im Urlaub, krank oder in der Schule ist, kann
+                # die Regel nicht erfuellen. Der Anspruch sinkt entsprechend,
+                # sonst stuende bei jedem Urlaub eine unerfuellbare Forderung
+                # im Plan und der Solver wuerde sie gegen alles andere abwaegen.
+                verfuegbar = sum(
+                    1 for mid in regel.gruppe
+                    if tag not in self.vorgabe.abwesend.get(mid, {})
+                    and self.stamm.mitarbeiter[mid].im_plan)
+                noetig = min(regel.min, verfuegbar)
                 da = sum(1 for mid in regel.gruppe
                          if (z := plan.zellen.get(mid, {}).get(tag)) is not None
                          and z.arbeitet and regel.passt(tag, z.schicht))
-                if da < regel.min:
-                    add("gruppenbesetzung", regel.min - da,
-                        f"{TAG_LANG[tag]}: {regel.name} - {da} von {regel.min} besetzt"
+                if da < noetig:
+                    add("gruppenbesetzung", noetig - da,
+                        f"{TAG_LANG[tag]}: {regel.name} - {da} von {noetig} besetzt"
                         + (f" ({regel.grund})" if regel.grund else ""), "fehler")
 
         for regel in self.stamm.unvertraeglich:
@@ -302,24 +322,43 @@ class Bewerter:
     def _kategorie(self, von: int, bis: int) -> str:
         return self.stamm.kategorie_von(von, bis)
 
-    def frueh_spaet_bilanz(self, plan: Plan, mid: str) -> tuple[int, int, int]:
-        """(frueh, spaet, Wochen im Fenster) inklusive der geplanten Woche."""
-        frueh, spaet, wochen = self._hist_bilanz.get(mid, (0, 0, 0))
+    def schichtbilanz(self, plan: Plan, mid: str) -> tuple[int, int, int, int]:
+        """(frueh, spaet, Schichten gesamt, Wochen) inklusive der Planwoche."""
+        frueh, spaet, gesamt, wochen = self._hist_bilanz.get(mid, (0, 0, 0, 0))
         for z in plan.zellen.get(mid, {}).values():
             if z.arbeitet:
                 frueh += z.schicht.kategorie == "frueh"
                 spaet += z.schicht.kategorie == "spaet"
-        return frueh, spaet, wochen + 1
+                gesamt += 1
+        return frueh, spaet, gesamt, wochen + 1
+
+    def frueh_spaet_bilanz(self, plan: Plan, mid: str) -> tuple[int, int, int]:
+        """(frueh, spaet, Wochen im Fenster) inklusive der geplanten Woche."""
+        frueh, spaet, _, wochen = self.schichtbilanz(plan, mid)
+        return frueh, spaet, wochen
 
     def _ausgleich(self, plan: Plan, add):
         if self.stamm.regeln.ausgleich_fenster_wochen <= 1:
             return
         toleranz = self.stamm.regeln.ausgleich_toleranz
         for mid, m in self.stamm.mitarbeiter.items():
-            if not (m.im_plan and m.aktiv and m.frueh_spaet_ausgleich):
+            if not (m.im_plan and m.aktiv):
                 continue
-            frueh, spaet, wochen = self.frueh_spaet_bilanz(plan, mid)
-            if frueh + spaet == 0:
+            frueh, spaet, gesamt, wochen = self.schichtbilanz(plan, mid)
+
+            if m.spaet_anteil is not None:
+                # Fester Zielanteil statt 50/50 - beim Azubi soll rund ein
+                # Viertel der Schichten spaet sein, gemessen ueber das Fenster.
+                if gesamt:
+                    ziel = m.spaet_anteil * gesamt
+                    add("spaet_anteil", max(0.0, abs(spaet - ziel) - toleranz),
+                        f"{m.name}: {spaet} von {gesamt} Schichten spaet in "
+                        f"{wochen} Wochen, Ziel {ziel:.1f} "
+                        f"({m.spaet_anteil:.0%})"
+                        if abs(spaet - ziel) > toleranz else "", "warnung")
+                continue
+
+            if not m.frueh_spaet_ausgleich or frueh + spaet == 0:
                 continue
             weg = max(0, abs(frueh - spaet) - toleranz)
             add("frueh_spaet_ausgleich", weg,
@@ -399,25 +438,27 @@ class Bewerter:
             if self.verfuegbare_tage[mid] == 0:
                 continue
             if m.moeglichst_wenig:
-                # keine Soll-Vorgabe: jede Stunde kostet, die Besetzungsregeln
-                # muessen den Einsatz rechtfertigen
+                # Leichter Gegendruck: die Reserve wird nur eingesetzt, wenn
+                # die Besetzung es rechtfertigt. Das Soll unten begrenzt sie
+                # nach oben, nach unten ist es frei.
                 add("sparsam_einsetzen", stunden,
-                    f"{m.name}: {stunden:.1f} h (Reserve, soll wenig arbeiten)"
-                    if stunden else "")
-                if tage > m.max_tage:
-                    add("max_tage", tage - m.max_tage,
-                        f"{m.name}: {tage} Arbeitstage, erlaubt sind {m.max_tage}", "fehler")
-                continue
+                    f"{m.name}: {stunden:.1f} h (Reserve)" if stunden else "")
+
             soll_h, soll_t = self._ziel(mid)
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
                         else self.stamm.regeln.stunden_toleranz_h)
-            weg_h = max(0.0, abs(stunden - soll_h) - toleranz)
+            if m.nur_obergrenze:
+                # Soll ist eine Obergrenze, kein Ziel: weniger ist in Ordnung.
+                weg_h = max(0.0, stunden - soll_h - toleranz)
+                weg_t = max(0, tage - soll_t)
+            else:
+                weg_h = max(0.0, abs(stunden - soll_h) - toleranz)
+                weg_t = abs(tage - soll_t)
             add("wochenstunden", weg_h,
                 f"{m.name}: {stunden:.1f} h statt {soll_h:.1f} h" if weg_h >= 2 else "",
                 "warnung")
-            add("arbeitstage", abs(tage - soll_t),
-                f"{m.name}: {tage} Arbeitstage statt {soll_t}"
-                if abs(tage - soll_t) >= 2 else "")
+            add("arbeitstage", weg_t,
+                f"{m.name}: {tage} Arbeitstage statt {soll_t}" if weg_t >= 2 else "")
             if tage > m.max_tage:
                 add("max_tage", tage - m.max_tage,
                     f"{m.name}: {tage} Arbeitstage, erlaubt sind {m.max_tage}", "fehler")
