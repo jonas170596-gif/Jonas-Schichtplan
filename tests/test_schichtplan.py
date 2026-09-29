@@ -11,7 +11,8 @@ from schichtplan.bewertung import Bewerter, pruefen
 from schichtplan.feiertage import Kalender, feiertage_bw, ostersonntag
 from schichtplan.generator import erzeuge, grundgeruest
 from schichtplan.historie import kalenderabgleich, lade_historie
-from schichtplan.konfig import lade_stammdaten, lade_wochenvorgabe
+from schichtplan.konfig import (lade_schulplaene, lade_stammdaten,
+                                lade_wochenvorgabe)
 from schichtplan.modelle import TAGE, TAG_LANG, zu_index, zu_text
 from schichtplan import export
 
@@ -594,6 +595,83 @@ class TestHandplan(unittest.TestCase):
                                           self.vorgabe).befunde
                   if b.schwere == "fehler"]
         self.assertEqual(fehler, [])
+
+
+class TestSchulplan(unittest.TestCase):
+    """Berufsschultage aus dem Jahresplan H2FV 2026/27, Menzler ist Gruppe B."""
+
+    def setUp(self):
+        self.plaene = lade_schulplaene(WURZEL / "konfig")
+        self.sp = self.plaene["menzler_a"]
+
+    def test_menzler_ist_gruppe_b(self):
+        self.assertEqual(self.sp.gruppe, "B")
+
+    def test_theorie_donnerstag_in_jeder_schulwoche(self):
+        for woche, tage in self.sp.tage.items():
+            self.assertIn("do", tage, woche)
+
+    def test_btw_woche_hat_zusaetzlich_mittwoch(self):
+        self.assertEqual(self.sp.fuer("2026-KW38"), ["mi", "do"])
+        self.assertEqual(self.sp.fuer("2026-KW42"), ["mi", "do"])
+
+    def test_woche_ohne_btw_hat_nur_donnerstag(self):
+        self.assertEqual(self.sp.fuer("2026-KW39"), ["do"])
+        # KW04/2027: nur BTW-A hat Dienstag, Gruppe B also nur Theorie
+        self.assertEqual(self.sp.fuer("2027-KW04"), ["do"])
+
+    def test_sueffa_montag_betrifft_beide_gruppen(self):
+        self.assertEqual(self.sp.fuer("2026-KW46"), ["mo", "do"])
+
+    def test_btw_b_ausnahmsweise_am_dienstag(self):
+        self.assertEqual(self.sp.fuer("2027-KW05"), ["di", "do"])
+
+    def test_ferien_sind_schulfrei(self):
+        for woche in ("2026-KW44", "2026-KW52", "2026-KW53", "2027-KW01", "2027-KW06"):
+            self.assertEqual(self.sp.fuer(woche), [], woche)
+
+    def test_jenseits_der_gueltigkeit_unbekannt(self):
+        self.assertTrue(self.sp.ausserhalb("2027-KW20"))
+        self.assertIsNone(self.sp.fuer("2027-KW20"))
+        self.assertFalse(self.sp.ausserhalb("2026-KW42"))
+
+    def test_nur_bekannte_wochentage(self):
+        for woche, tage in self.sp.tage.items():
+            for tag in tage:
+                self.assertIn(tag, TAGE, f"{woche}/{tag}")
+
+    def test_wochenvorgabe_enthaelt_die_schultage(self):
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.assertEqual(v.abwesend["menzler_a"], {"mi": "schule", "do": "schule"})
+
+    def test_mehr_als_fuenf_praesenztage_ist_ein_fehler(self):
+        stamm = lade_stammdaten(WURZEL / "konfig")
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")   # Mi + Do Schule
+        plan = grundgeruest(stamm, v)
+        for tag in ("mo", "di", "fr", "sa"):       # 4 Schichten + 2 Schultage = 6
+            plan.zellen["menzler_a"][tag].art = "schicht"
+            plan.zellen["menzler_a"][tag].schicht = stamm.schichten["8-16"]
+        befunde = [b for b in pruefen(plan, stamm, v).befunde
+                   if b.regel == "praesenztage"]
+        self.assertTrue(befunde, "sechs Praesenztage muessen auffallen")
+        self.assertEqual(befunde[0].schwere, "fehler")
+
+    def test_genau_fuenf_praesenztage_sind_in_ordnung(self):
+        stamm = lade_stammdaten(WURZEL / "konfig")
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        plan = grundgeruest(stamm, v)
+        for tag in ("mo", "fr", "sa"):             # 3 Schichten + 2 Schultage = 5
+            plan.zellen["menzler_a"][tag].art = "schicht"
+            plan.zellen["menzler_a"][tag].schicht = stamm.schichten["8-16"]
+        regeln = {b.regel for b in pruefen(plan, stamm, v).befunde}
+        self.assertNotIn("praesenztage", regeln)
+
+    def test_zwei_schultage_lassen_drei_schichten(self):
+        stamm = lade_stammdaten(WURZEL / "konfig")
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        stunden, tage = Bewerter(stamm, v)._ziel("menzler_a")
+        self.assertEqual(tage, 3)          # 5 Praesenztage minus 2 Schultage
+        self.assertEqual(stunden, 24.0)    # 40 h minus 2 x 8 h Schule
 
 
 class TestWochenBedarf(unittest.TestCase):

@@ -39,6 +39,7 @@ gewichte:
   wochenstunden: 25         # je Stunde Abweichung vom Soll
   arbeitstage: 90           # je Tag Abweichung vom Soll
   max_tage: 5000            # Ueberschreitung von max_tage (praktisch hart)
+  praesenztage: 900         # Schichten + Schultage weichen von der Vorgabe ab
   tage_in_folge: 300        # je Tag ueber max_tage_in_folge
 
   # --- Wuensche ---

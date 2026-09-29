@@ -422,6 +422,19 @@ class Bewerter:
                 add("max_tage", tage - m.max_tage,
                     f"{m.name}: {tage} Arbeitstage, erlaubt sind {m.max_tage}", "fehler")
 
+            if m.praesenztage is not None:
+                # Schichten plus gezaehlte Abwesenheiten (Berufsschule) ergeben
+                # die Praesenztage - beim Azubi sind das immer genau fuenf.
+                abwesend = self.vorgabe.abwesend.get(mid, {})
+                gezaehlt = sum(1 for t_, art in abwesend.items()
+                               if t_ in self.tage and art in m.abwesenheit_stunden)
+                ist = tage + gezaehlt
+                add("praesenztage", abs(ist - m.praesenztage),
+                    f"{m.name}: {ist} Praesenztage ({tage} Schichten + {gezaehlt} "
+                    f"Schule) statt {m.praesenztage}"
+                    if ist != m.praesenztage else "",
+                    "fehler" if ist > m.praesenztage else "warnung")
+
             folge = max_folge = 0
             for t in TAGE:      # ueber alle Wochentage, nicht nur die offenen -
                 zelle = reihe.get(t)   # ein Feiertag unterbricht die Serie

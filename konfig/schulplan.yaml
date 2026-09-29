@@ -1,0 +1,48 @@
+# Berufsschultage. Quelle: "Jahresplan für Berufsschultage für das Schuljahr
+# 2026/2027", Klasse H2FV (Fleischereifachverkaeufer/innen 2. Lehrjahr),
+# Klassenlehrerin Fr. Lehmann.
+#
+# Der Plan teilt die Klasse in BTW-A und BTW-B. Menzler steht in der Liste
+# unter BTW-B, deshalb zaehlen fuer ihn:
+#   Theorie       - Donnerstag, in jeder Schulwoche
+#   BTW-B         - meist Mittwoch, in KW05/2027 ausnahmsweise Dienstag
+#   SUEFFA-A/B    - Montag in KW46, beide Gruppen
+# BTW-A-Termine (Dienstag) betreffen ihn nicht.
+#
+# 'tage' listet nur Wochen mit Unterricht. Wochen, die hier fehlen und vor
+# 'gilt_bis' liegen, sind schulfrei (Ferien, Feiertage). Nach 'gilt_bis'
+# warnt der Planer, dass der Plan fortgeschrieben werden muss.
+
+schulplaene:
+
+  menzler_a:
+    klasse: "H2FV (Fleischereifachverkaeufer/innen, 2. Lehrjahr)"
+    gruppe: B
+    quelle: "Jahresplan_26-27_H2FV_1HJ.pdf (1. Halbjahr 2026/27)"
+    gilt_bis: 2027-KW05
+
+    tage:
+      2026-KW38: [mi, do]     # SW 1  - BTW-B + Theorie
+      2026-KW39: [do]         # SW 2  - Theorie
+      2026-KW40: [mi, do]     # SW 3
+      2026-KW41: [do]         # SW 4
+      2026-KW42: [mi, do]     # SW 5
+      2026-KW43: [do]         # SW 6
+      2026-KW45: [mi, do]     # SW 7
+      2026-KW46: [mo, do]     # SW 8  - Montag SUEFFA (A und B), Do Theorie
+      2026-KW47: [do]         # SW 9
+      2026-KW48: [mi, do]     # SW 10 - BTW-B bei Hr. Rau
+      2026-KW49: [do]         # SW 11
+      2026-KW50: [mi, do]     # SW 12
+      2026-KW51: [do]         # SW 13
+      2027-KW02: [do]         # SW 15
+      2027-KW03: [mi, do]     # SW 16
+      2027-KW04: [do]         # SW 17 - nur BTW-A hat Dienstag, B also nur Theorie
+      2027-KW05: [di, do]     # SW 18 - BTW-B ausnahmsweise am Dienstag
+
+    schulfrei:
+      2026-KW44: Herbstferien
+      2026-KW52: "SW 14 ohne Unterricht"
+      2026-KW53: Weihnachtsferien
+      2027-KW01: "Hl. 3-Koenige"
+      2027-KW06: Faschingsferien

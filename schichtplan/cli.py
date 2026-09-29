@@ -29,7 +29,8 @@ from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .feiertage import Kalender, feiertage_bw, sondertage
 from .historie import kalenderabgleich, lade_historie
-from .konfig import KONFIG_DIR, lade_stammdaten, lade_wochenvorgabe
+from .konfig import (KONFIG_DIR, lade_schulplaene, lade_stammdaten,
+                     lade_wochenvorgabe)
 from .modelle import TAGE, TAG_LANG, Plan, Zelle, zu_index
 
 VORLAGE = """# Wochenvorgabe {woche} - alles, was sich von Woche zu Woche aendert.
@@ -48,8 +49,7 @@ urlaub: {{}}
 #  reich_s: alle
 #  kohl_b: [do, fr, sa]
 
-schule: {{}}               # Berufsschule Azubi
-#  menzler_a: [mi, do]
+schule: {schule}
 
 krank: {{}}
 sonstige: {{}}
@@ -165,10 +165,32 @@ def cmd_neu(args) -> int:
             "# Stundenbudget). Diese Woche von Hand planen oder die Vorgaben unter\n"
             "# 'fest' komplett durchschreiben.\n")
 
+    # Berufsschultage aus dem hinterlegten Schulplan vorbelegen
+    schulzeilen, schulhinweise = ["{}"], []
+    plaene = lade_schulplaene(args.konfig)
+    if plaene:
+        eintraege = []
+        for mid, sp in plaene.items():
+            tage = sp.fuer(woche)
+            name = lade_stammdaten(args.konfig).mitarbeiter[mid].name
+            if tage is None:
+                schulhinweise.append(
+                    f"{name}: Schulplan reicht nur bis {sp.gilt_bis} - "
+                    f"Schultage dieser Woche bitte von Hand eintragen")
+                continue
+            if tage:
+                eintraege.append(f"  {mid}: [{', '.join(tage)}]"
+                                 f"{'':<{max(0, 18 - len(mid))}}# Gruppe {sp.gruppe}")
+            else:
+                grund = sp.schulfrei.get(woche, "schulfrei")
+                schulhinweise.append(f"{name}: keine Berufsschule ({grund})")
+        if eintraege:
+            schulzeilen = [""] + eintraege
     inhalt = VORLAGE.format(woche=woche, von=montag,
                             bis=montag + dt.timedelta(days=5),
                             geschlossen=("[" + ", ".join(feiertage) + "]"
-                                         if feiertage else "[]"))
+                                         if feiertage else "[]"),
+                            schule="\n".join(schulzeilen))
     if args.manuell:
         stamm = lade_stammdaten(args.konfig)
         offen = [t_ for t_ in TAGE if t_ not in feiertage]
@@ -186,6 +208,14 @@ def cmd_neu(args) -> int:
     if feiertage:
         print("Feiertage eingetragen:", ", ".join(
             f"{TAG_LANG[t]} ({n})" for t, n in feiertage.items()))
+    for mid, sp in plaene.items():
+        tage = sp.fuer(woche)
+        if tage:
+            name = lade_stammdaten(args.konfig).mitarbeiter[mid].name
+            print(f"Berufsschule eingetragen: {name} "
+                  f"{', '.join(TAG_LANG[t] for t in tage)}")
+    for h in schulhinweise:
+        print("Hinweis:", h)
     if weihnachten and not args.manuell:
         print(f"\n  ACHTUNG Sonderwoche: {weihnachten}")
         print("  Empfehlung: neu erzeugen mit --manuell, dann steht das ganze")
@@ -225,6 +255,12 @@ def cmd_plan(args) -> int:
         for m in meldungen:
             print("  ACHTUNG", m)
         print()
+
+    for mid, sp in lade_schulplaene(args.konfig).items():
+        if sp.ausserhalb(vorgabe.woche) and not vorgabe.abwesend.get(mid):
+            print(f"Hinweis: der Schulplan von {stamm.mitarbeiter[mid].name} reicht "
+                  f"nur bis {sp.gilt_bis}. Fuer {vorgabe.woche} sind keine "
+                  f"Berufsschultage hinterlegt.\n")
 
     handplan = vorgabe.modus == "manuell"
     if montag and (sonder := kalender.weihnachtswoche(montag)) and not handplan:

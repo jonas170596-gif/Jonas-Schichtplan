@@ -15,9 +15,8 @@ urlaub:
 #  reich_s: alle
 #  kohl_b: [do, fr, sa]
 
-schule:
-  menzler_a: [do]               # Berufsschule Azubi
-#  menzler_a: [mi, do]
+schule: 
+  menzler_a: [mi, do]         # Gruppe B
 
 krank: {}
 sonstige: {}

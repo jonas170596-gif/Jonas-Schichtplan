@@ -343,6 +343,50 @@ class Termin:
 
 
 @dataclass
+class Schulplan:
+    """Berufsschultage eines Azubis ueber das Schuljahr."""
+    klasse: str = ""
+    gruppe: str = ""
+    quelle: str = ""
+    gilt_bis: str = ""
+    tage: dict[str, list[str]] = field(default_factory=dict)
+    schulfrei: dict[str, str] = field(default_factory=dict)
+
+    def fuer(self, woche: str) -> list[str] | None:
+        """Schultage der Woche, [] wenn schulfrei, None wenn unbekannt."""
+        if woche in self.tage:
+            return list(self.tage[woche])
+        if woche in self.schulfrei:
+            return []
+        return None if self.ausserhalb(woche) else []
+
+    def ausserhalb(self, woche: str) -> bool:
+        return bool(self.gilt_bis) and woche > self.gilt_bis
+
+
+def lade_schulplaene(ordner: pathlib.Path | str = KONFIG_DIR) -> dict[str, Schulplan]:
+    pfad = pathlib.Path(ordner) / "schulplan.yaml"
+    if not pfad.exists():
+        return {}
+    roh = _lies(pfad)
+    plaene = {}
+    for mid, s in (roh.get("schulplaene") or {}).items():
+        tage = {}
+        for woche, wt in (s.get("tage") or {}).items():
+            unbekannt = [d for d in wt if d not in TAGE]
+            if unbekannt:
+                raise ValueError(f"schulplan.yaml/{mid}/{woche}: unbekannte Tage {unbekannt}")
+            tage[str(woche)] = list(wt)
+        plaene[mid] = Schulplan(
+            klasse=s.get("klasse", ""), gruppe=str(s.get("gruppe", "")),
+            quelle=s.get("quelle", ""), gilt_bis=str(s.get("gilt_bis", "")),
+            tage=tage,
+            schulfrei={str(k): v for k, v in (s.get("schulfrei") or {}).items()},
+        )
+    return plaene
+
+
+@dataclass
 class Wochenvorgabe:
     """Die Variablen, die vor jeder Woche eingegeben werden."""
     woche: str
