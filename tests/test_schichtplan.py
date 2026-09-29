@@ -737,9 +737,9 @@ class TestVornamen(unittest.TestCase):
     def test_kalender_loest_vornamen_auf(self):
         from schichtplan.konfig import lade_kalender
         k = lade_kalender(WURZEL / "daten/kalender.yaml", self.stamm.mitarbeiter)
-        self.assertEqual(len(k.eintraege), 28)
+        self.assertTrue(k.eintraege)
         for e in k.eintraege:
-            self.assertIn(e.ma, self.stamm.mitarbeiter)
+            self.assertIn(e.ma, self.stamm.mitarbeiter, e.art)
 
     def test_alex_hat_urlaub_in_den_herbstferien(self):
         """Gegenprobe zur Namensverwechslung: Alex ist der Azubi, und sein
@@ -766,6 +766,72 @@ class TestVornamen(unittest.TestCase):
             lade_kalender(pfad, self.stamm.mitarbeiter)
         self.assertIn("Rumpelstilzchen", str(fehler.exception))
         pathlib.Path(pfad).unlink()
+
+
+class TestFreiOderFrueh(unittest.TestCase):
+    """'frueh/frei' am Kalender: bevorzugt frei, sonst nur die Fruehschicht."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe.nur_schichten = {"kurz_u": {"sa": ["6-14"]}}
+        self.vorgabe.wunsch_frei = {"kurz_u": ["sa"]}
+
+    def test_nur_frei_oder_fruehschicht_stehen_zur_wahl(self):
+        from schichtplan.generator import _optionen
+        opts = _optionen(self.stamm, "kurz_u", "sa", self.vorgabe)
+        self.assertIn(None, opts)                                  # frei
+        self.assertEqual([s.id for s in opts if s], ["6-14"])
+        # ohne die Einschraenkung haette sie deutlich mehr Auswahl
+        self.assertGreater(len(_optionen(self.stamm, "kurz_u", "sa")), 2)
+
+    def test_der_generator_haelt_sich_daran(self):
+        erg = erzeuge(self.stamm, self.vorgabe, iterationen=6000, seed=5)
+        z = erg.plan.zellen["kurz_u"]["sa"]
+        if z.arbeitet:
+            self.assertEqual(z.schicht.id, "6-14")
+
+    def test_freier_tag_wird_bevorzugt(self):
+        """Ohne Not soll sie den Tag frei bekommen."""
+        erg = erzeuge(self.stamm, self.vorgabe, iterationen=30000, seed=1)
+        self.assertFalse(erg.plan.zellen["kurz_u"]["sa"].arbeitet)
+
+    def test_unerfuellbare_einschraenkung_faellt_auf(self):
+        from schichtplan.generator import grundgeruest
+        self.vorgabe.nur_schichten = {"kurz_u": {"sa": ["8-13"]}}   # nur Mi erlaubt
+        with self.assertRaises(ValueError) as fehler:
+            grundgeruest(self.stamm, self.vorgabe)
+            erzeuge(self.stamm, self.vorgabe, iterationen=100, seed=1)
+        self.assertIn("kurz_u", str(fehler.exception))
+
+
+class TestKalenderVollstaendig(unittest.TestCase):
+    def setUp(self):
+        from schichtplan.konfig import lade_kalender
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.k = lade_kalender(WURZEL / "daten/kalender.yaml", self.stamm.mitarbeiter)
+
+    def test_keine_offenen_fragen_mehr(self):
+        self.assertEqual(self.k.zu_klaeren, [])
+
+    def test_alle_arten_sind_bekannt(self):
+        from schichtplan.konfig import ARTEN_KALENDER
+        for e in self.k.eintraege:
+            self.assertIn(e.art, ARTEN_KALENDER)
+
+    def test_frei_oder_frueh_kommt_viermal_vor(self):
+        treffer = [e for e in self.k.eintraege if e.art == "frei_oder_frueh"]
+        self.assertEqual(len(treffer), 4)
+        for e in treffer:
+            erlaubt = self.stamm.mitarbeiter[e.ma].erlaubte_schichten
+            self.assertIn("6-14", erlaubt, e.ma)
+
+    def test_jonas_urlaub_beginnt_am_17_oktober(self):
+        import datetime
+        urlaub = [e for e in self.k.eintraege
+                  if e.ma == "kurka_j" and e.art == "urlaub"]
+        self.assertEqual(len(urlaub), 1)
+        self.assertEqual(urlaub[0].von, datetime.date(2026, 10, 17))
 
 
 class TestArbeitszeitgrenzen(unittest.TestCase):

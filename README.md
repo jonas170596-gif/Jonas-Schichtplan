@@ -252,6 +252,7 @@ passieren.
 | `frei` | fest zugesagter freier Tag. Was am Wandkalender steht, ist mit der Person besprochen und sie plant damit - er wird nie ueberplant |
 | `wunsch_frei` | weicher freier Tag, kann der Besetzung weichen. Kommt im Wandkalender bisher nicht vor |
 | `wunsch_frueh` | "Vorname frueh", das heisst konkret die Schicht 6-14 |
+| `frei_oder_frueh` | "frueh/frei" bzw. "morgens oder frei": bevorzugt frei, und wenn die Besetzung es doch verlangt, dann nur die Fruehschicht |
 | `arbeitet` | hebt einen festen freien Tag auf ("Carina arbeiten" dienstags) |
 
 Ein zugesagtes `frei` senkt auch das Wochensoll: wer sechs offene Tage hat und
@@ -263,7 +264,24 @@ Zwei Listen daneben:
 * `storniert` haelt durchgestrichene Eintraege samt Grund fest - so bleibt
   nachvollziehbar, dass sie gelesen und verworfen wurden.
 * `zu_klaeren` sammelt alles, was auf dem Foto nicht eindeutig war. Diese
-  Eintraege werden **nicht** angewendet; `neu` gibt sie als Frage aus.
+  Eintraege werden **nicht** angewendet; `neu` gibt sie als Frage aus. Die
+  Liste ist derzeit leer, alle sieben Unklarheiten sind besprochen.
+
+### "frueh oder frei"
+
+Das Muster kommt viermal vor und ist mehr als ein Wunsch: gemeint ist
+*entweder frei oder die Fruehschicht, nichts dazwischen*. Technisch sind das
+zwei Dinge in der Wochenvorgabe - ein `wunsch_frei` fuer den Tag und ein
+`nur_schichten`-Eintrag, der die Auswahl auf `6-14` einengt:
+
+```yaml
+wunsch_frei: {kurz_u: [sa]}
+nur_schichten: {kurz_u: {sa: [6-14]}}
+```
+
+Reicht die Besetzung, bekommt die Person den Tag frei. Reicht sie nicht, steht
+sie in der Fruehschicht - aber der Planer kann sie nicht ersatzweise in eine
+Spaetschicht stecken.
 
 ## Konten: freie Samstage und Fehltage
 

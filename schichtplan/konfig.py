@@ -403,7 +403,7 @@ class Kalendereintrag:
     ma: str
     von: _dt.date
     bis: _dt.date
-    art: str            # urlaub | frei | wunsch_frei | wunsch_frueh | arbeitet
+    art: str            # siehe ARTEN_KALENDER
 
     def tage_in(self, montag: _dt.date) -> list[str]:
         """Wochentagskuerzel, die in die Woche ab `montag` fallen."""
@@ -432,7 +432,8 @@ class Kalender:
                 if montag <= _dt.date.fromisoformat(str(f["tag"])) <= ende]
 
 
-ARTEN_KALENDER = ("urlaub", "frei", "wunsch_frei", "wunsch_frueh", "arbeitet")
+ARTEN_KALENDER = ("urlaub", "frei", "wunsch_frei", "wunsch_frueh",
+                  "frei_oder_frueh", "arbeitet")
 
 
 def lade_kalender(pfad: pathlib.Path | str = "daten/kalender.yaml",
@@ -502,6 +503,7 @@ class Wochenvorgabe:
     wunsch_schicht: dict[str, dict[str, str]] = field(default_factory=dict)
     wunsch_kategorie: dict[str, dict[str, str]] = field(default_factory=dict)
     arbeitet: dict[str, list[str]] = field(default_factory=dict)   # hebt feste freie Tage auf
+    nur_schichten: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     zusatz: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     soll_stunden: dict[str, float] = field(default_factory=dict)       # Override
     termine: list[Termin] = field(default_factory=list)
@@ -537,6 +539,8 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
     wunsch_kategorie = {ma: dict(v)
                         for ma, v in (roh.get("wunsch_kategorie") or {}).items()}
     arbeitet = {ma: _tageliste(v) for ma, v in (roh.get("arbeitet") or {}).items()}
+    nur_schichten = {ma: {tag: list(s) for tag, s in tage.items()}
+                     for ma, tage in (roh.get("nur_schichten") or {}).items()}
     zusatz = {ma: {t: (v if isinstance(v, list) else [v]) for t, v in tage.items()}
               for ma, tage in (roh.get("zusatz") or {}).items()}
 
@@ -579,6 +583,7 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
         wunsch_schicht=wunsch_schicht,
         wunsch_kategorie=wunsch_kategorie,
         arbeitet=arbeitet,
+        nur_schichten=nur_schichten,
         zusatz=zusatz,
         soll_stunden={k: float(v) for k, v in (roh.get("soll_stunden") or {}).items()},
         termine=termine,

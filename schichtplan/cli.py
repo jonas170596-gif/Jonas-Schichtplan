@@ -76,6 +76,11 @@ wunsch_kategorie: {{}}
 arbeitet: {arbeitet}
 #  kurz_c: [di]
 
+# Nur diese Schichten kommen an dem Tag in Frage (oder frei).
+# Zusammen mit wunsch_frei bildet das "frueh oder frei" ab.
+nur_schichten: {nur_schichten}
+#  kurz_u: {{sa: [6-14]}}
+
 # --- Termine: Schicht muss zu dieser Zeit enden ---
 termine: []
 #  - name: Teamleitersitzung
@@ -202,13 +207,19 @@ def cmd_neu(args) -> int:
     kalender = lade_kalender(args.kalender,
                              lade_stammdaten(args.konfig).mitarbeiter)
     aus_kalender = {"urlaub": {}, "fest": {}, "wunsch_frei": {},
-                    "wunsch_schicht": {}, "arbeitet": {}}
+                    "wunsch_schicht": {}, "arbeitet": {}, "nur_schichten": {}}
     for e, tage in kalender.fuer_woche(montag):
         if e.ma not in alle_ma:
             schulhinweise.append(f"Kalender nennt unbekanntes Kuerzel {e.ma!r}")
             continue
         if e.art == "frei":
             aus_kalender["fest"].setdefault(e.ma, {}).update({t_: "frei" for t_ in tage})
+        elif e.art == "frei_oder_frueh":
+            # Bevorzugt frei; wenn die Besetzung es doch verlangt, dann nur
+            # die Fruehschicht und keine andere.
+            aus_kalender["wunsch_frei"].setdefault(e.ma, []).extend(tage)
+            aus_kalender["nur_schichten"].setdefault(e.ma, {}).update(
+                {t_: [SCHICHT_FRUEH] for t_ in tage})
         elif e.art == "wunsch_frueh":
             # "Vorname frueh" auf dem Wandkalender meint die Schicht 6-14
             aus_kalender["wunsch_schicht"].setdefault(e.ma, {}).update(
@@ -222,7 +233,9 @@ def cmd_neu(args) -> int:
         zeilen = [""]
         for mid, wert in eintraege.items():
             if isinstance(wert, dict):
-                inhalt_ = ", ".join(f"{k}: {v}" for k, v in wert.items())
+                inhalt_ = ", ".join(
+                    f"{k}: [{', '.join(v)}]" if isinstance(v, list) else f"{k}: {v}"
+                    for k, v in wert.items())
                 zeilen.append(f"  {mid}: {{{inhalt_}}}")
             elif len(wert) == 6:
                 zeilen.append(f"  {mid}: alle")
@@ -241,7 +254,9 @@ def cmd_neu(args) -> int:
                                                aus_kalender["wunsch_frei"]),
                             wunsch_schicht=_block("wunsch_schicht",
                                                   aus_kalender["wunsch_schicht"]),
-                            arbeitet=_block("arbeitet", aus_kalender["arbeitet"]))
+                            arbeitet=_block("arbeitet", aus_kalender["arbeitet"]),
+                            nur_schichten=_block("nur_schichten",
+                                                 aus_kalender["nur_schichten"]))
     if args.manuell:
         stamm = lade_stammdaten(args.konfig)
         offen = [t_ for t_ in TAGE if t_ not in feiertage]

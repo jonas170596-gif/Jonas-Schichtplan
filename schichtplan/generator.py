@@ -23,10 +23,27 @@ class Ergebnis:
     startpunkte: float
 
 
-def _optionen(stamm: Stammdaten, mid: str, tag: str) -> list[Schicht | None]:
+def _optionen(stamm: Stammdaten, mid: str, tag: str,
+              vorgabe: Wochenvorgabe | None = None) -> list[Schicht | None]:
+    """Was an dem Tag in Frage kommt: frei oder eine erlaubte Schicht.
+
+    `nur_schichten` in der Wochenvorgabe engt das weiter ein - so laesst sich
+    "an dem Tag entweder frei oder die Fruehschicht" abbilden."""
     m = stamm.mitarbeiter[mid]
     erlaubt = [stamm.schichten[s] for s in m.erlaubte_schichten
                if tag in stamm.schichten[s].tage]
+    if vorgabe is not None:
+        nur = vorgabe.nur_schichten.get(mid, {}).get(tag)
+        if nur:
+            unbekannt = [s for s in nur if s not in stamm.schichten]
+            if unbekannt:
+                raise ValueError(f"nur_schichten[{mid}][{tag}]: unbekannt {unbekannt}")
+            gefiltert = [s for s in erlaubt if s.id in nur]
+            if not gefiltert:
+                raise ValueError(
+                    f"nur_schichten[{mid}][{tag}]: {nur} - davon darf "
+                    f"{m.name} an dem Tag keine einzige arbeiten")
+            erlaubt = gefiltert
     return [None] + erlaubt
 
 
@@ -88,7 +105,8 @@ def _setze(plan: Plan, mid: str, tag: str, schicht: Schicht | None) -> None:
         z.art, z.schicht = "schicht", schicht
 
 
-def _greedy(plan: Plan, stamm: Stammdaten, bewerter: Bewerter, rng: random.Random) -> None:
+def _greedy(plan: Plan, stamm: Stammdaten, vorgabe: Wochenvorgabe,
+            bewerter: Bewerter, rng: random.Random) -> None:
     """Erst Frueh- und Schlussschichten besetzen, dann auf Kopfzahl auffuellen -
     liefert einen brauchbaren Startpunkt statt reinem Zufall."""
     b = bewerter.bedarf
@@ -103,7 +121,7 @@ def _greedy(plan: Plan, stamm: Stammdaten, bewerter: Bewerter, rng: random.Rando
             for mid in frei:
                 if plan.zellen[mid][tag].arbeitet:
                     continue
-                for s in _optionen(stamm, mid, tag):
+                for s in _optionen(stamm, mid, tag, vorgabe):
                     if s is not None and pruef(s):
                         paare.append((stamm.mitarbeiter[mid].stamm_schichten.get(s.id, 0), mid, s))
             paare.sort(key=lambda p: -p[0])
@@ -138,7 +156,7 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
             continue
         for tag in bewerter.tage:
             if not reihe[tag].fixiert:
-                beweglich.append((mid, tag, _optionen(stamm, mid, tag)))
+                beweglich.append((mid, tag, _optionen(stamm, mid, tag, vorgabe)))
     if not beweglich:
         return Ergebnis(basis, bewerter.bewerte(basis, detail=True), 0, 0.0)
 
@@ -151,7 +169,7 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
 
     for lauf in range(neustarts):
         plan = grundgeruest(stamm, vorgabe)
-        _greedy(plan, stamm, bewerter, rng)
+        _greedy(plan, stamm, vorgabe, bewerter, rng)
         wert = bewerter.bewerte(plan).punkte
         start_wert = min(start_wert, wert)
         t0, t1 = max(wert * 0.05, 50.0), 0.5

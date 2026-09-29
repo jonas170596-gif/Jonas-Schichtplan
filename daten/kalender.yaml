@@ -14,6 +14,9 @@
 #                     davon abweichen. Kommt im Wandkalender bisher nicht vor.
 #   wunsch_frueh    - "Vorname frueh" am Kalender, das heisst konkret die
 #                     Schicht 6-14. Weicher Wunsch.
+#   frei_oder_frueh - "frueh/frei" bzw. "morgens oder frei": bevorzugt frei,
+#                     und wenn die Besetzung es doch verlangt, dann nur die
+#                     Fruehschicht 6-14 und nichts anderes.
 #   arbeitet        - hebt einen festen freien Tag auf (Carina dienstags)
 #
 # Gestrichene Eintraege stehen unter 'storniert' und wirken nicht mehr.
@@ -25,12 +28,14 @@ quelle: "Wandkalender Oktober bis Dezember 2026 (Fotos vom 29.09.2026)"
 eintraege:
 
   # ---------------- Oktober ----------------
+  - {vorname: Alex,      tag: 2026-10-02,   art: frei}
   - {vorname: Sibylle,   von: 2026-10-05, bis: 2026-10-10, art: urlaub}
   - {vorname: Carina,    tag: 2026-10-06,   art: arbeitet}
   - {vorname: Ursel,     von: 2026-10-06, bis: 2026-10-08, art: frei}
   - {vorname: Baerbel,   tag: 2026-10-07,   art: frei}
   - {vorname: Carina,    tag: 2026-10-08,   art: frei}
   - {vorname: Nadine,    von: 2026-10-09, bis: 2026-10-10, art: frei}
+  - {vorname: Ursel,     tag: 2026-10-10,   art: frei_oder_frueh}
   - {vorname: Carina,    tag: 2026-10-13,   art: arbeitet}
   - {vorname: Baerbel,   tag: 2026-10-14,   art: frei}
   - {vorname: Carina,    tag: 2026-10-15,   art: frei}
@@ -40,6 +45,7 @@ eintraege:
   - {vorname: Ursel,     tag: 2026-10-20,   art: frei}
   - {vorname: Carina,    tag: 2026-10-22,   art: frei}
   - {vorname: Anna,      tag: 2026-10-24,   art: wunsch_frueh}
+  - {vorname: Anna,      tag: 2026-10-31,   art: frei_oder_frueh}
   - {vorname: Alex,      von: 2026-10-26, bis: 2026-10-31, art: urlaub}
   - {vorname: Baerbel,   von: 2026-10-26, bis: 2026-10-31, art: urlaub}
   # ---------------- November ----------------
@@ -53,7 +59,9 @@ eintraege:
   - {vorname: Anna,      tag: 2026-11-28,   art: wunsch_frueh}
   - {vorname: Sibylle,   von: 2026-11-30, bis: 2026-12-05, art: urlaub}
   # ---------------- Dezember ----------------
+  - {vorname: Jonas,     tag: 2026-12-05,   art: frei_oder_frueh}
   - {vorname: Anna,      tag: 2026-12-12,   art: wunsch_frueh}
+  - {vorname: Anna,      tag: 2026-12-29,   art: frei_oder_frueh}
   - {vorname: Ursel,     tag: 2026-12-12,   art: frei}
 
 storniert:
@@ -63,29 +71,10 @@ storniert:
      grund: "rot durchgestrichen"}
   - {vorname: Baerbel, von: 2026-10-19, bis: 2026-10-24, art: urlaub,
      grund: "diagonal durchgestrichen, eine Woche spaeter neu eingetragen"}
+  - {vorname: Jonas, von: 2026-10-12, bis: 2026-10-12, art: urlaub,
+     grund: "radiert; der Urlaub beginnt erst am 17.10."}
 
-zu_klaeren:
-  - tag: 2026-10-02
-    vermutet: {vorname: Alex, art: frei}
-    frage: "'Alex frei?' steht mit Fragezeichen im Kalender - gilt der Tag?"
-  - tag: 2026-10-10
-    vermutet: {vorname: Ursel, art: wunsch_frueh}
-    frage: "'Ursel morgens oder frei' - Fruehschicht oder freier Tag?"
-  - tag: 2026-10-12
-    vermutet: {vorname: Jonas, art: urlaub}
-    frage: "'Jonas Urlaub' am Mo 12.10. ist verblasst/radiert, der Urlaub
-      beginnt laut Eintrag daneben erst Sa 17.10. - was gilt?"
-  - tag: 2026-10-31
-    vermutet: {vorname: Anna, art: wunsch_frueh}
-    frage: "'Anna frueh/frei' - eines der beiden Woerter ist durchgestrichen,
-      welches bleibt?"
-  - tag: 2026-12-05
-    vermutet: {vorname: Jonas, art: wunsch_frueh}
-    frage: "'Jonas frueh frei' am Sa 05.12. - Fruehschicht oder frei?"
-  - tag: 2026-12-29
-    vermutet: {vorname: Anna, art: wunsch_frueh}
-    frage: "'Anna frueh/frei' am Di 29.12. - Fruehschicht oder frei?"
-  - tag: 2026-10-01
-    vermutet: null
-    frage: "In der dritten Spalte laeuft am Do 01. und Fr 02.10. ein 'u' aus
-      dem September aus - wessen Urlaub war das?"
+# Alle Unklarheiten der Oktober- bis Dezemberblaetter sind besprochen und
+# oben eingearbeitet. Das 'u' am 01./02.10. aus der dritten Spalte stammt
+# noch aus dem September und bleibt bewusst unberuecksichtigt.
+zu_klaeren: []
