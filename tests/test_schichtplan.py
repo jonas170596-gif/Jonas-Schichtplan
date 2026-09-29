@@ -488,12 +488,32 @@ class TestBewertung(unittest.TestCase):
         g = self.stamm.regeln.gewichte
         self.assertGreater(g["gesamtstunden_ueber"], g["gesamtstunden_unter"])
 
-    def test_reserve_wird_je_stunde_bestraft(self):
+    def test_reserve_kostet_je_stunde(self):
+        """Der Gegendruck wirkt ohne Meldung - Reservestunden, die der Laden
+        braucht, sind kein Befund."""
         plan = grundgeruest(self.stamm, self.vorgabe)
-        leer = pruefen(plan, self.stamm, self.vorgabe).punkte
         self._setze(plan, "kurz_u", "mo", "14-20")
-        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
-        self.assertIn("sparsam_einsetzen", regeln)
+        mit = Bewerter(self.stamm, self.vorgabe).bewerte(plan).punkte
+        vorher = list(self.vorgabe.regeln_aus)
+        self.vorgabe.regeln_aus = vorher + ["sparsam_einsetzen"]
+        ohne = Bewerter(self.stamm, self.vorgabe).bewerte(plan).punkte
+        self.vorgabe.regeln_aus = vorher
+        self.assertGreater(mit, ohne)
+        regeln = {x.regel for x in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("sparsam_einsetzen", regeln)
+
+    def test_reserve_ueber_der_luecke_wird_gemeldet(self):
+        """Jeder Reservetag mehr, als die Luecke hergibt, kostet jemandem
+        mit Vertrag einen Tag."""
+        b = Bewerter(self.stamm, self.vorgabe)
+        bedarf = b.reservebedarf()
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        moeglich = [t for t in b.tage if b._einsetzbar("kurz_u", t)]
+        for tag in moeglich[:bedarf + 1]:
+            self._setze(plan, "kurz_u", tag, "14-20" if tag != "sa" else "12-18")
+        texte = [x.text for x in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if x.regel == "reserve_ueber_bedarf"]
+        self.assertTrue(any("U. Kurz" in x for x in texte), texte)
 
 
 class TestGeschlosseneTage(unittest.TestCase):
@@ -1066,8 +1086,19 @@ class TestUeberbesetzung(unittest.TestCase):
         self.assertIn("Personentage", texte[0])
         self.assertIn("Stundenkonto", texte[0])
 
-    def test_widerspruechliche_stammdaten_werden_gemeldet(self):
-        """C. Kurz: 20 h Vertrag auf 3 Tage, gewohnt sind 8-14 und 8-13."""
+    def test_stammdaten_passen_zusammen(self):
+        """Niemandes Wochensoll darf ueber dem liegen, was seine gewohnten
+        Schichten hergeben - sonst laeuft sein Stundenkonto dauerhaft ins
+        Minus, ohne dass der Planer etwas falsch macht."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "stammdaten"]
+        self.assertEqual(texte, [])
+
+    def test_unerreichbares_wochensoll_wird_gemeldet(self):
+        import dataclasses
+        m = self.stamm.mitarbeiter["kurz_c"]           # 3 Tage, laengste 6 h
+        self.stamm.mitarbeiter["kurz_c"] = dataclasses.replace(m, soll_stunden=30)
         plan = grundgeruest(self.stamm, self.vorgabe)
         texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
                  if b.regel == "stammdaten"]
@@ -1257,7 +1288,7 @@ class TestWochenBedarf(unittest.TestCase):
 
     def test_kopfzahl_wird_uebersteuert(self):
         b = Bewerter(self.stamm, self.vorgabe)
-        self.assertEqual(b.bedarf.kopfzahl["mi"], 10)
+        self.assertEqual(b.bedarf.kopfzahl["mi"], 9)
 
     def test_stammdaten_bleiben_unveraendert(self):
         Bewerter(self.stamm, self.vorgabe)

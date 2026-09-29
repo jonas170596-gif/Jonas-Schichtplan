@@ -369,9 +369,14 @@ class Bewerter:
     # ---- Besetzung ---------------------------------------------------- #
     def _besetzung(self, plan: Plan, add):
         b = self.bedarf
+        # Der Azubi zaehlt nicht gegen die Zielkopfzahl: er steht zusaetzlich
+        # im Laden, meist als zweite Mittelschicht, wo Zeit zum Lernen ist.
+        extra = {mid for mid, m in self.stamm.mitarbeiter.items()
+                 if not m.zaehlt_kopfzahl}
         for t in self.tage:
             zellen = [r[t] for r in plan.zellen.values() if r[t].arbeitet]
-            koepfe = len(zellen)
+            koepfe = sum(1 for mid, r in plan.zellen.items()
+                         if r[t].arbeitet and mid not in extra)
             ziel, _ = self.mindestwert(t, "kopfzahl", b.kopfzahl.get(t, koepfe))
             if koepfe < ziel:
                 weg = max(0, ziel - koepfe - b.kopfzahl_toleranz_unter)
@@ -406,8 +411,9 @@ class Bewerter:
                 # darunter - deshalb wird nur ein Fehlbestand bestraft, kein
                 # Ueberhang.
                 ist = {"frueh": 0, "mittel": 0, "spaet": 0}
-                for z in zellen:
-                    ist[z.schicht.kategorie] += 1
+                for mid, r in plan.zellen.items():
+                    if r[t].arbeitet and mid not in extra:
+                        ist[r[t].schicht.kategorie] += 1
                 for kat, soll in profil.items():
                     if ist[kat] < soll:
                         add("kategorieprofil", soll - ist[kat],
@@ -671,6 +677,29 @@ class Bewerter:
                     f"Minus. In konfig/mitarbeiter.yaml klaeren.",
                     "hinweis", nur_melden=True)
 
+    def tagesbilanz(self) -> tuple[int, int]:
+        """(Plaetze im Laden, Personentage aus den Vertraegen) dieser Woche.
+
+        Plaetze sind die Zielkopfzahlen aller offenen Tage; wer nicht gegen
+        die Kopfzahl zaehlt (Azubi), bringt seinen Platz selbst mit. Die
+        Differenz ist die Luecke, die die Reserve fuellen soll."""
+        plaetze = sum(self.mindestwert(t, "kopfzahl",
+                                       self.bedarf.kopfzahl.get(t, 0))[0]
+                      for t in self.tage)
+        vertrag = 0
+        for mid, m in self.stamm.mitarbeiter.items():
+            if not (m.im_plan and m.aktiv and m.zaehlt_kopfzahl):
+                continue
+            if m.moeglichst_wenig:
+                continue
+            vertrag += min(self._ziel(mid)[1], len(self.tage))
+        return plaetze, vertrag
+
+    def reservebedarf(self) -> int:
+        """Tage, die die Reserve auffuellen muss, damit der Laden voll ist."""
+        plaetze, vertrag = self.tagesbilanz()
+        return max(0, plaetze - vertrag)
+
     def _ueberhang(self, plan: Plan, add):
         """Wer den zusaetzlichen freien Tag bekommt - und wer sonst in Frage kaeme.
 
@@ -680,23 +709,20 @@ class Bewerter:
         der Hinweis macht die Entscheidung sichtbar und nennt die naechsten
         Kandidaten, damit man sie ueberstimmen kann. Kostet keine Punkte -
         es gibt nichts zu reparieren."""
-        nachfrage = sum(self.mindestwert(t, "kopfzahl",
-                                         self.bedarf.kopfzahl.get(t, 0))[0]
-                        for t in self.tage)
-        angebot = reserve = 0
+        nachfrage, angebot = self.tagesbilanz()
+        reserve = 0
         fehlt: dict[str, int] = {}
         for mid, m in self.stamm.mitarbeiter.items():
-            if not (m.im_plan and m.aktiv):
-                continue
+            if not (m.im_plan and m.aktiv and m.zaehlt_kopfzahl):
+                continue               # der Azubi steht zusaetzlich im Laden
             tage = sum(1 for z in plan.zellen[mid].values() if z.arbeitet)
             if m.moeglichst_wenig:
                 reserve += tage        # belegt Plaetze, ohne Soll zu haben
                 continue
-            soll_t = self._ziel(mid)[1]
-            angebot += soll_t
+            soll_t = min(self._ziel(mid)[1], len(self.tage))
             if tage < soll_t:
                 fehlt[mid] = soll_t - tage
-        if angebot <= nachfrage and not fehlt:
+        if angebot + reserve <= nachfrage and not fehlt:
             return
 
         konto = self.stundenkonto(plan)
@@ -710,10 +736,10 @@ class Bewerter:
         vergeben = [beschriftung(x, f", {fehlt[x]} Tage" if fehlt[x] > 1 else "")
                     for x in sorted(fehlt, key=lambda x: -konto.get(x, 0))]
 
-        text = (f"Die Mannschaft gibt {angebot} Personentage her, der Laden braucht "
-                f"{nachfrage}")
+        text = (f"Der Laden hat {nachfrage} Plaetze, die Mannschaft gibt "
+                f"{angebot} Personentage her")
         if reserve:
-            text += f", die Reserve belegt davon {reserve}"
+            text += f" und die Reserve belegt {reserve} davon"
         text += f". {sum(fehlt.values())} Tage unter Soll sind vergeben"
         text += (": " + ", ".join(vergeben)) if vergeben else ""
         if offen:
@@ -785,6 +811,8 @@ class Bewerter:
             else:
                 ziel, tage = self._ziel(mid)
             tage = min(tage, len(self.tage))
+            if not m.zaehlt_kopfzahl:
+                plaetze += tage        # steht zusaetzlich im Laden
             if tage <= 0:
                 continue
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
@@ -861,11 +889,17 @@ class Bewerter:
             if self.verfuegbare_tage[mid] == 0:
                 continue
             if m.moeglichst_wenig:
-                # Leichter Gegendruck: die Reserve wird nur eingesetzt, wenn
-                # die Besetzung es rechtfertigt. Das Soll unten begrenzt sie
-                # nach oben, nach unten ist es frei.
-                add("sparsam_einsetzen", stunden,
-                    f"{m.name}: {stunden:.1f} h (Reserve)" if stunden else "")
+                # Leichter Gegendruck ohne Meldung: die Reserve wird nur
+                # eingesetzt, wenn die Besetzung es rechtfertigt.
+                add("sparsam_einsetzen", stunden)
+                # Gemeldet wird nur, was ueber die Luecke hinausgeht. Die
+                # Tage, die der Laden ohnehin nicht aus den Vertraegen fuellen
+                # kann, sind kein Befund - dafuer ist die Reserve da.
+                bedarf = self.reservebedarf()
+                add("reserve_ueber_bedarf", max(0, tage - bedarf),
+                    f"{m.name}: {tage} Tage, aufzufuellen waren {bedarf} - "
+                    f"dafuer faellt jemand mit Vertrag unter sein Soll"
+                    if tage > bedarf else "", "warnung")
 
             soll_h, soll_t = self._ziel(mid)
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
@@ -1008,11 +1042,16 @@ class Bewerter:
                     add("vermiedene_schicht", 1,
                         f"{m.name}: {z.schicht.label} am {TAG_LANG[tag]} "
                         f"(soll vermieden werden)", "warnung")
+                # Der Wunsch ist entweder eine Kategorie (Rohwer: Mo-Do frueh)
+                # oder eine konkrete Schicht (C. Kurz: Mo 8-14, Mi 8-13).
                 wunsch = m.schichtwunsch.get(tag)
-                if wunsch and z.schicht.kategorie != wunsch:
+                if wunsch and wunsch not in self.stamm.schichten:
+                    ist = z.schicht.kategorie
+                elif wunsch:
+                    ist = z.schicht.id
+                if wunsch and ist != wunsch:
                     add("schichtwunsch", 1,
-                        f"{m.name}: {TAG_LANG[tag]} {z.schicht.kategorie} "
-                        f"statt {wunsch}")
+                        f"{m.name}: {TAG_LANG[tag]} {ist} statt {wunsch}")
                 if m.bevorzugte_kategorie and \
                         z.schicht.kategorie != m.bevorzugte_kategorie:
                     # Der Azubi soll moeglichst in der Mittelschicht stehen -
@@ -1024,16 +1063,26 @@ class Bewerter:
                         f"{m.bevorzugte_kategorie}")
 
             for i, regel in enumerate(self.stamm.wochenwechsel.get(mid, [])):
+                moeglich = [tag for tag in regel.tage
+                            if tag in self.tage and self._einsetzbar(mid, tag)]
                 seiten = [regel.seite(reihe[tag].schicht) for tag in regel.tage
                           if tag in self.tage and reihe[tag].arbeitet]
+                kuerzel = "/".join(TAG_LANG[t][:2] for t in regel.tage)
+                if regel.geschlossen and 0 < len(seiten) < len(moeglich):
+                    # Der Block ist unteilbar: ein freier Tag muss den ganzen
+                    # Block treffen, sonst steht sie einen Tag allein da.
+                    add("wochenwechsel_unvollstaendig", len(moeglich) - len(seiten),
+                        f"{m.name}: {kuerzel} gehoeren zusammen, belegt ist nur "
+                        f"{len(seiten)} von {len(moeglich)} Tagen", "warnung")
                 if not seiten:
                     continue
-                kuerzel = "/".join(TAG_LANG[t][:2] for t in regel.tage)
                 if len(set(seiten)) > 1:
                     add("wochenwechsel_uneinheitlich", len(set(seiten)) - 1,
                         f"{m.name}: {kuerzel} sollen beide dieselbe Seite haben, "
                         f"sind {'/'.join(seiten)}", "warnung")
                     continue
+                if not regel.wechselt:
+                    continue          # nur der Block zaehlt, kein fester Takt
                 letzte = self._letzte_seite.get((mid, i))
                 if letzte and letzte == seiten[0]:
                     add("wochenwechsel", 1,

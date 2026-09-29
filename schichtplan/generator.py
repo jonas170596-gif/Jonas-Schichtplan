@@ -142,6 +142,44 @@ def _greedy(plan: Plan, stamm: Stammdaten, vorgabe: Wochenvorgabe,
             _setze(plan, p[0][1], tag, p[0][2])
 
 
+def _ringtausch(plan, beweglich, stelle, tage, rng, versuche: int = 6):
+    """A und B tauschen ihre Tage - die Kopfzahl bleibt an beiden gleich.
+
+    Gesucht sind zwei Tage und zwei Mitarbeiter, sodass A am ersten Tag
+    arbeitet und am zweiten frei hat und B genau umgekehrt. Danach ist es
+    andersherum. Gibt die Rueckabwicklung zurueck, oder None."""
+    for _ in range(versuche):
+        tag_x, tag_y = rng.sample(tage, 2)
+        i = rng.randrange(len(beweglich))
+        ma_a, tag_a, _ = beweglich[i]
+        if tag_a != tag_x or plan.zellen[ma_a][tag_x].schicht is None:
+            continue
+        j = stelle.get((ma_a, tag_y))
+        if j is None or plan.zellen[ma_a][tag_y].schicht is not None:
+            continue
+        kandidaten = [k for k in range(len(beweglich))
+                      if beweglich[k][1] == tag_y and beweglich[k][0] != ma_a
+                      and plan.zellen[beweglich[k][0]][tag_y].schicht is not None]
+        if not kandidaten:
+            continue
+        k = kandidaten[rng.randrange(len(kandidaten))]
+        ma_b = beweglich[k][0]
+        l = stelle.get((ma_b, tag_x))
+        if l is None or plan.zellen[ma_b][tag_x].schicht is not None:
+            continue
+        s_a, s_b = plan.zellen[ma_a][tag_x].schicht, plan.zellen[ma_b][tag_y].schicht
+        if s_a not in beweglich[l][2] or s_b not in beweglich[j][2]:
+            continue                      # der andere darf die Schicht nicht
+        rueck = [(ma_a, tag_x, s_a), (ma_a, tag_y, None),
+                 (ma_b, tag_x, None), (ma_b, tag_y, s_b)]
+        _setze(plan, ma_a, tag_x, None)
+        _setze(plan, ma_a, tag_y, s_b)
+        _setze(plan, ma_b, tag_x, s_a)
+        _setze(plan, ma_b, tag_y, None)
+        return rueck
+    return None
+
+
 def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
             vorwochen: list | None = None, *,
             iterationen: int = 40000, neustarts: int = 4,
@@ -161,8 +199,12 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
         return Ergebnis(basis, bewerter.bewerte(basis, detail=True), 0, 0.0)
 
     nach_tag: dict[str, list[int]] = {}
-    for i, (_, tag, _) in enumerate(beweglich):
+    nach_ma: dict[str, list[int]] = {}
+    for i, (mid, tag, _) in enumerate(beweglich):
         nach_tag.setdefault(tag, []).append(i)
+        nach_ma.setdefault(mid, []).append(i)
+    mit_mehreren = [mid for mid, idx in nach_ma.items() if len(idx) >= 2]
+    stelle = {(mid, tag): i for i, (mid, tag, _) in enumerate(beweglich)}
 
     bester_plan, bester_wert, start_wert = None, math.inf, math.inf
     schritte = max(1, iterationen // neustarts)
@@ -176,7 +218,8 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
 
         for i in range(schritte):
             temp = t0 * (t1 / t0) ** (i / schritte)
-            if rng.random() < 0.65:
+            wurf = rng.random()
+            if wurf < 0.45:
                 mid, tag, opts = beweglich[rng.randrange(len(beweglich))]
                 alt = plan.zellen[mid][tag].schicht
                 neu = opts[rng.randrange(len(opts))]
@@ -184,7 +227,7 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
                     continue
                 _setze(plan, mid, tag, neu)
                 rueck = [(mid, tag, alt)]
-            else:                                   # Tausch am selben Tag
+            elif wurf < 0.70:                       # Tausch am selben Tag
                 tag = bewerter.tage[rng.randrange(len(bewerter.tage))]
                 kand = nach_tag.get(tag)
                 if not kand or len(kand) < 2:
@@ -199,6 +242,32 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
                 _setze(plan, ma_a, tag, s_b)
                 _setze(plan, ma_b, tag, s_a)
                 rueck = [(ma_a, tag, s_a), (ma_b, tag, s_b)]
+            elif wurf < 0.85 and len(bewerter.tage) >= 2:
+                # Ringtausch ueber zwei Tage: A arbeitet am Montag und hat am
+                # Mittwoch frei, B umgekehrt - beide tauschen. Die Kopfzahl
+                # bleibt an beiden Tagen gleich, deshalb kommt der Planer so
+                # an der Obergrenze vorbei. Mit Einzelzuegen ginge es nicht:
+                # jeder Zwischenschritt ueber- oder unterbesetzt einen Tag.
+                rueck = _ringtausch(plan, beweglich, stelle, bewerter.tage, rng)
+                if rueck is None:
+                    continue
+            elif mit_mehreren:
+                # Derselbe Mensch, zwei Tage getauscht - schiebt eine Schicht
+                # von Mittwoch auf Dienstag, ohne den Umweg ueber einen Tag
+                # mit falscher Kopfzahl.
+                mid = mit_mehreren[rng.randrange(len(mit_mehreren))]
+                a, b_ = rng.sample(nach_ma[mid], 2)
+                _, tag_a, opt_a = beweglich[a]
+                _, tag_b, opt_b = beweglich[b_]
+                s_a = plan.zellen[mid][tag_a].schicht
+                s_b = plan.zellen[mid][tag_b].schicht
+                if s_a is s_b or s_b not in opt_a or s_a not in opt_b:
+                    continue
+                _setze(plan, mid, tag_a, s_b)
+                _setze(plan, mid, tag_b, s_a)
+                rueck = [(mid, tag_a, s_a), (mid, tag_b, s_b)]
+            else:
+                continue
 
             neu_wert = bewerter.bewerte(plan).punkte
             delta = neu_wert - wert

@@ -103,6 +103,7 @@ class Mitarbeiter:
     abwesenheit_stunden: dict[str, float] = field(default_factory=dict)
     moeglichst_wenig: bool = False
     zaehlt_stundenbudget: bool = True
+    zaehlt_kopfzahl: bool = True        # False -> steht zusaetzlich im Laden (Azubi)
     stunden_toleranz_h: float | None = None
     erlaubte_schichten: list[str] = field(default_factory=list)
     stamm_schichten: dict[str, float] = field(default_factory=dict)  # id -> Gewicht 0..1

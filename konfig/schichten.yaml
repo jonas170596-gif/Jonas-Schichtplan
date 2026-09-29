@@ -35,4 +35,4 @@ schichten:
   10-18:     {von: "10:00", bis: "18:00", kategorie: mittel, tage: [sa]}   # 11x
   11-18:     {von: "11:00", bis: "18:00", kategorie: spaet,  tage: [sa]}   #  8x
   12-18:     {von: "12:00", bis: "18:00", kategorie: spaet,  tage: [sa]}   # 10x
-  8-18:      {von: "08:00", bis: "18:00", kategorie: mittel, tage: [sa]}   #  2x
+  # 8-18 kam 2x vor, ist mit 10 h aber zu lang - bewusst nicht im Katalog.

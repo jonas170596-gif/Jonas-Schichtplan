@@ -68,14 +68,19 @@ gewichte:
   termin_wechsel: 400       # dieselbe Person wie beim letzten Mal
 
   # --- Arbeitszeit der Mitarbeiter ---
-  # Ueber dem Soll sind Ueberstunden, die jemand wirklich leisten muss - das
-  # wiegt schwer. Unter dem Soll ist kein Fehler des Planers: ob es ueberhaupt
-  # Minusstunden gibt, entscheidet die Besetzung der Woche. Deshalb hier nur
-  # ein leichter Zug nach oben; wen es trifft, regeln die beiden Konten.
-  wochenstunden: 25         # je Stunde ueber dem Soll
-  wochenstunden_unter: 6    # je Stunde darunter
-  arbeitstage: 90           # je Tag ueber dem Soll
-  arbeitstage_unter: 25     # je Tag darunter
+  # Fest sind die Arbeitstage - die hat jeder mit dem Chef vereinbart. Die
+  # Vertragsstunden sind dagegen nur Orientierung dafuer, ob jemand im Plus
+  # oder Minus steht: Kohl arbeitet vier Tage zu 7,5 h, Reich und Nachtrieb
+  # duerfen in der Stundenzahl schwanken. Deshalb wiegen die Tage schwer und
+  # die Stunden leicht.
+  #
+  # Ueber dem Soll bleibt teurer als darunter: Ueberstunden muss jemand
+  # wirklich leisten, Minusstunden entstehen aus der Besetzung der Woche.
+  # Wen sie treffen, regeln die beiden Konten weiter unten.
+  wochenstunden: 14         # je Stunde ueber dem Soll
+  wochenstunden_unter: 4    # je Stunde darunter
+  arbeitstage: 120          # je Tag ueber dem Soll
+  arbeitstage_unter: 90     # je Tag darunter
   max_tage: 5000            # Ueberschreitung von max_tage (praktisch hart)
   max_stunden: 800          # je Stunde ueber max_wochenstunden
   praesenztage: 900         # Schichten + Schultage weichen von der Vorgabe ab
@@ -90,15 +95,20 @@ gewichte:
   wechsel: 150              # erster kurzer Wechsel Spaet -> Frueh in der Woche
   wechsel_ueber_limit: 1200 # jeder weitere kurze Wechsel
   ruhezeit_verletzung: 3000 # Ruhe unter ruhezeit_min_h (praktisch hart)
-  sparsam_einsetzen: 10     # je Stunde bei MA mit moeglichst_wenig. Bewusst
-                            # klein: die Obergrenze aus soll_tage begrenzt den
-                            # Einsatz, das hier ist nur der leichte Gegendruck.
+  sparsam_einsetzen: 8      # je Stunde bei MA mit moeglichst_wenig, ohne Meldung.
+                            # Nur der leichte Gegendruck, damit die Reserve nicht
+                            # ohne Not eingeteilt wird.
+  reserve_ueber_bedarf: 400 # je Reservetag mehr, als die Luecke zwischen Plaetzen
+                            # und Vertragstagen hergibt. Muss den Tag schlagen,
+                            # den sonst jemand mit Vertrag verliert (arbeitstage_
+                            # unter 90 plus Konto).
   vermiedene_schicht: 700   # Schicht, die der MA nur im Notfall macht (Kurka spaet)
   frueh_spaet_ausgleich: 200  # je Schicht Ungleichgewicht ueber das Fenster hinaus
   spaet_anteil: 250         # Abweichung vom Zielanteil Spaetschichten (Azubi)
   schichtwunsch: 130        # Wochentag hat nicht die gewuenschte Kategorie
   bevorzugte_kategorie: 120 # je Schicht ausserhalb der Lieblingskategorie
-  wochenwechsel_uneinheitlich: 300  # Fr und Sa liegen auf verschiedenen Seiten
+  wochenwechsel_uneinheitlich: 300  # die Tage des Blocks liegen auf verschiedenen Seiten
+  wochenwechsel_unvollstaendig: 260 # geschlossener Block nur halb belegt
   wochenwechsel: 220        # zweite Woche in Folge dieselbe Seite
   bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage

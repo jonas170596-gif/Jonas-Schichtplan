@@ -47,16 +47,28 @@ class Bedarf:
                    default=0)
 
 
+KATEGORIEN = ("frueh", "mittel", "spaet")
+
+
 @dataclass
 class Wochenwechsel:
-    """Mehrere Tage bilden einen Block, der von Woche zu Woche die Seite wechselt.
+    """Mehrere Tage bilden einen Block, der auf derselben Seite liegen soll.
 
-    Rohwer hat Freitag und Samstag zusammen: in einer Woche beide frueh, in
-    der naechsten beide spaet, dann wieder frueh. Unterschieden wird nur
-    frueh gegen nicht-frueh - eine Samstagsschicht von 10-18 zaehlt als
-    spaet, auch wenn der Katalog sie als mittel fuehrt, weil der Laden um
-    18 Uhr schliesst."""
+    Rohwer hat Freitag und Samstag zusammen und wechselt zusaetzlich von
+    Woche zu Woche die Seite: eine Woche beide frueh, die naechste beide
+    spaet, dann wieder frueh (`wechselt: true`).
+
+    Sannzenbacher hat Montag/Dienstag und Freitag/Samstag als Bloecke, aber
+    ohne festen Takt - dort zaehlt nur, dass die beiden Tage zusammenpassen
+    (`wechselt: false`). Bei ihr gehoeren die Tage auch beim Freimachen
+    zusammen: entweder beide oder keiner (`geschlossen: true`).
+
+    Unterschieden wird nur frueh gegen nicht-frueh - eine Samstagsschicht
+    von 10-18 zaehlt als spaet, auch wenn der Katalog sie als mittel fuehrt,
+    weil der Laden um 18 Uhr schliesst."""
     tage: list[str]
+    wechselt: bool = True
+    geschlossen: bool = False     # True = ganz oder gar nicht
 
     @staticmethod
     def seite(schicht) -> str:
@@ -223,6 +235,17 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         unbekannt = [s for s in erlaubt if s not in schichten]
         if unbekannt:
             raise ValueError(f"{mid}: unbekannte Schichten {unbekannt}")
+        # Ein Schichtwunsch ist entweder eine Kategorie oder eine konkrete
+        # Schicht. Ein Tippfehler wuerde sonst stillschweigend nichts tun.
+        for tag, wunsch in (m.get("schichtwunsch") or {}).items():
+            if wunsch not in KATEGORIEN and wunsch not in schichten:
+                raise ValueError(
+                    f"{mid}/schichtwunsch/{tag}: {wunsch!r} ist weder eine "
+                    f"Kategorie {sorted(KATEGORIEN)} noch eine bekannte Schicht")
+            if wunsch in schichten and erlaubt and wunsch not in erlaubt:
+                raise ValueError(
+                    f"{mid}/schichtwunsch/{tag}: {wunsch!r} steht nicht in "
+                    f"erlaubte_schichten")
         mitarbeiter[mid] = Mitarbeiter(
             id=mid,
             name=m["name"],
@@ -254,6 +277,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
                                  in (m.get("abwesenheit_stunden") or {}).items()},
             moeglichst_wenig=bool(m.get("moeglichst_wenig", False)),
             zaehlt_stundenbudget=bool(m.get("zaehlt_stundenbudget", True)),
+            zaehlt_kopfzahl=bool(m.get("zaehlt_kopfzahl", True)),
             stunden_toleranz_h=(float(m["stunden_toleranz_h"])
                                 if m.get("stunden_toleranz_h") is not None else None),
             erlaubte_schichten=erlaubt,
@@ -345,7 +369,9 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
 
     verteilung = {}
     for mid, m in roh_m["mitarbeiter"].items():
-        regeln_v = [Wochenwechsel(tage=list(r["tage"]))
+        regeln_v = [Wochenwechsel(tage=list(r["tage"]),
+                                  wechselt=bool(r.get("wechselt", True)),
+                                  geschlossen=bool(r.get("geschlossen", False)))
                     for r in (m.get("schicht_wochenwechsel") or [])]
         if regeln_v:
             verteilung[mid] = regeln_v

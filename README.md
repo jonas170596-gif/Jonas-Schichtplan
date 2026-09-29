@@ -177,13 +177,13 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 | J. Kurka | f w o | 40 | 5 | - | - | Frueh-Anker, **montags gesetzt**; Spaet nur im Notfall; freier Tag variabel (Di-Sa) |
 | C. Rohwer | f w o | 40 | 5 | Mi | - | Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet |
 | A. Marino | f w o | 40 | 5 | Mo | - | |
-| N. Sannzenbacher | f w | 30 | 4 | - | Mi, Do | freie Tage duerfen wandern, aber zusammen |
+| N. Sannzenbacher | f w | 30 | 4 | - | Mi, Do | nur 6-14 oder 12-20; Mo/Di und Fr/Sa jeweils dieselbe Schicht |
 | S. Reich | w | 30 | 4 | Mo, Mi | - | Aenderung nur nach Absprache |
 | I. Nachtrieb | f w | 24 | 3 (bis 5) | - | - | Monatsmittel, Wochentoleranz +/- 8 h |
-| B. Kohl | w | 30 | 4 | - | - | zwei freie Tage, moeglichst zusammenhaengend |
-| C. Kurz | f w o | 20 | 3 | Di | Fr, Sa | Muster Mo 8-14 / Mi 8-13 / Do 8-14 |
-| U. Kurz | f w | bis 22 | bis 3 | Di | - | Reserve: Soll ist Obergrenze, drei Tage sind in Ordnung |
-| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer, rund ein Viertel der Schichten spaet |
+| B. Kohl | w | 30 | 4 | - | - | rund 7,5 h netto am Tag: 6-13:30, 8-15:30, 12-20, Sa 10-18 |
+| C. Kurz | f w o | 17 | 3 | Di | Fr, Sa | feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14, auf Nachfrage anders |
+| U. Kurz | f w | bis 22 | bis 3 | Di | - | Reserve: fuellt genau die Luecke zwischen Plaetzen und Vertragstagen |
+| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer; zaehlt nicht gegen die Zielkopfzahl |
 
 \* Menzler rechnet anders: 5 Praesenztage, Schichten **und** Schultage
 zusammen. Ein Schultag deckt 8 h des Wochensolls ab, also vier Schichten bei
@@ -192,7 +192,10 @@ wenn sonst niemand fehlt. Seine Stunden zaehlen nicht gegen das 255-h-Budget,
 und als Springer bekommt er keine Strafe fuer wechselnde Schichtarten.
 Spaetschichten sind moeglich, wenn die Besetzung es braucht - eine feste
 Obergrenze gibt es nicht. Die Regel gegen Spaet-Frueh-Wechsel gilt fuer ihn
-wie fuer alle anderen.
+wie fuer alle anderen. Gegen die Zielkopfzahl zaehlt er nicht
+(`zaehlt_kopfzahl: false`): er steht zusaetzlich im Laden, meist als zweite
+Mittelschicht, wo Zeit zum Lernen und Ueben ist. Eine Wochenvorgabe, die
+`bedarf.kopfzahl` uebersteuert, meint deshalb immer die Koepfe **ohne** ihn.
 
 Zwei Stellschrauben fuer Soll-Werte:
 
@@ -413,6 +416,13 @@ Plan. Zwei Zahlen sind aussagekraeftig:
   `--iterationen` hochzudrehen.
 * **Die Liste darunter.** Nur die erklaert, woher die Punkte kommen.
 
+Die Suche kennt vier Zuege: eine Zelle aendern, zwei Leute am selben Tag
+tauschen, bei einer Person zwei Tage tauschen, und einen Ringtausch ueber zwei
+Tage (A arbeitet montags und hat mittwochs frei, B umgekehrt - beide tauschen).
+Die letzten beiden sind noetig, seit die Zielkopfzahl eine Obergrenze ist: mit
+Einzelzuegen allein kaeme der Planer nicht mehr aus einem lokalen Optimum
+heraus, weil jeder Zwischenschritt einen Tag ueber- oder unterbesetzt.
+
 Dort zaehlt die Kennzeichnung mehr als die Punktzahl:
 
 | | Bedeutung |
@@ -496,11 +506,14 @@ hoch, dass sie praktisch hart sind:
 | `frueh_ueber` | keine dritte Fruehschicht, wo zwei reichen |
 | `vermiedene_schicht` | Kurka spaet nur im Notfall |
 | `schichtwunsch` | Rohwer Mo-Do frueh |
-| `wochenwechsel_uneinheitlich` | Rohwer Fr und Sa liegen nicht auf derselben Seite |
+| `wochenwechsel_uneinheitlich` | die Tage eines Blocks liegen nicht auf derselben Seite |
+| `wochenwechsel_unvollstaendig` | geschlossener Block nur halb belegt (Sannzenbacher Mo/Di) |
 | `wochenwechsel` | Rohwer Fr/Sa zweite Woche in Folge dieselbe Seite |
+| `schichtwunsch` (Schicht) | C. Kurz Mo 8-14 / Mi 8-13 / Do 8-14 |
 | `bevorzugter_freier_tag` | weiche freie Tage (Sannzenbacher Mi/Do, C. Kurz Fr/Sa) |
 | `stammschicht` | jeder bekommt moeglichst seine gewohnte Schicht |
-| `sparsam_einsetzen` | U. Kurz nur einsetzen, wenn es die Besetzung braucht |
+| `sparsam_einsetzen` | leichter Gegendruck gegen Reservestunden, ohne Meldung |
+| `reserve_ueber_bedarf` | Reservetag mehr, als die Luecke hergibt - kostet jemandem mit Vertrag einen Tag |
 | `zersplitterung` | nicht jeden Tag eine andere Schichtart |
 | `samstag_konto` | Rueckstand bei freien Samstagen gegenueber dem Schnitt |
 | `fehltage_konto` | Tage unter Soll gegenueber dem Teamschnitt, mal Einsatzprioritaet |
@@ -538,10 +551,21 @@ hat und mit welchem Stundenkonto, und wer nach Konto als naechstes dran waere.
 Damit laesst sich die Entscheidung von Hand ueberstimmen - dann den Tag in der
 Wochenvorgabe unter `fest` eintragen.
 
+Fest sind dabei die **Arbeitstage** - die hat jeder mit dem Chef vereinbart.
+Die Vertragsstunden sind nur Orientierung dafuer, ob jemand im Plus oder Minus
+steht: Kohl arbeitet vier Tage zu rund 7,5 h, Reich und Nachtrieb duerfen in
+der Stundenzahl schwanken. Deshalb wiegt `arbeitstage` schwer und
+`wochenstunden` leicht.
+
+Die Reserve (U. Kurz) fuellt genau die Luecke zwischen den Plaetzen im Laden
+und den Vertragstagen der Mannschaft. Jeder Reservetag darueber hinaus kostet
+jemandem mit Vertrag einen Tag und wird als `reserve_ueber_bedarf` gemeldet;
+die Stunden darunter sind kein Befund, dafuer ist die Reserve da.
+
 Ein Sonderfall bleibt: wessen Vertragsstunden die gewohnten Schichten gar nicht
-hergeben (C. Kurz, 20 h auf drei Tage mit 8-14 und 8-13), laeuft dauerhaft ins
-Minus, ohne dass der Planer etwas falsch macht. Das meldet der Hinweis
-`stammdaten`; zu klaeren ist es in `konfig/mitarbeiter.yaml`.
+hergeben, laeuft dauerhaft ins Minus, ohne dass der Planer etwas falsch macht.
+Das meldet der Hinweis `stammdaten`; zu klaeren ist es in
+`konfig/mitarbeiter.yaml`.
 
 ### Pausen
 
