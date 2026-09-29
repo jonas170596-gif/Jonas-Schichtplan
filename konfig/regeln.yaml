@@ -37,7 +37,11 @@ gewichte:
   schluss_besetzung: 1200   # je fehlender Schlussschicht
   frueh_ueber: 80           # je Fruehschicht ueber dem Bedarf - wer um 6 Uhr
                             # nicht gebraucht wird, fehlt mittags
-  gesamtstunden: 30         # je Stunde Abweichung vom Wochenbudget (ohne Azubi)
+  # Ueber Budget ist eine Planungsentscheidung und verschlechtert den Umsatz
+  # je Verkaeuferstunde. Unter Budget liegt meist an Abwesenheiten und laesst
+  # sich nicht wegplanen - deshalb nur leicht gewichtet.
+  gesamtstunden_ueber: 30   # je Stunde ueber dem Wochenbudget (ohne Azubi)
+  gesamtstunden_unter: 6    # je Stunde darunter
 
   # --- Team und Faehigkeiten ---
   faehigkeit: 2500          # Fleisch/Wurst/Ofen nicht besetzt (praktisch hart)

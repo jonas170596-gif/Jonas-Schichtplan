@@ -34,6 +34,8 @@ from .konfig import (KONFIG_DIR, Wochenvorgabe, lade_kalender,
                      lade_schulplaene, lade_stammdaten, lade_wochenvorgabe)
 from .modelle import ABWESEND, TAGE, TAG_LANG, Plan, Zelle, zu_index
 
+SCHICHT_FRUEH = "6-14"        # "Vorname frueh" im Wandkalender meint diese Schicht
+
 VORLAGE = """# Wochenvorgabe {woche} - alles, was sich von Woche zu Woche aendert.
 # Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
 
@@ -63,11 +65,11 @@ fest: {fest}
 # --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
 wunsch_frei: {wunsch_frei}
 
-wunsch_schicht: {{}}
+wunsch_schicht: {wunsch_schicht}
 #  kohl_b: {{fr: 6-13:30}}
 
 # Wunsch nach einer Schichtart statt einer bestimmten Schicht
-wunsch_kategorie: {wunsch_kategorie}
+wunsch_kategorie: {{}}
 #  menzler_a: {{sa: frueh}}
 
 # Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
@@ -199,7 +201,7 @@ def cmd_neu(args) -> int:
     # Urlaub und Wuensche aus dem Wandkalender vorbelegen
     kalender = lade_kalender(args.kalender)
     aus_kalender = {"urlaub": {}, "fest": {}, "wunsch_frei": {},
-                    "wunsch_kategorie": {}, "arbeitet": {}}
+                    "wunsch_schicht": {}, "arbeitet": {}}
     for e, tage in kalender.fuer_woche(montag):
         if e.ma not in alle_ma:
             schulhinweise.append(f"Kalender nennt unbekanntes Kuerzel {e.ma!r}")
@@ -207,8 +209,9 @@ def cmd_neu(args) -> int:
         if e.art == "frei":
             aus_kalender["fest"].setdefault(e.ma, {}).update({t_: "frei" for t_ in tage})
         elif e.art == "wunsch_frueh":
-            aus_kalender["wunsch_kategorie"].setdefault(e.ma, {}).update(
-                {t_: "frueh" for t_ in tage})
+            # "Vorname frueh" auf dem Wandkalender meint die Schicht 6-14
+            aus_kalender["wunsch_schicht"].setdefault(e.ma, {}).update(
+                {t_: SCHICHT_FRUEH for t_ in tage})
         elif e.art in ("urlaub", "wunsch_frei", "arbeitet"):
             aus_kalender[e.art].setdefault(e.ma, []).extend(tage)
 
@@ -235,8 +238,8 @@ def cmd_neu(args) -> int:
                             fest=_block("fest", aus_kalender["fest"]),
                             wunsch_frei=_block("wunsch_frei",
                                                aus_kalender["wunsch_frei"]),
-                            wunsch_kategorie=_block("wunsch_kategorie",
-                                                    aus_kalender["wunsch_kategorie"]),
+                            wunsch_schicht=_block("wunsch_schicht",
+                                                  aus_kalender["wunsch_schicht"]),
                             arbeitet=_block("arbeitet", aus_kalender["arbeitet"]))
     if args.manuell:
         stamm = lade_stammdaten(args.konfig)
@@ -563,8 +566,12 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
     zeilen.append(f"{'Koepfe':<18}" + "".join(f"{plan.koepfe(t):<{breite}}" for t in tage))
     if bewerter is not None and bewerter.gesamtbudget():
         ist, ziel = bewerter.gesamtstunden(plan), bewerter.gesamtbudget()
-        zeilen.append(f"{'Stunden gesamt':<18}{ist:.1f} h (Budget {ziel:.1f} h, "
-                      f"Azubi nicht gezaehlt)")
+        erreichbar = bewerter.erreichbare_stunden()
+        zusatz = (f", mit der anwesenden Mannschaft moeglich {erreichbar:.0f} h"
+                  if erreichbar < ziel - bewerter.bedarf.wochenstunden_gesamt_toleranz
+                  else "")
+        zeilen.append(f"{'Stunden gesamt':<18}{ist:.1f} h (Budget {ziel:.0f} h"
+                      f"{zusatz}, Azubi nicht gezaehlt)")
     return "\n".join(zeilen)
 
 

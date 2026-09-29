@@ -179,14 +179,54 @@ class TestBewertung(unittest.TestCase):
         leer = grundgeruest(self.stamm, self.vorgabe)
         self.assertGreater(pruefen(leer, self.stamm, self.vorgabe).punkte, 1000)
 
+    def _sauber(self):
+        """Wochenvorgabe ohne Kalendereintraege - als Bezugspunkt."""
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        v.abwesend, v.fest, v.arbeitet = {}, {}, {}
+        v.wunsch_frei, v.wunsch_schicht, v.termine = {}, {}, []
+        return v
+
     def test_urlaub_kuerzt_das_stundensoll(self):
-        self.vorgabe.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
-        b = Bewerter(self.stamm, self.vorgabe)
+        v = self._sauber()
+        v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
+        b = Bewerter(self.stamm, v)
         soll_h, soll_t = b._ziel("marino_a")
         self.assertEqual(soll_t, 0)
         self.assertEqual(soll_h, 0.0)
         soll_h, _ = b._ziel("kurka_j")
         self.assertAlmostEqual(soll_h, 40.0)
+
+    def test_ein_freier_tag_allein_senkt_das_soll_nicht(self):
+        """Sechs offene Tage minus einer sind fuenf - das Soll bleibt haltbar."""
+        v = self._sauber()
+        self.assertEqual(Bewerter(self.stamm, v)._ziel("kurka_j"), (40.0, 5))
+        v.fest["kurka_j"] = {"fr": "frei"}
+        self.assertEqual(Bewerter(self.stamm, v)._ziel("kurka_j"), (40.0, 5))
+
+    def test_freier_tag_plus_urlaub_senkt_das_soll(self):
+        """So liegt KW42: Freitag zugesagt frei, Samstag Urlaub."""
+        v = self._sauber()
+        v.fest["kurka_j"] = {"fr": "frei"}
+        v.abwesend["kurka_j"] = {"sa": "urlaub"}
+        self.assertEqual(Bewerter(self.stamm, v)._ziel("kurka_j"), (32.0, 4))
+
+    def test_fester_freier_tag_erzeugt_keinen_fehltag(self):
+        v = self._sauber()
+        v.fest["kurka_j"] = {"fr": "frei"}
+        plan = grundgeruest(self.stamm, v)
+        for tag in ("mo", "di", "mi", "do", "sa"):
+            plan.zellen["kurka_j"][tag].art = "schicht"
+            plan.zellen["kurka_j"][tag].schicht = self.stamm.schichten["6-14"]
+        texte = [b.text for b in pruefen(plan, self.stamm, v).befunde
+                 if b.regel in ("arbeitstage", "fehltage_konto")]
+        self.assertFalse(any("Kurka" in x for x in texte), texte)
+
+    def test_arbeitet_macht_den_tag_wieder_einsetzbar(self):
+        v = self._sauber()
+        b = Bewerter(self.stamm, v)
+        self.assertFalse(b._einsetzbar("kurz_c", "di"))    # fester freier Tag
+        v.arbeitet["kurz_c"] = ["di"]
+        self.assertTrue(Bewerter(self.stamm, v)._einsetzbar("kurz_c", "di"))
 
     def _setze(self, plan, mid, tag, sid):
         plan.zellen[mid][tag].art = "schicht"
@@ -360,12 +400,36 @@ class TestBewertung(unittest.TestCase):
         self._setze(plan, "kurka_j", "mo", "6-14")
         self.assertEqual(b.gesamtstunden(plan), vorher + 8)
 
-    def test_budget_sinkt_bei_urlaub(self):
-        voll = Bewerter(self.stamm, self.vorgabe).gesamtbudget()
+    def test_budget_haengt_nicht_an_abwesenheiten(self):
+        """Urlaub senkt den Umsatzbedarf nicht, also auch nicht das Budget."""
+        v = self._sauber()
+        voll = Bewerter(self.stamm, v).gesamtbudget()
         self.assertAlmostEqual(voll, self.stamm.bedarf.wochenstunden_gesamt)
-        self.vorgabe.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
-        b = Bewerter(self.stamm, self.vorgabe)          # Marino 40 h faellt weg
-        self.assertAlmostEqual(b.gesamtbudget(), voll - 40)
+        v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
+        self.assertAlmostEqual(Bewerter(self.stamm, v).gesamtbudget(), voll)
+
+    def test_erreichbare_stunden_sinken_bei_abwesenheit(self):
+        v = self._sauber()
+        voll = Bewerter(self.stamm, v).erreichbare_stunden()
+        v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
+        self.assertAlmostEqual(Bewerter(self.stamm, v).erreichbare_stunden(), voll - 40)
+
+    def test_unterdeckung_durch_abwesenheit_ist_nur_ein_hinweis(self):
+        """Was die Mannschaft nicht leisten kann, darf der Planer nicht
+        gegen die Besetzungsregeln aufwiegen."""
+        v = self._sauber()
+        for mid in ("marino_a", "rohwer_c", "kohl_b"):
+            v.abwesend[mid] = {t: "urlaub" for t in TAGE}
+        plan = grundgeruest(self.stamm, v)
+        befunde = [b for b in pruefen(plan, self.stamm, v).befunde
+                   if b.regel == "gesamtstunden_unter"]
+        self.assertTrue(befunde)
+        self.assertEqual(befunde[0].schwere, "hinweis")
+        self.assertIn("moeglich", befunde[0].text)
+
+    def test_ueber_budget_wiegt_schwerer_als_darunter(self):
+        g = self.stamm.regeln.gewichte
+        self.assertGreater(g["gesamtstunden_ueber"], g["gesamtstunden_unter"])
 
     def test_reserve_wird_je_stunde_bestraft(self):
         plan = grundgeruest(self.stamm, self.vorgabe)

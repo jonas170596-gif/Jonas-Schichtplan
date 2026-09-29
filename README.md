@@ -242,10 +242,14 @@ ist eindeutig, auch bei Carmen/Carina und Alex/Anna.
 | `art` | Wirkung |
 |---|---|
 | `urlaub` | harte Abwesenheit |
-| `frei` | fest zugesagter freier Tag, wird nie ueberplant |
-| `wunsch_frei` | weicher freier Tag, kann der Besetzung weichen |
-| `wunsch_frueh` | Wunsch nach einer Fruehschicht |
+| `frei` | fest zugesagter freier Tag. Was am Wandkalender steht, ist mit der Person besprochen und sie plant damit - er wird nie ueberplant |
+| `wunsch_frei` | weicher freier Tag, kann der Besetzung weichen. Kommt im Wandkalender bisher nicht vor |
+| `wunsch_frueh` | "Vorname frueh", das heisst konkret die Schicht 6-14 |
 | `arbeitet` | hebt einen festen freien Tag auf ("Carina arbeiten" dienstags) |
+
+Ein zugesagtes `frei` senkt auch das Wochensoll: wer sechs offene Tage hat und
+einen davon frei bekommt, kann seine fuenf Solltage noch erfuellen - wer
+zusaetzlich Urlaub hat, nicht mehr, und dann ist das kein Fehltag.
 
 Zwei Listen daneben:
 
@@ -444,9 +448,21 @@ hoch, dass sie praktisch hart sind:
 
 `wochenstunden_gesamt: 255` in `konfig/bedarf.yaml` ist das Budget fuer die
 Umsatzziele je Verkaeuferstunde. Azubistunden zaehlen nicht mit
-(`zaehlt_stundenbudget: false`). Faellt jemand aus, sinkt das Budget
-automatisch um dessen Sollstunden - bei einer Woche Urlaub von Marino also
-auf 215 h. Der Ist-Wert steht unter jedem Plan, im Ausdruck grün oder rot.
+(`zaehlt_stundenbudget: false`).
+
+Das Budget haengt am Umsatz, nicht an der Anwesenheit - Urlaub senkt es nicht.
+Was die anwesende Mannschaft hoechstens leisten kann, steht daneben, sobald es
+knapp wird:
+
+```
+Stunden gesamt    205.0 h (Budget 255 h, mit der anwesenden Mannschaft moeglich 166 h)
+```
+
+Deshalb sind die beiden Richtungen unterschiedlich gewichtet. **Ueber** Budget
+ist eine Planungsentscheidung und verschlechtert den Umsatz je
+Verkaeuferstunde - das kostet. **Unter** Budget liegt meist an Abwesenheiten
+und laesst sich nicht wegplanen; das wird gemeldet, aber nur leicht gewichtet,
+sonst kaempft es gegen die Besetzungsregeln.
 
 ## e2n
 

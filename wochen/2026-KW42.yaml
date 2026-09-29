@@ -22,15 +22,15 @@ krank: {}
 sonstige: {}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
-fest: {}
+fest: 
+  kohl_b: {mi: frei}
+  kurz_c: {do: frei}
+  kurka_j: {fr: frei}
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
 
 # --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
-wunsch_frei: 
-  kohl_b: [mi]
-  kurz_c: [do]
-  kurka_j: [fr]
+wunsch_frei: {}
 
 wunsch_schicht: {}
 #  kohl_b: {fr: 6-13:30}

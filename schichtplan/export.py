@@ -147,9 +147,14 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
         ist, ziel = bewerter.gesamtstunden(plan), bewerter.gesamtbudget()
         ampel = "#1b7f3b" if abs(ist - ziel) <= \
             stamm.bedarf.wochenstunden_gesamt_toleranz else "#b00020"
+        erreichbar = bewerter.erreichbare_stunden()
+        zusatz = (f", mit der anwesenden Mannschaft moeglich {erreichbar:.0f} h"
+                  if erreichbar < ziel - stamm.bedarf.wochenstunden_gesamt_toleranz
+                  else "")
         budget = (f'<div class="budget">Verkaeuferstunden gesamt: '
                   f'<b style="color:{ampel}">{ist:.1f} h</b> '
-                  f'(Budget {ziel:.1f} h, Azubistunden nicht gezaehlt)</div>')
+                  f'(Budget {ziel:.0f} h{e(zusatz)}, Azubistunden nicht '
+                  f'gezaehlt)</div>')
 
     hinweise = ""
     if bewertung is not None:

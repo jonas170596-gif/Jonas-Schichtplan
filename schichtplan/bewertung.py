@@ -59,13 +59,29 @@ class Bewerter:
         # Tage. Wer 40 h auf 5 Tage hat und einen Tag Urlaub nimmt, arbeitet die
         # restlichen Tage normal weiter - genau so steht es in den Altplaenen.
         self.verfuegbare_tage = {
-            mid: sum(1 for t in self.tage if t not in vorgabe.abwesend.get(mid, {}))
+            mid: sum(1 for t in self.tage if self._einsetzbar(mid, t))
             for mid in stamm.mitarbeiter
         }
         self._hist_bilanz = self._historische_bilanz()
         self._samstagskonto = self._historisches_samstagskonto()
         self._fehltage = self._historische_fehltage()
         self.feiertagsumfeld = self._feiertagsumfeld()
+
+    def _einsetzbar(self, mid: str, tag: str) -> bool:
+        """Kann der/die MA an dem Tag ueberhaupt eingeteilt werden?
+
+        Nicht nur Urlaub sperrt einen Tag, auch ein fester freier Tag und ein
+        im Kalender zugesagtes 'frei'. Wuerde man die mitzaehlen, stuende die
+        Person dauerhaft mit einem Fehltag da, obwohl der Tag abgesprochen ist.
+        `arbeitet` hebt einen festen freien Tag fuer diese Woche wieder auf."""
+        m = self.stamm.mitarbeiter[mid]
+        if tag in self.vorgabe.abwesend.get(mid, {}):
+            return False
+        if self.vorgabe.fest.get(mid, {}).get(tag) in ("frei", "Frei", False):
+            return False
+        if tag in m.feste_freie_tage and tag not in self.vorgabe.arbeitet.get(mid, []):
+            return False
+        return True
 
     # ---- Konten aus der Historie (einmal vorberechnet) ------------------ #
     def _teilnehmer_samstag(self) -> list[str]:
@@ -517,17 +533,27 @@ class Bewerter:
 
     # ---- Gesamtstundenbudget -------------------------------------------- #
     def gesamtbudget(self) -> float:
-        """Wochenbudget, um ausgefallene Sollstunden (Urlaub) gekuerzt."""
-        b = self.bedarf
-        if not b.wochenstunden_gesamt:
-            return 0.0
-        ausfall = 0.0
+        """Das Wochenbudget aus bedarf.yaml - unabhaengig von Abwesenheiten.
+
+        Es haengt am Umsatz, nicht an der Anwesenheit: wer Urlaub hat, senkt
+        den Umsatzbedarf nicht. Frueher wurde es um die ausgefallenen
+        Sollstunden gekuerzt, das war falsch - in einer Woche mit drei
+        Abwesenden forderte die Besetzung dann mehr Stunden, als das
+        gekuerzte Budget erlaubte, und beide Regeln arbeiteten gegeneinander."""
+        return self.bedarf.wochenstunden_gesamt
+
+    def erreichbare_stunden(self) -> float:
+        """Was die anwesende Mannschaft ueberhaupt leisten kann."""
+        summe = 0.0
         for mid, m in self.stamm.mitarbeiter.items():
-            if not (m.im_plan and m.aktiv and m.zaehlt_stundenbudget) or m.moeglichst_wenig:
+            if not (m.im_plan and m.aktiv and m.zaehlt_stundenbudget):
+                continue
+            if m.moeglichst_wenig:
+                summe += self.soll_stunden[mid]      # Reserve bis zur Obergrenze
                 continue
             ziel, _ = self._ziel(mid)
-            ausfall += max(0.0, self.soll_stunden[mid] - ziel)
-        return max(0.0, b.wochenstunden_gesamt - ausfall)
+            summe += ziel
+        return summe
 
     def gesamtstunden(self, plan: Plan) -> float:
         return sum(z.stunden
@@ -540,11 +566,22 @@ class Bewerter:
         if not ziel:
             return
         ist = self.gesamtstunden(plan)
-        weg = max(0.0, abs(ist - ziel) - self.stamm.bedarf.wochenstunden_gesamt_toleranz)
-        add("gesamtstunden", weg,
-            f"Gesamt {ist:.1f} h statt {ziel:.1f} h "
-            f"(+/-{self.bedarf.wochenstunden_gesamt_toleranz:.0f} h, ohne Azubi)"
-            if weg else "", "warnung")
+        toleranz = self.bedarf.wochenstunden_gesamt_toleranz
+        # Ueber Budget verschlechtert den Umsatz je Verkaeuferstunde und ist
+        # eine echte Planungsentscheidung. Unter Budget liegt meist an
+        # Abwesenheiten und laesst sich nicht wegplanen - das wird gemeldet,
+        # aber nur leicht gewichtet, sonst kaempft es gegen die Besetzung.
+        add("gesamtstunden_ueber", max(0.0, ist - ziel - toleranz),
+            f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - {ist - ziel:.1f} h darueber"
+            if ist - ziel > toleranz else "", "warnung")
+        if ziel - ist > toleranz:
+            erreichbar = self.erreichbare_stunden()
+            knapp = erreichbar < ziel - toleranz
+            add("gesamtstunden_unter", ziel - ist - toleranz,
+                f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - {ziel - ist:.1f} h darunter"
+                + (f" (mit der anwesenden Mannschaft sind hoechstens "
+                   f"{erreichbar:.0f} h moeglich)" if knapp else ""),
+                "hinweis" if knapp else "warnung")
 
     # ---- Arbeitszeit --------------------------------------------------- #
     def _arbeitszeit(self, plan: Plan, add):
