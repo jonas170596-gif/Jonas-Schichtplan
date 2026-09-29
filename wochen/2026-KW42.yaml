@@ -10,7 +10,8 @@ filiale: Winterbach
 geschlossen: []
 
 # --- Abwesenheiten (hart) ---
-urlaub: {}
+urlaub: 
+  kurka_j: [sa]
 #  reich_s: alle
 #  kohl_b: [do, fr, sa]
 
@@ -26,19 +27,25 @@ fest: {}
 #  marino_a: {mo: frei}
 
 # --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
-wunsch_frei: {}
-#  nachtrieb_i: [mi]
+wunsch_frei: 
+  kohl_b: [mi]
+  kurz_c: [do]
+  kurka_j: [fr]
 
 wunsch_schicht: {}
 #  kohl_b: {fr: 6-13:30}
 
+# Wunsch nach einer Schichtart statt einer bestimmten Schicht
+wunsch_kategorie: {}
+#  menzler_a: {sa: frueh}
+
+# Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
+arbeitet: 
+  kurz_c: [di]
+#  kurz_c: [di]
+
 # --- Termine: Schicht muss zu dieser Zeit enden ---
-termine:
-  - name: Teamleitersitzung
-    tag: di
-    ab: "13:30"
-    kandidaten: [kurka_j]
-    anzahl: 1
+termine: []
 #  - name: Teamleitersitzung
 #    tag: di
 #    ab: "13:30"
@@ -74,4 +81,4 @@ bedarf: {}
 #  schluss_min: {mi: 3}
 #  wochenstunden_gesamt: 300
 
-notiz: "Beispielwoche ohne Urlaub oder Wuensche - nur Menzlers Berufsschultage aus dem Schulplan und die Teamleitersitzung."
+notiz: ""

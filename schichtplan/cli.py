@@ -30,8 +30,8 @@ from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .feiertage import Kalender, feiertage_bw, sondertage
 from .historie import kalenderabgleich, lade_historie
-from .konfig import (KONFIG_DIR, Wochenvorgabe, lade_schulplaene,
-                     lade_stammdaten, lade_wochenvorgabe)
+from .konfig import (KONFIG_DIR, Wochenvorgabe, lade_kalender,
+                     lade_schulplaene, lade_stammdaten, lade_wochenvorgabe)
 from .modelle import ABWESEND, TAGE, TAG_LANG, Plan, Zelle, zu_index
 
 VORLAGE = """# Wochenvorgabe {woche} - alles, was sich von Woche zu Woche aendert.
@@ -46,7 +46,7 @@ filiale: Winterbach
 geschlossen: {geschlossen}
 
 # --- Abwesenheiten (hart) ---
-urlaub: {{}}
+urlaub: {urlaub}
 #  reich_s: alle
 #  kohl_b: [do, fr, sa]
 
@@ -56,16 +56,23 @@ krank: {{}}
 sonstige: {{}}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
-fest: {{}}
+fest: {fest}
 #  kurka_j: {{sa: 6-14}}
 #  marino_a: {{mo: frei}}
 
 # --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
-wunsch_frei: {{}}
-#  nachtrieb_i: [mi]
+wunsch_frei: {wunsch_frei}
 
 wunsch_schicht: {{}}
 #  kohl_b: {{fr: 6-13:30}}
+
+# Wunsch nach einer Schichtart statt einer bestimmten Schicht
+wunsch_kategorie: {wunsch_kategorie}
+#  menzler_a: {{sa: frueh}}
+
+# Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
+arbeitet: {arbeitet}
+#  kurz_c: [di]
 
 # --- Termine: Schicht muss zu dieser Zeit enden ---
 termine: []
@@ -114,8 +121,8 @@ RASTER_KOPF = """
 fest:"""
 
 
-def _mitarbeiterliste() -> list[str]:
-    return list(lade_stammdaten().mitarbeiter)
+def _mitarbeiterliste(ordner=None) -> list[str]:
+    return list(lade_stammdaten(ordner or KONFIG_DIR).mitarbeiter)
 
 
 def cmd_analyse(args) -> int:
@@ -151,14 +158,15 @@ def cmd_neu(args) -> int:
         print(f"{pfad} existiert bereits (--ueberschreiben erzwingt)", file=sys.stderr)
         return 1
     pfad.parent.mkdir(parents=True, exist_ok=True)
-    kalender = Kalender()
+    alle_ma = set(_mitarbeiterliste(args.konfig))
+    feiertagskalender = Kalender()
     feiertage = {TAGE[i]: name for i in range(6)
-                 if (name := kalender.name(montag + dt.timedelta(days=i)))}
+                 if (name := feiertagskalender.name(montag + dt.timedelta(days=i)))}
     kopf = ""
     if feiertage:
         kopf = "# Feiertage diese Woche: " + ", ".join(
             f"{TAG_LANG[t]} {n}" for t, n in feiertage.items()) + "\n"
-    weihnachten = kalender.weihnachtswoche(montag)
+    weihnachten = feiertagskalender.weihnachtswoche(montag)
     if weihnachten:
         kopf += (
             "#\n"
@@ -188,11 +196,48 @@ def cmd_neu(args) -> int:
                 schulhinweise.append(f"{name}: keine Berufsschule ({grund})")
         if eintraege:
             schulzeilen = [""] + eintraege
+    # Urlaub und Wuensche aus dem Wandkalender vorbelegen
+    kalender = lade_kalender(args.kalender)
+    aus_kalender = {"urlaub": {}, "fest": {}, "wunsch_frei": {},
+                    "wunsch_kategorie": {}, "arbeitet": {}}
+    for e, tage in kalender.fuer_woche(montag):
+        if e.ma not in alle_ma:
+            schulhinweise.append(f"Kalender nennt unbekanntes Kuerzel {e.ma!r}")
+            continue
+        if e.art == "frei":
+            aus_kalender["fest"].setdefault(e.ma, {}).update({t_: "frei" for t_ in tage})
+        elif e.art == "wunsch_frueh":
+            aus_kalender["wunsch_kategorie"].setdefault(e.ma, {}).update(
+                {t_: "frueh" for t_ in tage})
+        elif e.art in ("urlaub", "wunsch_frei", "arbeitet"):
+            aus_kalender[e.art].setdefault(e.ma, []).extend(tage)
+
+    def _block(feld, eintraege):
+        if not eintraege:
+            return "{}"
+        zeilen = [""]
+        for mid, wert in eintraege.items():
+            if isinstance(wert, dict):
+                inhalt_ = ", ".join(f"{k}: {v}" for k, v in wert.items())
+                zeilen.append(f"  {mid}: {{{inhalt_}}}")
+            elif len(wert) == 6:
+                zeilen.append(f"  {mid}: alle")
+            else:
+                zeilen.append(f"  {mid}: [{', '.join(wert)}]")
+        return "\n".join(zeilen)
+
     inhalt = VORLAGE.format(woche=woche, von=montag,
                             bis=montag + dt.timedelta(days=5),
                             geschlossen=("[" + ", ".join(feiertage) + "]"
                                          if feiertage else "[]"),
-                            schule="\n".join(schulzeilen))
+                            schule="\n".join(schulzeilen),
+                            urlaub=_block("urlaub", aus_kalender["urlaub"]),
+                            fest=_block("fest", aus_kalender["fest"]),
+                            wunsch_frei=_block("wunsch_frei",
+                                               aus_kalender["wunsch_frei"]),
+                            wunsch_kategorie=_block("wunsch_kategorie",
+                                                    aus_kalender["wunsch_kategorie"]),
+                            arbeitet=_block("arbeitet", aus_kalender["arbeitet"]))
     if args.manuell:
         stamm = lade_stammdaten(args.konfig)
         offen = [t_ for t_ in TAGE if t_ not in feiertage]
@@ -216,8 +261,22 @@ def cmd_neu(args) -> int:
             name = lade_stammdaten(args.konfig).mitarbeiter[mid].name
             print(f"Berufsschule eingetragen: {name} "
                   f"{', '.join(TAG_LANG[t] for t in tage)}")
+    for feld, eintraege in aus_kalender.items():
+        for mid, wert in eintraege.items():
+            wie = (", ".join(f"{TAG_LANG[k]} {v}" for k, v in wert.items())
+                   if isinstance(wert, dict)
+                   else ", ".join(TAG_LANG[x] for x in wert))
+            print(f"Aus dem Kalender: {lade_stammdaten(args.konfig).mitarbeiter[mid].name}"
+                  f" - {feld} {wie}")
     for h in schulhinweise:
         print("Hinweis:", h)
+    offen = kalender.offene_fragen(montag)
+    if offen:
+        print(f"\n  {len(offen)} unklarer Kalendereintrag in dieser Woche - "
+              f"NICHT eingetragen:")
+        for f in offen:
+            print(f"   {f['tag']}: {' '.join(f['frage'].split())}")
+        print()
     if weihnachten and not args.manuell:
         print(f"\n  ACHTUNG Sonderwoche: {weihnachten}")
         print("  Empfehlung: neu erzeugen mit --manuell, dann steht das ganze")
@@ -535,6 +594,8 @@ def main(argv=None) -> int:
     n.add_argument("woche", help="z. B. 2026-KW42")
     n.add_argument("--ordner", default="wochen")
     n.add_argument("--ueberschreiben", action="store_true")
+    n.add_argument("--kalender", default="daten/kalender.yaml",
+                   help="Urlaubs- und Wunschkalender")
     n.add_argument("--manuell", action="store_true",
                    help="Handplan: Raster mit allen Zellen statt automatischer Planung")
     n.set_defaults(func=cmd_neu)

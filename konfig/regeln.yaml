@@ -55,7 +55,8 @@ gewichte:
 
   # --- Wuensche ---
   wunsch_frei: 200          # nicht erfuellter Wunschfreitag
-  wunsch_schicht: 120       # nicht erfuellte Wunschschicht
+  wunsch_schicht: 120       # nicht erfuellte Wunschschicht oder -kategorie
+  soll_arbeiten: 2000       # ausdruecklich zugesagter Arbeitstag nicht belegt
 
   # --- Qualitaet / Gewohnheit ---
   wechsel: 150              # erster kurzer Wechsel Spaet -> Frueh in der Woche

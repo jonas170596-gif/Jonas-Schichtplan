@@ -624,6 +624,27 @@ class Bewerter:
                         f"{self.stamm.mitarbeiter[mid].name}: Wunschschicht {sid} am "
                         f"{TAG_LANG[t]} nicht erfuellt", "warnung")
 
+        for mid, tage in self.vorgabe.wunsch_kategorie.items():
+            if mid not in plan.zellen:
+                continue
+            for t, kat in tage.items():
+                z = plan.zellen[mid].get(t)
+                if t in self.tage and not (z and z.arbeitet
+                                           and z.schicht.kategorie == kat):
+                    add("wunsch_schicht", 1,
+                        f"{self.stamm.mitarbeiter[mid].name}: {TAG_LANG[t]} als "
+                        f"{kat} gewuenscht", "warnung")
+
+        for mid, tage in self.vorgabe.arbeitet.items():
+            if mid not in plan.zellen:
+                continue
+            for t in tage:
+                z = plan.zellen[mid].get(t)
+                if t in self.tage and not (z and z.arbeitet):
+                    add("soll_arbeiten", 1,
+                        f"{self.stamm.mitarbeiter[mid].name}: soll {TAG_LANG[t]} "
+                        f"arbeiten, ist aber nicht eingeteilt", "fehler")
+
     # ---- Qualitaet ------------------------------------------------------ #
     def _qualitaet(self, plan: Plan, add):
         ruhe_slots = int(self.stamm.regeln.ruhezeit_h * 2)

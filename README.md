@@ -230,6 +230,30 @@ zwei da sind. Eine eigene Paarregel waere strenger als noetig - sie wuerde die
 beiden auch trennen, wenn jemand mit `f` danebensteht. Sie liegt deshalb nur
 als auskommentierte Vorlage in `team.yaml`.
 
+## Urlaubs- und Wunschkalender
+
+`daten/kalender.yaml` haelt, was am Wandkalender haengt. `neu` traegt daraus
+Urlaub, freie Tage und Schichtwuensche in die Wochendatei ein - zusammen mit
+den Berufsschultagen muss man dann meist gar nichts mehr von Hand eintippen.
+
+Der Wandkalender nennt nur Vornamen; die Zuordnung steht oben in der Datei und
+ist eindeutig, auch bei Carmen/Carina und Alex/Anna.
+
+| `art` | Wirkung |
+|---|---|
+| `urlaub` | harte Abwesenheit |
+| `frei` | fest zugesagter freier Tag, wird nie ueberplant |
+| `wunsch_frei` | weicher freier Tag, kann der Besetzung weichen |
+| `wunsch_frueh` | Wunsch nach einer Fruehschicht |
+| `arbeitet` | hebt einen festen freien Tag auf ("Carina arbeiten" dienstags) |
+
+Zwei Listen daneben:
+
+* `storniert` haelt durchgestrichene Eintraege samt Grund fest - so bleibt
+  nachvollziehbar, dass sie gelesen und verworfen wurden.
+* `zu_klaeren` sammelt alles, was auf dem Foto nicht eindeutig war. Diese
+  Eintraege werden **nicht** angewendet; `neu` gibt sie als Frage aus.
+
 ## Konten: freie Samstage und Fehltage
 
 Beides sind Fairnessfragen, die sich nicht in einer Woche entscheiden. Der

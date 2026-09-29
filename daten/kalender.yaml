@@ -1,0 +1,101 @@
+# Urlaubs- und Wunschkalender, abgelesen vom Wandkalender Okt-Dez 2026.
+#
+# Der Kalender nennt nur Vornamen. Die Zuordnung ist eindeutig, auch bei den
+# beiden C- und den beiden A-Namen, solange der ganze Vorname dasteht:
+#
+#   Jonas   -> kurka_j            Carmen  -> rohwer_c
+#   Alex    -> marino_a           Carina  -> kurz_c
+#   Nadine  -> sannzenbacher_n    Anna    -> menzler_a
+#   Sibylle -> reich_s            Ursel   -> kurz_u
+#   Ingrid  -> nachtrieb_i        Baerbel -> kohl_b
+#
+# art:
+#   urlaub          - harte Abwesenheit
+#   frei            - fest zugesagter freier Tag (hart, wird nie ueberplant)
+#   wunsch_frei     - weicher freier Tag; der Planer versucht es, kann aber
+#                     davon abweichen, wenn die Besetzung es verlangt
+#   wunsch_frueh    - weicher Wunsch nach einer Fruehschicht
+#   arbeitet        - hebt einen festen freien Tag auf (z. B. Carina dienstags)
+#
+# Gestrichene Eintraege stehen unter 'storniert' und wirken nicht mehr.
+# Alles, was auf dem Foto nicht eindeutig war, steht unter 'zu_klaeren' und
+# wird bewusst NICHT angewendet - lieber nachfragen als raten.
+
+quelle: "Wandkalender Oktober bis Dezember 2026 (Fotos vom 29.09.2026)"
+
+eintraege:
+  # ---------------- Oktober ----------------
+  - {ma: reich_s,         von: 2026-10-05, bis: 2026-10-10, art: urlaub}      # Sibylle
+  - {ma: kurz_c,          tag: 2026-10-06, art: arbeitet}                     # Carina arbeiten
+  - {ma: kurz_u,          von: 2026-10-06, bis: 2026-10-08, art: wunsch_frei} # Ursel
+  - {ma: kohl_b,          tag: 2026-10-07, art: wunsch_frei}                  # Baerbel
+  - {ma: kurz_c,          tag: 2026-10-08, art: wunsch_frei}                  # Carina frei
+  - {ma: sannzenbacher_n, von: 2026-10-09, bis: 2026-10-10, art: wunsch_frei} # Nadine
+
+  - {ma: kurz_c,          tag: 2026-10-13, art: arbeitet}                     # Carina arbeiten
+  - {ma: kohl_b,          tag: 2026-10-14, art: wunsch_frei}                  # Baerbel
+  - {ma: kurz_c,          tag: 2026-10-15, art: wunsch_frei}                  # Carina frei
+  - {ma: kurka_j,         tag: 2026-10-16, art: wunsch_frei}                  # Jonas frei
+  - {ma: kurka_j,         von: 2026-10-17, bis: 2026-10-31, art: urlaub}      # Jonas Urlaub
+
+  - {ma: kurz_c,          tag: 2026-10-20, art: arbeitet}                     # Carina arbeiten
+  - {ma: kurz_u,          tag: 2026-10-20, art: wunsch_frei}                  # Ursel
+  - {ma: kurz_c,          tag: 2026-10-22, art: wunsch_frei}                  # Carina frei
+  - {ma: menzler_a,       tag: 2026-10-24, art: wunsch_frueh}                 # Anna frueh
+
+  - {ma: marino_a,        von: 2026-10-26, bis: 2026-10-31, art: urlaub}      # Alex
+  - {ma: kohl_b,          von: 2026-10-26, bis: 2026-10-31, art: urlaub}      # Baerbel
+
+  # ---------------- November ----------------
+  - {ma: kurka_j,         tag: 2026-11-02, art: wunsch_frei}                  # Jonas frei
+  - {ma: kurka_j,         tag: 2026-11-07, art: wunsch_frueh}                 # Jonas frueh
+  - {ma: kurka_j,         tag: 2026-11-13, art: wunsch_frueh}                 # Jonas frueh
+  - {ma: kurka_j,         tag: 2026-11-14, art: wunsch_frei}                  # Jonas frei
+
+  - {ma: rohwer_c,        von: 2026-11-23, bis: 2026-11-28, art: urlaub}      # Carmen
+  - {ma: kurz_c,          von: 2026-11-23, bis: 2026-11-28, art: urlaub}      # Carina
+  - {ma: nachtrieb_i,     von: 2026-11-27, bis: 2026-11-28, art: wunsch_frei} # Ingrid
+  - {ma: menzler_a,       tag: 2026-11-28, art: wunsch_frueh}                 # Anna frueh
+
+  - {ma: reich_s,         von: 2026-11-30, bis: 2026-12-05, art: urlaub}      # Sibylle
+
+  # ---------------- Dezember ----------------
+  - {ma: menzler_a,       tag: 2026-12-12, art: wunsch_frueh}                 # Anna frueh
+  - {ma: kurz_u,          tag: 2026-12-12, art: wunsch_frei}                  # Ursel
+
+storniert:
+  # Rot durchgestrichen auf dem Novemberblatt - wirkt nicht mehr.
+  - {ma: kurz_c,    von: 2026-11-02, bis: 2026-11-07, art: urlaub,
+     grund: "rot durchgestrichen"}
+  - {ma: menzler_a, von: 2026-11-02, bis: 2026-11-07, art: urlaub,
+     grund: "rot durchgestrichen"}
+  # Diagonal durchgestrichen auf dem Oktoberblatt; der Urlaub steht eine
+  # Woche spaeter noch einmal und gilt dort.
+  - {ma: kohl_b,    von: 2026-10-19, bis: 2026-10-24, art: urlaub,
+     grund: "diagonal durchgestrichen, verschoben auf KW44"}
+
+zu_klaeren:
+  - tag: 2026-10-02
+    vermutet: {ma: marino_a, art: wunsch_frei}
+    frage: "'Alex frei?' steht mit Fragezeichen im Kalender - gilt der Tag?"
+  - tag: 2026-10-10
+    vermutet: {ma: kurz_u, art: wunsch_frueh}
+    frage: "'Ursel morgens oder frei' - Fruehschicht oder freier Tag?"
+  - tag: 2026-10-12
+    vermutet: {ma: kurka_j, art: urlaub}
+    frage: "'Jonas Urlaub' am Mo 12.10. ist verblasst/radiert, der Urlaub
+      beginnt laut Eintrag daneben erst Sa 17.10. - was gilt?"
+  - tag: 2026-10-31
+    vermutet: {ma: menzler_a, art: wunsch_frueh}
+    frage: "'Anna frueh/frei' - eines der beiden Woerter ist durchgestrichen,
+      welches bleibt?"
+  - tag: 2026-12-05
+    vermutet: {ma: kurka_j, art: wunsch_frueh}
+    frage: "'Jonas frueh frei' am Sa 05.12. - Fruehschicht oder frei?"
+  - tag: 2026-12-29
+    vermutet: {ma: menzler_a, art: wunsch_frueh}
+    frage: "'Anna frueh/frei' am Di 29.12. - Fruehschicht oder frei?"
+  - tag: 2026-10-01
+    vermutet: null
+    frage: "In der dritten Spalte laeuft am Do 01. und Fr 02.10. ein 'u' aus
+      dem September aus - wessen Urlaub war das?"

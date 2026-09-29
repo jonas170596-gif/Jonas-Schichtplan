@@ -126,7 +126,23 @@ class TestGenerator(unittest.TestCase):
         erg = erzeuge(self.stamm, self.vorgabe, iterationen=800, neustarts=1, seed=7)
         for mid, m in self.stamm.mitarbeiter.items():
             for t in m.feste_freie_tage:
+                if t in self.vorgabe.arbeitet.get(mid, []):
+                    continue          # in dieser Woche ausdruecklich aufgehoben
                 self.assertFalse(erg.plan.zellen[mid][t].arbeitet, f"{mid}/{t}")
+
+    def test_arbeitet_hebt_den_festen_freien_tag_auf(self):
+        """'Carina arbeiten' am Dienstag - ihr fester freier Tag faellt weg."""
+        self.assertEqual(self.vorgabe.arbeitet.get("kurz_c"), ["di"])
+        self.assertIn("di", self.stamm.mitarbeiter["kurz_c"].feste_freie_tage)
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self.assertFalse(plan.zellen["kurz_c"]["di"].fixiert)
+        erg = erzeuge(self.stamm, self.vorgabe, iterationen=4000, seed=2)
+        self.assertTrue(erg.plan.zellen["kurz_c"]["di"].arbeitet)
+
+    def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)       # Di bleibt leer
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("soll_arbeiten", regeln)
 
     def test_nur_erlaubte_schichten_am_erlaubten_tag(self):
         erg = erzeuge(self.stamm, self.vorgabe, iterationen=2000, neustarts=1, seed=3)
@@ -316,6 +332,10 @@ class TestBewertung(unittest.TestCase):
         self.assertNotIn("schichtwunsch", regeln)
 
     def test_termin_verlangt_passendes_schichtende(self):
+        from schichtplan.konfig import Termin
+        self.vorgabe.termine = [Termin(name="Teamleitersitzung", tag="di",
+                                       ab=zu_index("13:30"),
+                                       kandidaten=["kurka_j"], anzahl=1)]
         plan = grundgeruest(self.stamm, self.vorgabe)
         self._setze(plan, "kurka_j", "di", "6-14")
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
@@ -515,9 +535,11 @@ class TestTerminWechsel(unittest.TestCase):
         self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
         self.historie = lade_historie(WURZEL / "daten/historie")
 
-    def test_nur_noch_kurka_ist_kandidat(self):
-        self.assertEqual(self.vorgabe.termine[0].kandidaten, ["kurka_j"])
-        self.assertFalse(self.vorgabe.termine[0].abwechselnd)
+    def test_vorlage_nennt_nur_kurka(self):
+        """Die Wochenvorlage schlaegt nur noch Kurka als Kandidat vor."""
+        from schichtplan.cli import VORLAGE
+        self.assertIn("kandidaten: [kurka_j]", VORLAGE)
+        self.assertNotIn("kandidaten: [kurka_j, rohwer_c]", VORLAGE)
 
     def _mit_wechsel(self):
         """Termin mit zwei Kandidaten - so laesst sich der Wechsel pruefen,

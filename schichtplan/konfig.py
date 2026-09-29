@@ -396,6 +396,63 @@ def lade_schulplaene(ordner: pathlib.Path | str = KONFIG_DIR) -> dict[str, Schul
 
 
 @dataclass
+class Kalendereintrag:
+    ma: str
+    von: _dt.date
+    bis: _dt.date
+    art: str            # urlaub | frei | wunsch_frei | wunsch_frueh | arbeitet
+
+    def tage_in(self, montag: _dt.date) -> list[str]:
+        """Wochentagskuerzel, die in die Woche ab `montag` fallen."""
+        return [TAGE[i] for i in range(6)
+                if self.von <= montag + _dt.timedelta(days=i) <= self.bis]
+
+
+@dataclass
+class Kalender:
+    """Urlaubs- und Wunschkalender, wie er an der Wand haengt."""
+    quelle: str = ""
+    eintraege: list[Kalendereintrag] = field(default_factory=list)
+    zu_klaeren: list[dict] = field(default_factory=list)
+
+    def fuer_woche(self, montag: _dt.date) -> list[tuple[Kalendereintrag, list[str]]]:
+        treffer = []
+        for e in self.eintraege:
+            tage = e.tage_in(montag)
+            if tage:
+                treffer.append((e, tage))
+        return treffer
+
+    def offene_fragen(self, montag: _dt.date) -> list[dict]:
+        ende = montag + _dt.timedelta(days=5)
+        return [f for f in self.zu_klaeren
+                if montag <= _dt.date.fromisoformat(str(f["tag"])) <= ende]
+
+
+ARTEN_KALENDER = ("urlaub", "frei", "wunsch_frei", "wunsch_frueh", "arbeitet")
+
+
+def lade_kalender(pfad: pathlib.Path | str = "daten/kalender.yaml") -> Kalender:
+    pfad = pathlib.Path(pfad)
+    if not pfad.exists():
+        return Kalender()
+    roh = _lies(pfad)
+    eintraege = []
+    for e in (roh.get("eintraege") or []):
+        art = e["art"]
+        if art not in ARTEN_KALENDER:
+            raise ValueError(f"{pfad}: unbekannte Art {art!r} - erlaubt sind "
+                             f"{', '.join(ARTEN_KALENDER)}")
+        von = _dt.date.fromisoformat(str(e.get("tag") or e["von"]))
+        bis = _dt.date.fromisoformat(str(e.get("tag") or e["bis"]))
+        if bis < von:
+            raise ValueError(f"{pfad}: {e['ma']} {von} bis {bis} laeuft rueckwaerts")
+        eintraege.append(Kalendereintrag(ma=e["ma"], von=von, bis=bis, art=art))
+    return Kalender(quelle=roh.get("quelle", ""), eintraege=eintraege,
+                    zu_klaeren=list(roh.get("zu_klaeren") or []))
+
+
+@dataclass
 class Wochenvorgabe:
     """Die Variablen, die vor jeder Woche eingegeben werden."""
     woche: str
@@ -407,6 +464,8 @@ class Wochenvorgabe:
     fest: dict[str, dict[str, str]] = field(default_factory=dict)      # ma -> tag -> schicht|frei
     wunsch_frei: dict[str, list[str]] = field(default_factory=dict)
     wunsch_schicht: dict[str, dict[str, str]] = field(default_factory=dict)
+    wunsch_kategorie: dict[str, dict[str, str]] = field(default_factory=dict)
+    arbeitet: dict[str, list[str]] = field(default_factory=dict)   # hebt feste freie Tage auf
     zusatz: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     soll_stunden: dict[str, float] = field(default_factory=dict)       # Override
     termine: list[Termin] = field(default_factory=list)
@@ -439,6 +498,9 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
     fest = {ma: dict(v) for ma, v in (roh.get("fest") or {}).items()}
     wunsch_frei = {ma: _tageliste(v) for ma, v in (roh.get("wunsch_frei") or {}).items()}
     wunsch_schicht = {ma: dict(v) for ma, v in (roh.get("wunsch_schicht") or {}).items()}
+    wunsch_kategorie = {ma: dict(v)
+                        for ma, v in (roh.get("wunsch_kategorie") or {}).items()}
+    arbeitet = {ma: _tageliste(v) for ma, v in (roh.get("arbeitet") or {}).items()}
     zusatz = {ma: {t: (v if isinstance(v, list) else [v]) for t, v in tage.items()}
               for ma, tage in (roh.get("zusatz") or {}).items()}
 
@@ -479,6 +541,8 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
         fest=fest,
         wunsch_frei=wunsch_frei,
         wunsch_schicht=wunsch_schicht,
+        wunsch_kategorie=wunsch_kategorie,
+        arbeitet=arbeitet,
         zusatz=zusatz,
         soll_stunden={k: float(v) for k, v in (roh.get("soll_stunden") or {}).items()},
         termine=termine,
