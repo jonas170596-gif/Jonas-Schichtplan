@@ -251,10 +251,16 @@ class Bewerter:
     def _sammler(self, erg: Bewertung, detail: bool):
         aus = set(self.vorgabe.regeln_aus)
 
-        def add(regel: str, faktor: float, text: str = "", schwere: str = "hinweis"):
-            if faktor <= 0 or regel in aus:
+        def add(regel: str, faktor: float, text: str = "", schwere: str = "hinweis",
+                nur_melden: bool = False):
+            """Strafpunkte vergeben - oder mit nur_melden nur berichten.
+
+            Letzteres fuer Befunde, an denen der Planer nichts aendern kann:
+            Punkte dafuer wuerden ihn nur dazu bringen, an anderer Stelle
+            Unsinn zu bauen, um sie loszuwerden."""
+            if regel in aus or (faktor <= 0 and not nur_melden):
                 return
-            p = self.g.get(regel, 0.0) * faktor
+            p = 0.0 if nur_melden else self.g.get(regel, 0.0) * faktor
             erg.punkte += p
             if detail and text:
                 erg.befunde.append(Befund(regel, p, text, schwere))
@@ -284,13 +290,33 @@ class Bewerter:
                 add("frueh_besetzung", noetig - frueh,
                     f"{TAG_LANG[t]}: nur {frueh} Fruehschichten, {noetig} noetig"
                     + (f" ({anlass})" if anlass else ""), "fehler")
-            elif frueh > noetig:
+            elif frueh > noetig and not b.kategorieprofil.get(t):
                 # Wer um 6 Uhr nicht gebraucht wird, fehlt mittags. Ein
                 # spaeterer Start (8-16 statt 6-14) deckt die Spitze besser ab.
+                # Wo ein Kategorieprofil steht, regelt das die Verteilung.
                 add("frueh_ueber", frueh - noetig,
                     f"{TAG_LANG[t]}: {frueh} Fruehschichten, noetig sind {noetig} - "
                     f"ein spaeterer Start waere moeglich"
                     if frueh - noetig > 1 else "")
+
+            profil = b.kategorieprofil.get(t)
+            if profil and t not in self.feiertagsumfeld:
+                # Mo-Do steht das Tagesgeruest fest: zwei frueh, eine mittel,
+                # zwei spaet. Wer zusaetzlich kommt (der Azubi), faellt nicht
+                # darunter - deshalb wird nur ein Fehlbestand bestraft, kein
+                # Ueberhang.
+                ist = {"frueh": 0, "mittel": 0, "spaet": 0}
+                for z in zellen:
+                    ist[z.schicht.kategorie] += 1
+                for kat, soll in profil.items():
+                    if ist[kat] < soll:
+                        add("kategorieprofil", soll - ist[kat],
+                            f"{TAG_LANG[t]}: {ist[kat]} statt {soll} "
+                            f"{kat}-Schichten", "warnung")
+                    elif ist[kat] > soll and kat != "mittel":
+                        add("kategorieprofil", ist[kat] - soll,
+                            f"{TAG_LANG[t]}: {ist[kat]} statt {soll} "
+                            f"{kat}-Schichten", "warnung")
 
             schluss_zeit = b.oeffnung[t][1]
             schluss = sum(1 for z in zellen if z.schicht.bis >= schluss_zeit)
@@ -549,13 +575,21 @@ class Bewerter:
             if not (m.im_plan and m.aktiv and m.zaehlt_stundenbudget):
                 continue
             if m.moeglichst_wenig:
-                summe += self.soll_stunden[mid]      # Reserve bis zur Obergrenze
-                continue
-            ziel, _ = self._ziel(mid)
-            summe += ziel
+                ziel, tage = self.soll_stunden[mid], m.soll_tage
+            else:
+                ziel, tage = self._ziel(mid)
+            summe += max(0.0, ziel - tage * self.bedarf.pause_h)
         return summe
 
     def gesamtstunden(self, plan: Plan) -> float:
+        """Nettostunden gegen das Budget - Pause ist abgezogen."""
+        pause = self.bedarf.pause_h
+        return sum(z.netto_stunden(pause)
+                   for mid, reihe in plan.zellen.items()
+                   if self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
+                   for z in reihe.values())
+
+    def bruttostunden(self, plan: Plan) -> float:
         return sum(z.stunden
                    for mid, reihe in plan.zellen.items()
                    if self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
@@ -575,13 +609,22 @@ class Bewerter:
             f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - {ist - ziel:.1f} h darueber"
             if ist - ziel > toleranz else "", "warnung")
         if ziel - ist > toleranz:
+            # Bestraft wird nur der Teil der Luecke, den die anwesende
+            # Mannschaft ueberhaupt schliessen koennte. Was an Abwesenheiten
+            # liegt, laesst sich nicht wegplanen - Punkte dafuer wuerden den
+            # Planer nur dazu bringen, anderswo Unsinn zu bauen.
             erreichbar = self.erreichbare_stunden()
-            knapp = erreichbar < ziel - toleranz
-            add("gesamtstunden_unter", ziel - ist - toleranz,
-                f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - {ziel - ist:.1f} h darunter"
-                + (f" (mit der anwesenden Mannschaft sind hoechstens "
-                   f"{erreichbar:.0f} h moeglich)" if knapp else ""),
-                "hinweis" if knapp else "warnung")
+            machbar = min(ziel, erreichbar)
+            add("gesamtstunden_unter", max(0.0, machbar - ist - toleranz),
+                f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - {machbar - ist:.1f} h "
+                f"ungenutzt, die Mannschaft haette {machbar:.0f} h hergeben koennen"
+                if machbar - ist > toleranz else "", "warnung")
+            if erreichbar < ziel - toleranz:
+                add("gesamtstunden_unter", 0,
+                    f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - die anwesende "
+                    f"Mannschaft hat nur {erreichbar:.0f} h Sollstunden, der Rest "
+                    f"waere Mehrarbeit",
+                    "hinweis", nur_melden=True)
 
     # ---- Arbeitszeit --------------------------------------------------- #
     def _arbeitszeit(self, plan: Plan, add):
@@ -741,6 +784,15 @@ class Bewerter:
                     add("schichtwunsch", 1,
                         f"{m.name}: {TAG_LANG[tag]} {z.schicht.kategorie} "
                         f"statt {wunsch}")
+                if m.bevorzugte_kategorie and \
+                        z.schicht.kategorie != m.bevorzugte_kategorie:
+                    # Der Azubi soll moeglichst in der Mittelschicht stehen -
+                    # da ist Zeit zum Lernen und Ueben. Spaet uebernimmt lieber
+                    # jemand anderes, solange der Spaet-Anteil dadurch nicht
+                    # dauerhaft unter sein Ziel faellt.
+                    add("bevorzugte_kategorie", 1,
+                        f"{m.name}: {TAG_LANG[tag]} {z.schicht.kategorie} statt "
+                        f"{m.bevorzugte_kategorie}")
 
             for regel in self.stamm.verteilung.get(mid, []):
                 kats = [reihe[tag].schicht.kategorie for tag in regel.tage

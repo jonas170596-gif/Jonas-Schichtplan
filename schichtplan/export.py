@@ -138,8 +138,13 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
             if z.zusatz:
                 inhalt += f'<span class="zusatz">+ {e(", ".join(z.zusatz))}</span>'
             tds.append(f'<td class="{klasse}">{inhalt}</td>')
-        tds.append(f'<td class="summe">{plan.stunden(mid):.1f} h<span class="zusatz">'
-                   f'{plan.arbeitstage(mid)} Tage</span></td>')
+        netto = plan.netto_stunden(mid, stamm.bedarf.pause_h)
+        schichten = plan.arbeitstage(mid)
+        praesenz = plan.praesenztage(mid, tuple(m.abwesenheit_stunden))
+        tage_text = (f"{praesenz} Tage" if praesenz == schichten
+                     else f"{praesenz} Tage ({schichten} + {praesenz - schichten} Schule)")
+        tds.append(f'<td class="summe">{netto:.1f} h<span class="zusatz">'
+                   f'{tage_text}</span></td>')
         zeilen.append("<tr>" + "".join(tds) + "</tr>")
 
     budget = ""
@@ -148,13 +153,15 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
         ampel = "#1b7f3b" if abs(ist - ziel) <= \
             stamm.bedarf.wochenstunden_gesamt_toleranz else "#b00020"
         erreichbar = bewerter.erreichbare_stunden()
-        zusatz = (f", mit der anwesenden Mannschaft moeglich {erreichbar:.0f} h"
+        zusatz = (f", Sollstunden der anwesenden Mannschaft {erreichbar:.0f} h"
                   if erreichbar < ziel - stamm.bedarf.wochenstunden_gesamt_toleranz
                   else "")
         budget = (f'<div class="budget">Verkaeuferstunden gesamt: '
-                  f'<b style="color:{ampel}">{ist:.1f} h</b> '
-                  f'(Budget {ziel:.0f} h{e(zusatz)}, Azubistunden nicht '
-                  f'gezaehlt)</div>')
+                  f'<b style="color:{ampel}">{ist:.1f} h netto</b> '
+                  f'(Budget {ziel:.0f} h{e(zusatz)}; '
+                  f'{bewerter.bruttostunden(plan):.1f} h Anwesenheit abzueglich '
+                  f'{stamm.bedarf.pause_minuten} min Pause je Schicht, '
+                  f'Azubistunden nicht gezaehlt)</div>')
 
     hinweise = ""
     if bewertung is not None:
@@ -180,7 +187,7 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
 </div>
 <table>
   <thead><tr><th style="width:15%">Mitarbeiter</th>{kopfzeilen}
-    <th class="summe" style="width:9%">Summe</th></tr></thead>
+    <th class="summe" style="width:10%">Summe netto</th></tr></thead>
   <tbody>{''.join(zeilen)}</tbody>
 </table>
 {budget}

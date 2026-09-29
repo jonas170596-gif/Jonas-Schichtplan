@@ -34,7 +34,13 @@ class Bedarf:
     kopfzahl_toleranz_ueber: int = 0      # wie viele Koepfe ueber Ziel straffrei
     wochenstunden_gesamt: float = 0.0     # 0 = kein Gesamtbudget
     wochenstunden_gesamt_toleranz: float = 5.0
+    pause_minuten: int = 30            # je Schicht, wird von der Summe abgezogen
+    kategorieprofil: dict[str, dict[str, int]] = field(default_factory=dict)
     feiertagsregeln: Feiertagsregeln = field(default_factory=Feiertagsregeln)
+
+    @property
+    def pause_h(self) -> float:
+        return self.pause_minuten / 60
 
     def min_am_slot(self, tag: str, slot: int) -> int:
         return max((m for v, b, m in self.besetzung_min.get(tag, []) if v <= slot < b),
@@ -228,6 +234,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             nur_obergrenze=bool(m.get("nur_obergrenze", False)),
             spaet_anteil=(float(m["spaet_anteil"])
                           if m.get("spaet_anteil") is not None else None),
+            bevorzugte_kategorie=m.get("bevorzugte_kategorie", ""),
             einsatzprioritaet=float(m.get("einsatzprioritaet", 1.0)),
             samstag_konto=bool(m.get("samstag_konto", True)),
             springer=bool(m.get("springer", False)),
@@ -263,6 +270,9 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         kopfzahl_toleranz_ueber=int(roh_b.get("kopfzahl_toleranz_ueber", 1)),
         wochenstunden_gesamt=float(roh_b.get("wochenstunden_gesamt", 0)),
         wochenstunden_gesamt_toleranz=float(roh_b.get("wochenstunden_gesamt_toleranz", 5)),
+        pause_minuten=int(roh_b.get("pause_minuten", 30)),
+        kategorieprofil={t_: {k: int(v) for k, v in p_.items()}
+                         for t_, p_ in (roh_b.get("kategorieprofil") or {}).items()},
         feiertagsregeln=Feiertagsregeln(
             bundesland=(roh_b.get("feiertagsregeln") or {}).get("bundesland", "BW"),
             vor_feiertag={k: int(v) for k, v in

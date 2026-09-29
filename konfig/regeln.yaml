@@ -43,11 +43,13 @@ gewichte:
   schluss_besetzung: 1200   # je fehlender Schlussschicht
   frueh_ueber: 80           # je Fruehschicht ueber dem Bedarf - wer um 6 Uhr
                             # nicht gebraucht wird, fehlt mittags
+  kategorieprofil: 500      # je Schicht Abweichung vom Tagesgeruest Mo-Do
   # Ueber Budget ist eine Planungsentscheidung und verschlechtert den Umsatz
   # je Verkaeuferstunde. Unter Budget liegt meist an Abwesenheiten und laesst
   # sich nicht wegplanen - deshalb nur leicht gewichtet.
   gesamtstunden_ueber: 30   # je Stunde ueber dem Wochenbudget (ohne Azubi)
-  gesamtstunden_unter: 6    # je Stunde darunter
+  gesamtstunden_unter: 25   # je Stunde darunter, aber nur wenn die Mannschaft
+                            # sie haette leisten koennen - sonst nur ein Hinweis
 
   # --- Team und Faehigkeiten ---
   faehigkeit: 2500          # Fleisch/Wurst/Ofen nicht besetzt (praktisch hart)
@@ -80,11 +82,14 @@ gewichte:
   frueh_spaet_ausgleich: 200  # je Schicht Ungleichgewicht ueber das Fenster hinaus
   spaet_anteil: 250         # Abweichung vom Zielanteil Spaetschichten (Azubi)
   schichtwunsch: 130        # Wochentag hat nicht die gewuenschte Kategorie
+  bevorzugte_kategorie: 120 # je Schicht ausserhalb der Lieblingskategorie
   schicht_verteilung: 220   # z. B. Rohwer Fr/Sa nicht im Wechsel frueh/spaet
   bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
   samstag_konto: 180        # je Samstag Rueckstand gegenueber dem Schnitt
-  fehltage_konto: 160       # je Fehltag ueber der Toleranz, mal Einsatzprioritaet
+  fehltage_konto: 260       # je Fehltag ueber der Toleranz, mal Einsatzprioritaet.
+                            # Muss einen zusaetzlichen Kopf (400) schlagen koennen,
+                            # sonst bleibt immer dieselbe Person unter Soll.
   zu_viel_spaet: 350        # mehr Spaetschichten als vorgesehen (Azubi)
   zersplitterung: 20        # viele verschiedene Schichtarten in einer Woche

@@ -15,6 +15,11 @@ oeffnung:                     # Planungsfenster, nicht Ladenoeffnung
 # Wochenbudget fuer die Umsatzziele je Verkaeuferstunde. Azubistunden zaehlen
 # nicht mit (menzler_a: zaehlt_stundenbudget: false). Faellt jemand ganz oder
 # teilweise aus, sinkt das Budget automatisch um dessen Sollstunden.
+# Von jeder Schicht wird eine halbe Stunde Pause abgezogen (ArbZG 4). Die
+# Summen im Plan und das Budget unten sind deshalb Nettostunden - das ist
+# die Zeit, die tatsaechlich als Verkaeuferstunde zaehlt.
+pause_minuten: 30
+
 wochenstunden_gesamt: 255
 wochenstunden_gesamt_toleranz: 5
 
@@ -27,6 +32,17 @@ kopfzahl:                     # Zielanzahl eingeteilter Mitarbeiter
   do: 5
   fr: 7
   sa: 7
+
+# Tagesgeruest Montag bis Donnerstag: zwei Frueh, eine Mittel, zwei Spaet -
+# zusammen die fuenf Koepfe von oben. Der Azubi kommt als zusaetzliche
+# Mittelschicht obendrauf, deshalb wird bei 'mittel' nur ein Fehlbestand
+# bemaengelt und kein Ueberhang. An Tagen rund um einen Feiertag gilt das
+# Profil nicht, dort zaehlen die Feiertagsregeln.
+kategorieprofil:
+  mo: {frueh: 2, mittel: 1, spaet: 2}
+  di: {frueh: 2, mittel: 1, spaet: 2}
+  mi: {frueh: 2, mittel: 1, spaet: 2}
+  do: {frueh: 2, mittel: 1, spaet: 2}
 
 frueh_bis: "07:00"            # Schichtstart <= dieser Zeit zaehlt als Frueh
 frueh_min:                    # Mindestanzahl Fruehschichten (Produktion/Aufbau)

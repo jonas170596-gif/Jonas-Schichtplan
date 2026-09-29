@@ -95,6 +95,7 @@ class Mitarbeiter:
     max_spaet_pro_woche: int | None = None
     nur_obergrenze: bool = False        # Soll ist Obergrenze, weniger ist frei
     spaet_anteil: float | None = None   # Zielanteil Spaetschichten im Fenster
+    bevorzugte_kategorie: str = ""      # bekommt am liebsten diese Schichtart
     einsatzprioritaet: float = 1.0      # >1: bekommt eher Tage als andere
     samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
     springer: bool = False
@@ -126,7 +127,12 @@ class Zelle:
 
     @property
     def stunden(self) -> float:
+        """Anwesenheit laut Plan, also brutto."""
         return self.schicht.dauer_h if self.arbeitet else 0.0
+
+    def netto_stunden(self, pause_h: float) -> float:
+        """Anwesenheit abzueglich Pause - das zaehlt als Verkaeuferstunde."""
+        return max(0.0, self.stunden - pause_h) if self.arbeitet else 0.0
 
     def label(self) -> str:
         if self.arbeitet:
@@ -153,6 +159,14 @@ class Plan:
 
     def stunden(self, ma: str) -> float:
         return sum(z.stunden for z in self.zellen[ma].values())
+
+    def netto_stunden(self, ma: str, pause_h: float) -> float:
+        return sum(z.netto_stunden(pause_h) for z in self.zellen[ma].values())
+
+    def praesenztage(self, ma: str, arten: tuple[str, ...] = ()) -> int:
+        """Arbeitstage plus mitgezaehlte Abwesenheiten (Berufsschule)."""
+        return sum(1 for z in self.zellen[ma].values()
+                   if z.arbeitet or z.art in arten)
 
     def arbeitstage(self, ma: str) -> int:
         return sum(1 for z in self.zellen[ma].values() if z.arbeitet)

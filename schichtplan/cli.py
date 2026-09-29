@@ -574,20 +574,29 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
     kopf = f"{'Mitarbeiter':<18}" + "".join(f"{TAG_LANG[t][:9]:<{breite}}" for t in tage)
     zeilen = [f"{plan.woche}  {plan.datum_von} - {plan.datum_bis}  {plan.filiale}",
               kopf, "-" * len(kopf)]
+    pause = stamm.bedarf.pause_h
     for mid, reihe in plan.zellen.items():
         m = stamm.mitarbeiter[mid]
         z = f"{m.name:<18}" + "".join(f"{reihe[t].label():<{breite}}" for t in tage)
-        zeilen.append(f"{z}  {plan.stunden(mid):5.1f} h / {plan.arbeitstage(mid)} T")
+        netto = plan.netto_stunden(mid, pause)
+        schichten = plan.arbeitstage(mid)
+        gezaehlt = tuple(m.abwesenheit_stunden)
+        praesenz = plan.praesenztage(mid, gezaehlt)
+        tage_text = (f"{praesenz} T" if praesenz == schichten
+                     else f"{praesenz} T ({schichten}+{praesenz - schichten} Schule)")
+        zeilen.append(f"{z}  {netto:5.1f} h / {tage_text}")
     zeilen.append("-" * len(kopf))
     zeilen.append(f"{'Koepfe':<18}" + "".join(f"{plan.koepfe(t):<{breite}}" for t in tage))
     if bewerter is not None and bewerter.gesamtbudget():
         ist, ziel = bewerter.gesamtstunden(plan), bewerter.gesamtbudget()
         erreichbar = bewerter.erreichbare_stunden()
-        zusatz = (f", mit der anwesenden Mannschaft moeglich {erreichbar:.0f} h"
+        zusatz = (f", Sollstunden der anwesenden Mannschaft {erreichbar:.0f} h"
                   if erreichbar < ziel - bewerter.bedarf.wochenstunden_gesamt_toleranz
                   else "")
-        zeilen.append(f"{'Stunden gesamt':<18}{ist:.1f} h (Budget {ziel:.0f} h"
-                      f"{zusatz}, Azubi nicht gezaehlt)")
+        brutto = bewerter.bruttostunden(plan)
+        zeilen.append(f"{'Stunden gesamt':<18}{ist:.1f} h netto (Budget {ziel:.0f} h"
+                      f"{zusatz}; {brutto:.1f} h Anwesenheit minus Pausen, "
+                      f"Azubi nicht gezaehlt)")
     return "\n".join(zeilen)
 
 

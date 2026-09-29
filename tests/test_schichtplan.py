@@ -398,7 +398,8 @@ class TestBewertung(unittest.TestCase):
         self._setze(plan, "menzler_a", "mo", "8-16")
         self.assertEqual(b.gesamtstunden(plan), vorher)
         self._setze(plan, "kurka_j", "mo", "6-14")
-        self.assertEqual(b.gesamtstunden(plan), vorher + 8)
+        # 8 h Anwesenheit minus 30 min Pause
+        self.assertEqual(b.gesamtstunden(plan), vorher + 7.5)
 
     def test_budget_haengt_nicht_an_abwesenheiten(self):
         """Urlaub senkt den Umsatzbedarf nicht, also auch nicht das Budget."""
@@ -412,7 +413,9 @@ class TestBewertung(unittest.TestCase):
         v = self._sauber()
         voll = Bewerter(self.stamm, v).erreichbare_stunden()
         v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
-        self.assertAlmostEqual(Bewerter(self.stamm, v).erreichbare_stunden(), voll - 40)
+        # Marino: 40 h Anwesenheit auf 5 Schichten, netto also 37.5 h
+        self.assertAlmostEqual(Bewerter(self.stamm, v).erreichbare_stunden(),
+                               voll - 37.5)
 
     def test_unterdeckung_durch_abwesenheit_ist_nur_ein_hinweis(self):
         """Was die Mannschaft nicht leisten kann, darf der Planer nicht
@@ -424,8 +427,24 @@ class TestBewertung(unittest.TestCase):
         befunde = [b for b in pruefen(plan, self.stamm, v).befunde
                    if b.regel == "gesamtstunden_unter"]
         self.assertTrue(befunde)
-        self.assertEqual(befunde[0].schwere, "hinweis")
-        self.assertIn("moeglich", befunde[0].text)
+        ohne_punkte = [b for b in befunde if b.punkte == 0]
+        self.assertTrue(ohne_punkte, "die unvermeidbare Luecke muss punktfrei sein")
+        self.assertIn("Sollstunden", ohne_punkte[0].text)
+
+    def test_nur_die_behebbare_luecke_kostet_punkte(self):
+        """Was die Mannschaft haette leisten koennen, zaehlt; der Rest nicht."""
+        v = self._sauber()
+        for mid in ("marino_a", "rohwer_c", "kohl_b"):
+            v.abwesend[mid] = {t: "urlaub" for t in TAGE}
+        b = Bewerter(self.stamm, v)
+        plan = grundgeruest(self.stamm, v)
+        mit_punkten = sum(x.punkte for x in b.bewerte(plan, detail=True).befunde
+                          if x.regel == "gesamtstunden_unter")
+        erreichbar = b.erreichbare_stunden()
+        toleranz = self.stamm.bedarf.wochenstunden_gesamt_toleranz
+        erwartet = (erreichbar - toleranz) * self.stamm.regeln.gewichte[
+            "gesamtstunden_unter"]
+        self.assertAlmostEqual(mit_punkten, erwartet)
 
     def test_ueber_budget_wiegt_schwerer_als_darunter(self):
         g = self.stamm.regeln.gewichte
@@ -766,6 +785,102 @@ class TestVornamen(unittest.TestCase):
             lade_kalender(pfad, self.stamm.mitarbeiter)
         self.assertIn("Rumpelstilzchen", str(fehler.exception))
         pathlib.Path(pfad).unlink()
+
+
+class TestPausen(unittest.TestCase):
+    """Von jeder Schicht geht eine halbe Stunde Pause ab (ArbZG 4)."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.pause = self.stamm.bedarf.pause_h
+
+    def test_pause_ist_konfiguriert(self):
+        self.assertEqual(self.stamm.bedarf.pause_minuten, 30)
+        self.assertEqual(self.pause, 0.5)
+
+    def test_netto_je_schicht(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        plan.zellen["kurka_j"]["mo"].art = "schicht"
+        plan.zellen["kurka_j"]["mo"].schicht = self.stamm.schichten["6-14"]
+        self.assertEqual(plan.stunden("kurka_j"), 8.0)
+        self.assertEqual(plan.netto_stunden("kurka_j", self.pause), 7.5)
+
+    def test_fuenf_schichten_fuenf_pausen(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag in ("mo", "di", "mi", "do", "fr"):
+            plan.zellen["kurka_j"][tag].art = "schicht"
+            plan.zellen["kurka_j"][tag].schicht = self.stamm.schichten["6-14"]
+        self.assertEqual(plan.stunden("kurka_j"), 40.0)
+        self.assertEqual(plan.netto_stunden("kurka_j", self.pause), 37.5)
+
+    def test_freie_tage_kosten_keine_pause(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self.assertEqual(plan.netto_stunden("kurka_j", self.pause), 0.0)
+
+    def test_budget_rechnet_netto(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag in ("mo", "di"):
+            plan.zellen["rohwer_c"][tag].art = "schicht"
+            plan.zellen["rohwer_c"][tag].schicht = self.stamm.schichten["6-14"]
+        b = Bewerter(self.stamm, self.vorgabe)
+        self.assertEqual(b.bruttostunden(plan), 16.0)
+        self.assertEqual(b.gesamtstunden(plan), 15.0)
+
+
+class TestKategorieprofil(unittest.TestCase):
+    """Montag bis Donnerstag: zwei Frueh, eine Mittel, zwei Spaet."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+
+    def test_profil_ist_hinterlegt(self):
+        for tag in ("mo", "di", "mi", "do"):
+            self.assertEqual(self.stamm.bedarf.kategorieprofil[tag],
+                             {"frueh": 2, "mittel": 1, "spaet": 2})
+        self.assertNotIn("fr", self.stamm.bedarf.kategorieprofil)
+
+    def _belege(self, plan, paare, tag="mo"):
+        for mid, sid in paare:
+            plan.zellen[mid][tag].art = "schicht"
+            plan.zellen[mid][tag].schicht = self.stamm.schichten[sid]
+
+    def test_dritte_fruehschicht_faellt_auf(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._belege(plan, [("kurka_j", "6-14"), ("rohwer_c", "6-14"),
+                            ("marino_a", "6-14"), ("reich_s", "14-20"),
+                            ("kohl_b", "12-20")])
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "kategorieprofil" and "Montag" in b.text]
+        self.assertTrue(any("frueh" in x for x in texte), texte)
+
+    def test_passendes_geruest_bleibt_unbeanstandet(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._belege(plan, [("kurka_j", "6-14"), ("rohwer_c", "6-14"),
+                            ("kurz_c", "8-14"), ("reich_s", "14-20"),
+                            ("kohl_b", "12-20")])
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "kategorieprofil" and "Montag" in b.text]
+        self.assertEqual(texte, [])
+
+    def test_azubi_als_zweite_mittelschicht_stoert_nicht(self):
+        """Bei 'mittel' wird nur ein Fehlbestand bemaengelt, kein Ueberhang."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._belege(plan, [("kurka_j", "6-14"), ("rohwer_c", "6-14"),
+                            ("kurz_c", "8-14"), ("menzler_a", "8-16"),
+                            ("reich_s", "14-20"), ("kohl_b", "12-20")])
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "kategorieprofil" and "Montag" in b.text]
+        self.assertEqual(texte, [])
+
+    def test_azubi_bevorzugt_die_mittelschicht(self):
+        self.assertEqual(self.stamm.mitarbeiter["menzler_a"].bevorzugte_kategorie,
+                         "mittel")
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._belege(plan, [("menzler_a", "11-20")])
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("bevorzugte_kategorie", regeln)
 
 
 class TestFreiOderFrueh(unittest.TestCase):

@@ -158,6 +158,9 @@ mitarbeiter:
     spaet_anteil: 0.25             # rund ein Viertel seiner Schichten spaet,
                                    # gemessen ueber das rollierende Fenster -
                                    # statt des 50/50-Ausgleichs der anderen
+    bevorzugte_kategorie: mittel   # als zweite Mittelschicht obendrauf; da ist
+                                   # Zeit zum Lernen und Ueben. Spaetschichten
+                                   # uebernimmt lieber jemand anderes.
     zaehlt_stundenbudget: false    # Azubistunden zaehlen nicht gegen die 255 h
     erlaubte_schichten: [8-16, 6-14, 11-20, 12-20, 6-13:30, 9-18, 10-18, 11-18, 12-18]
     stamm_schichten: {8-16: 0.45, 6-14: 0.20, 11-20: 0.10, 9-18: 0.10, 10-18: 0.10}

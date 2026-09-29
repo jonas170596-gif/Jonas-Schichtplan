@@ -397,6 +397,39 @@ eigenen Regeln bewertet. Liegt `Punkte neu` weit darunter, optimiert die
 Konfiguration etwas anderes als der Mensch - dann sind die Gewichte schuld,
 nicht der Planer.
 
+## Die Strafpunkte lesen
+
+Der Planer sucht nicht nach "richtig", sondern nach der Variante mit den
+wenigsten Strafpunkten. Jede Regel hat ein Gewicht in `konfig/regeln.yaml`,
+und jede Verletzung kostet Gewicht mal Ausmass - eine fehlende Fruehschicht
+1200, zwei fehlende 2400.
+
+**Die absolute Zahl sagt fast nichts.** Sie haengt an der Woche: viele
+Abwesende, ein Feiertag, knappe Besetzung - dann sind 4000 Punkte ein guter
+Plan. Zwei Zahlen sind aussagekraeftig:
+
+* **Der Vergleich zum Greedy-Start** (`3869 (Greedy-Start: 19684)`) zeigt, wie
+  viel die Suche herausgeholt hat. Bleibt der Abstand klein, lohnt
+  `--iterationen` hochzudrehen.
+* **Die Liste darunter.** Nur die erklaert, woher die Punkte kommen.
+
+Dort zaehlt die Kennzeichnung mehr als die Punktzahl:
+
+| | Bedeutung |
+|---|---|
+| `FEHLER` | etwas stimmt nicht - Faehigkeit unbesetzt, Ruhezeit verletzt, Pflichttag leer. Das gehoert angeschaut, bevor der Plan aushaengt. |
+| `Warnung` | ein Ziel wurde verfehlt, meist weil ein anderes wichtiger war. Lesen und entscheiden. |
+| `Hinweis` | Beobachtung ohne Handlungsbedarf. |
+
+Ein Befund mit **0 Punkten** ist eine Meldung, an der der Planer nichts aendern
+kann - etwa eine Unterdeckung, weil zu viele Leute im Urlaub sind. Die kostet
+bewusst nichts, sonst wuerde der Planer anderswo Unsinn bauen, um sie
+loszuwerden.
+
+Zum Vergleichen taugen die Punkte nur **innerhalb derselben Woche**: zwei
+Laeufe mit `--seed 1` und `--seed 2` gegeneinander, oder vorher/nachher bei
+einer Regelaenderung. Zwischen verschiedenen Wochen sind sie bedeutungslos.
+
 ## Laufzeit
 
 Eine Woche rechnen dauert mit den Standardwerten (40 000 Iterationen,
@@ -469,6 +502,21 @@ hoch, dass sie praktisch hart sind:
 | `zersplitterung` | nicht jeden Tag eine andere Schichtart |
 | `samstag_konto` | Rueckstand bei freien Samstagen gegenueber dem Schnitt |
 | `fehltage_konto` | aufgelaufene Tage unter Soll, mal Einsatzprioritaet |
+
+### Pausen
+
+Von jeder Schicht geht eine halbe Stunde Pause ab (`pause_minuten` in
+`konfig/bedarf.yaml`). Die Summenspalte im Plan und das Budget sind deshalb
+**Nettostunden** - die Zeit, die als Verkaeuferstunde zaehlt. Die Anwesenheit
+steht daneben:
+
+```
+Stunden gesamt    249.5 h netto (Budget 255 h; 266.5 h Anwesenheit minus Pausen)
+```
+
+Die Sollstunden je Mitarbeiter in `konfig/mitarbeiter.yaml` sind dagegen
+**Anwesenheitszeiten** - sie stammen aus den Papierplaenen, wo 6-14 als acht
+Stunden steht. Wer 40 h auf fuenf Schichten hat, kommt damit auf 37.5 h netto.
 
 ### Stundenbudget
 
