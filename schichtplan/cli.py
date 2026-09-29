@@ -199,7 +199,8 @@ def cmd_neu(args) -> int:
         if eintraege:
             schulzeilen = [""] + eintraege
     # Urlaub und Wuensche aus dem Wandkalender vorbelegen
-    kalender = lade_kalender(args.kalender)
+    kalender = lade_kalender(args.kalender,
+                             lade_stammdaten(args.konfig).mitarbeiter)
     aus_kalender = {"urlaub": {}, "fest": {}, "wunsch_frei": {},
                     "wunsch_schicht": {}, "arbeitet": {}}
     for e, tage in kalender.fuer_woche(montag):

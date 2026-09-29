@@ -79,6 +79,7 @@ def schicht_aus_text(text: str) -> Schicht:
 class Mitarbeiter:
     id: str
     name: str
+    vorname: str = ""
     aktiv: bool = True
     im_plan: bool = True               # False -> Zeile wird als "-" gedruckt
     soll_stunden: float = 0.0          # Brutto-Wochenstunden inkl. Pause

@@ -25,6 +25,12 @@ samstag_toleranz: 1       # so viele Samstage Rueckstand bleiben straffrei
 # Ausgleichsfenster soll es sich verteilen, statt immer denselben zu treffen.
 fehltage_toleranz: 1
 
+# Harte Obergrenze je Mitarbeiter und Woche. Ohne sie schiebt der Planer in
+# Wochen mit mehreren Abwesenden die Luecke auf die Verbliebenen - in KW44
+# landete eine 30-Stunden-Kraft bei 48 h an sechs Tagen. 48 h ist die
+# Grenze aus ArbZG 3 (sechs Werktage mal acht Stunden).
+max_wochenstunden: 48
+
 gewichte:
   # --- Besetzung (das Wichtigste) ---
   kopfzahl: 400             # je Kopf Abweichung von bedarf.kopfzahl
@@ -54,6 +60,7 @@ gewichte:
   wochenstunden: 25         # je Stunde Abweichung vom Soll
   arbeitstage: 90           # je Tag Abweichung vom Soll
   max_tage: 5000            # Ueberschreitung von max_tage (praktisch hart)
+  max_stunden: 800          # je Stunde ueber max_wochenstunden
   praesenztage: 900         # Schichten + Schultage weichen von der Vorgabe ab
   tage_in_folge: 300        # je Tag ueber max_tage_in_folge
 

@@ -117,6 +117,7 @@ class Regeln:
     samstag_fenster_wochen: int = 0     # Fenster fuers Samstagskonto, 0 = ganze Historie
     samstag_toleranz: float = 1.0       # so viele Samstage Rueckstand bleiben straffrei
     fehltage_toleranz: float = 1.0      # so viele Fehltage im Fenster bleiben straffrei
+    max_wochenstunden: float = 48.0     # Obergrenze je MA und Woche (ArbZG)
     wechsel_max_pro_woche: int = 1      # kurze Wechsel (Spaet -> Frueh) je MA und Woche
     ausgleich_fenster_wochen: int = 4   # Fenster fuer den Frueh/Spaet-Ausgleich
     ausgleich_toleranz: int = 2         # erlaubtes Ungleichgewicht im Fenster
@@ -209,6 +210,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         mitarbeiter[mid] = Mitarbeiter(
             id=mid,
             name=m["name"],
+            vorname=m.get("vorname", ""),
             aktiv=m.get("aktiv", True),
             im_plan=m.get("im_plan", True),
             soll_stunden=float(m.get("soll_stunden", 0)),
@@ -280,6 +282,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         samstag_fenster_wochen=int(roh_r.get("samstag_fenster_wochen", 0)),
         samstag_toleranz=float(roh_r.get("samstag_toleranz", 1)),
         fehltage_toleranz=float(roh_r.get("fehltage_toleranz", 1)),
+        max_wochenstunden=float(roh_r.get("max_wochenstunden", 48)),
         wechsel_max_pro_woche=int(roh_r.get("wechsel_max_pro_woche", 1)),
         ausgleich_fenster_wochen=int(roh_r.get("ausgleich_fenster_wochen", 4)),
         ausgleich_toleranz=int(roh_r.get("ausgleich_toleranz", 2)),
@@ -432,13 +435,37 @@ class Kalender:
 ARTEN_KALENDER = ("urlaub", "frei", "wunsch_frei", "wunsch_frueh", "arbeitet")
 
 
-def lade_kalender(pfad: pathlib.Path | str = "daten/kalender.yaml") -> Kalender:
+def lade_kalender(pfad: pathlib.Path | str = "daten/kalender.yaml",
+                  mitarbeiter: dict[str, Mitarbeiter] | None = None) -> Kalender:
     pfad = pathlib.Path(pfad)
     if not pfad.exists():
         return Kalender()
     roh = _lies(pfad)
-    eintraege = []
-    for e in (roh.get("eintraege") or []):
+    nach_vorname = {}
+    for mid, m in (mitarbeiter or {}).items():
+        if m.vorname:
+            schluessel = m.vorname.casefold()
+            if schluessel in nach_vorname:
+                raise ValueError(
+                    f"Vorname {m.vorname!r} gehoert zu {nach_vorname[schluessel]} "
+                    f"und zu {mid} - im Kalender waere er nicht aufloesbar")
+            nach_vorname[schluessel] = mid
+
+    def _wer(e: dict) -> str:
+        """Eintrag einem Mitarbeiter zuordnen - ueber Vorname oder Kuerzel."""
+        if "vorname" in e:
+            mid = nach_vorname.get(str(e["vorname"]).casefold())
+            if mid is None:
+                raise ValueError(
+                    f"{pfad}: Vorname {e['vorname']!r} steht in keinen Stammdaten. "
+                    f"Bekannt sind: {', '.join(sorted(nach_vorname))}")
+            return mid
+        mid = e["ma"]
+        if mitarbeiter and mid not in mitarbeiter:
+            raise ValueError(f"{pfad}: unbekanntes Kuerzel {mid!r}")
+        return mid
+
+    def _lies_eintrag(e: dict) -> Kalendereintrag:
         art = e["art"]
         if art not in ARTEN_KALENDER:
             raise ValueError(f"{pfad}: unbekannte Art {art!r} - erlaubt sind "
@@ -446,10 +473,19 @@ def lade_kalender(pfad: pathlib.Path | str = "daten/kalender.yaml") -> Kalender:
         von = _dt.date.fromisoformat(str(e.get("tag") or e["von"]))
         bis = _dt.date.fromisoformat(str(e.get("tag") or e["bis"]))
         if bis < von:
-            raise ValueError(f"{pfad}: {e['ma']} {von} bis {bis} laeuft rueckwaerts")
-        eintraege.append(Kalendereintrag(ma=e["ma"], von=von, bis=bis, art=art))
+            raise ValueError(f"{pfad}: {von} bis {bis} laeuft rueckwaerts")
+        return Kalendereintrag(ma=_wer(e), von=von, bis=bis, art=art)
+
+    eintraege = [_lies_eintrag(e) for e in (roh.get("eintraege") or [])]
+    zu_klaeren = []
+    for f in (roh.get("zu_klaeren") or []):
+        eintrag = dict(f)
+        vermutet = eintrag.get("vermutet")
+        if vermutet:
+            eintrag["vermutet"] = {**vermutet, "ma": _wer(vermutet)}
+        zu_klaeren.append(eintrag)
     return Kalender(quelle=roh.get("quelle", ""), eintraege=eintraege,
-                    zu_klaeren=list(roh.get("zu_klaeren") or []))
+                    zu_klaeren=zu_klaeren)
 
 
 @dataclass

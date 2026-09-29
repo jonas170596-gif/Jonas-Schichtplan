@@ -619,6 +619,12 @@ class Bewerter:
                 add("max_tage", tage - m.max_tage,
                     f"{m.name}: {tage} Arbeitstage, erlaubt sind {m.max_tage}", "fehler")
 
+            grenze = self.stamm.regeln.max_wochenstunden
+            if grenze and stunden > grenze:
+                add("max_stunden", stunden - grenze,
+                    f"{m.name}: {stunden:.1f} h in einer Woche, Obergrenze ist "
+                    f"{grenze:.0f} h", "fehler")
+
             if m.praesenztage is not None:
                 # Schichten plus gezaehlte Abwesenheiten (Berufsschule) ergeben
                 # die Praesenztage - beim Azubi sind das immer genau fuenf.

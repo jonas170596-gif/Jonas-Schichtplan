@@ -236,8 +236,15 @@ als auskommentierte Vorlage in `team.yaml`.
 Urlaub, freie Tage und Schichtwuensche in die Wochendatei ein - zusammen mit
 den Berufsschultagen muss man dann meist gar nichts mehr von Hand eintippen.
 
-Der Wandkalender nennt nur Vornamen; die Zuordnung steht oben in der Datei und
-ist eindeutig, auch bei Carmen/Carina und Alex/Anna.
+Die Eintraege nennen den **Vornamen**, genau wie der Wandkalender. Aufgeloest
+wird ueber das Feld `vorname` in `konfig/mitarbeiter.yaml`, damit die Zuordnung
+an genau einer Stelle steht. Ein Vorname, den es dort nicht gibt, laesst den
+Kalender gar nicht erst laden.
+
+Das ist kein Schoenheitsdetail: Anna ist Marino und Alex ist Menzler, beide
+also "A." - beim ersten Abtippen hatte ich die zwei vertauscht. Ueber
+Kuerzel faellt so etwas niemandem auf, ueber Vornamen kann es nicht mehr
+passieren.
 
 | `art` | Wirkung |
 |---|---|
@@ -423,6 +430,7 @@ hoch, dass sie praktisch hart sind:
 | `termin` | Teamleitersitzung o. Ae. ist abgedeckt |
 | `termin_wechsel` | Sitzung nicht zweimal hintereinander dieselbe Person |
 | `ruhezeit_verletzung` | nie unter 10 h Ruhe |
+| `max_stunden` | nie ueber 48 h in einer Woche (ArbZG §3) |
 | `kopfzahl` | Zielkopfzahl je Tag; ein Kopf zu viel ist frei, zu wenig nicht |
 | `besetzung_unter` / `_ueber` | Mindestbesetzungskurve ueber den Tag |
 | `frueh_besetzung` / `schluss_besetzung` | genug Leute zum Aufbau und bis Ladenschluss |

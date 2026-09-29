@@ -719,6 +719,83 @@ class TestHandplan(unittest.TestCase):
         self.assertEqual(fehler, [])
 
 
+class TestVornamen(unittest.TestCase):
+    """Der Kalender nennt Vornamen; aufgeloest wird ueber die Stammdaten."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+
+    def test_jeder_hat_einen_eindeutigen_vornamen(self):
+        vornamen = [m.vorname for m in self.stamm.mitarbeiter.values() if m.vorname]
+        self.assertEqual(len(vornamen), len(self.stamm.mitarbeiter))
+        self.assertEqual(len(set(v.casefold() for v in vornamen)), len(vornamen))
+
+    def test_die_beiden_a_namen_stimmen(self):
+        self.assertEqual(self.stamm.mitarbeiter["marino_a"].vorname, "Anna")
+        self.assertEqual(self.stamm.mitarbeiter["menzler_a"].vorname, "Alex")
+
+    def test_kalender_loest_vornamen_auf(self):
+        from schichtplan.konfig import lade_kalender
+        k = lade_kalender(WURZEL / "daten/kalender.yaml", self.stamm.mitarbeiter)
+        self.assertEqual(len(k.eintraege), 28)
+        for e in k.eintraege:
+            self.assertIn(e.ma, self.stamm.mitarbeiter)
+
+    def test_alex_hat_urlaub_in_den_herbstferien(self):
+        """Gegenprobe zur Namensverwechslung: Alex ist der Azubi, und sein
+        Oktoberurlaub faellt genau in die schulfreie KW44."""
+        import datetime
+        from schichtplan.konfig import lade_kalender, lade_schulplaene
+        k = lade_kalender(WURZEL / "daten/kalender.yaml", self.stamm.mitarbeiter)
+        urlaub = [e for e in k.eintraege
+                  if e.ma == "menzler_a" and e.art == "urlaub"]
+        self.assertTrue(urlaub)
+        self.assertEqual(urlaub[0].von, datetime.date(2026, 10, 26))
+        sp = lade_schulplaene(WURZEL / "konfig")["menzler_a"]
+        self.assertEqual(sp.fuer("2026-KW44"), [])      # Herbstferien
+
+    def test_unbekannter_vorname_wird_abgelehnt(self):
+        import tempfile
+        from schichtplan.konfig import lade_kalender
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False,
+                                         encoding="utf-8") as f:
+            f.write("eintraege:\n  - {vorname: Rumpelstilzchen, "
+                    "tag: 2026-10-05, art: frei}\n")
+            pfad = f.name
+        with self.assertRaises(ValueError) as fehler:
+            lade_kalender(pfad, self.stamm.mitarbeiter)
+        self.assertIn("Rumpelstilzchen", str(fehler.exception))
+        pathlib.Path(pfad).unlink()
+
+
+class TestArbeitszeitgrenzen(unittest.TestCase):
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+
+    def test_obergrenze_ist_gesetzt(self):
+        self.assertEqual(self.stamm.regeln.max_wochenstunden, 48)
+
+    def test_zu_lange_woche_ist_ein_fehler(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag in TAGE:                       # 6 x 9 h = 54 h
+            plan.zellen["sannzenbacher_n"][tag].art = "schicht"
+            plan.zellen["sannzenbacher_n"][tag].schicht = \
+                self.stamm.schichten["11-20" if tag != "sa" else "10-18"]
+        befunde = [b for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                   if b.regel == "max_stunden"]
+        self.assertTrue(befunde, "54 h muessen auffallen")
+        self.assertEqual(befunde[0].schwere, "fehler")
+
+    def test_normale_woche_bleibt_unbeanstandet(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for tag in ("mo", "di", "mi", "do", "fr"):
+            plan.zellen["kurka_j"][tag].art = "schicht"
+            plan.zellen["kurka_j"][tag].schicht = self.stamm.schichten["6-14"]
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("max_stunden", regeln)
+
+
 class TestKonten(unittest.TestCase):
     """Freie Samstage und Fehltage ueber mehrere Wochen ausgleichen."""
 

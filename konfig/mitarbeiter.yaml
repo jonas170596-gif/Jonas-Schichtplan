@@ -1,5 +1,7 @@
 # Stammdaten der Mitarbeiter.
 #
+#   vorname                      wie er am Wandkalender steht; darueber
+#                                ordnet daten/kalender.yaml die Eintraege zu
 #   faehigkeiten                 f = Fleisch, w = Wurst, o = Ofen
 #   soll_stunden                 Brutto-Wochenstunden inkl. Pause
 #   soll_tage                    angestrebte Arbeitstage pro Woche
@@ -24,6 +26,7 @@ mitarbeiter:
   # ---------------- Vollzeit, 40 h ----------------
   kurka_j:
     name: "J. Kurka"
+    vorname: Jonas
     faehigkeiten: [f, w, o]
     soll_stunden: 40
     soll_tage: 5
@@ -37,6 +40,7 @@ mitarbeiter:
 
   rohwer_c:
     name: "C. Rohwer"
+    vorname: Carmen
     faehigkeiten: [f, w, o]
     soll_stunden: 40
     soll_tage: 5
@@ -53,6 +57,7 @@ mitarbeiter:
 
   marino_a:
     name: "A. Marino"
+    vorname: Anna
     faehigkeiten: [f, w, o]
     soll_stunden: 40
     soll_tage: 5
@@ -66,6 +71,7 @@ mitarbeiter:
   # ---------------- Teilzeit ----------------
   sannzenbacher_n:
     name: "N. Sannzenbacher"
+    vorname: Nadine
     faehigkeiten: [f, w]
     soll_stunden: 30
     soll_tage: 4
@@ -76,6 +82,7 @@ mitarbeiter:
 
   reich_s:
     name: "S. Reich"
+    vorname: Sibylle
     faehigkeiten: [w]
     soll_stunden: 30
     soll_tage: 4
@@ -85,6 +92,7 @@ mitarbeiter:
 
   nachtrieb_i:
     name: "I. Nachtrieb"
+    vorname: Ingrid
     faehigkeiten: [f, w]
     soll_stunden: 24               # Monatsmittel, einzelne Wochen duerfen abweichen
     soll_tage: 3
@@ -95,6 +103,7 @@ mitarbeiter:
 
   kohl_b:
     name: "B. Kohl"
+    vorname: Baerbel
     faehigkeiten: [w]
     soll_stunden: 30
     soll_tage: 4
@@ -104,6 +113,7 @@ mitarbeiter:
 
   kurz_c:
     name: "C. Kurz"
+    vorname: Carina
     faehigkeiten: [f, w, o]
     soll_stunden: 20               # offizieller Vertrag; gearbeitet wird das alte Muster
     soll_tage: 3
@@ -117,6 +127,7 @@ mitarbeiter:
 
   kurz_u:
     name: "U. Kurz"
+    vorname: Ursel
     faehigkeiten: [f, w]
     moeglichst_wenig: true         # leichter Gegendruck, damit sie nicht
                                    # ohne Not eingeteilt wird
@@ -135,6 +146,7 @@ mitarbeiter:
   # ---------------- Azubi ----------------
   menzler_a:
     name: "A. Menzler"
+    vorname: Alex
     faehigkeiten: [f, w]
     soll_stunden: 40               # Wochensoll inklusive Berufsschule
     soll_tage: 5
@@ -156,5 +168,6 @@ mitarbeiter:
 
   kurz_t:
     name: "T. Kurz"
+    vorname: Thomas
     im_plan: false
     notiz: "In der Historie nie in Winterbach eingeplant."
