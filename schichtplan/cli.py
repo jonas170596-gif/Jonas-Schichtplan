@@ -594,9 +594,14 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
                   if erreichbar < ziel - bewerter.bedarf.wochenstunden_gesamt_toleranz
                   else "")
         brutto = bewerter.bruttostunden(plan)
-        zeilen.append(f"{'Stunden gesamt':<18}{ist:.1f} h netto (Budget {ziel:.0f} h"
-                      f"{zusatz}; {brutto:.1f} h Anwesenheit minus Pausen, "
-                      f"Azubi nicht gezaehlt)")
+        n = bewerter.schichtzahl(plan)
+        pause = bewerter.bedarf.pause_minuten
+        zeilen.append(f"{'Stunden gesamt':<18}{ist:.1f} h netto  "
+                      f"(= {brutto:.1f} h Anwesenheit minus {n} x {pause} min Pause, "
+                      f"ohne Azubi)")
+        zeilen.append(f"{'':<18}Obergrenze {ziel:.0f} h netto{zusatz}. "
+                      f"Mit Azubi waeren es "
+                      f"{bewerter.bruttostunden(plan, alle=True):.1f} h Anwesenheit.")
     return "\n".join(zeilen)
 
 

@@ -859,11 +859,19 @@ class Bewerter:
                    if self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
                    for z in reihe.values())
 
-    def bruttostunden(self, plan: Plan) -> float:
+    def bruttostunden(self, plan: Plan, alle: bool = False) -> float:
+        """Anwesenheitsstunden ohne Pausenabzug. `alle` nimmt den Azubi dazu."""
         return sum(z.stunden
                    for mid, reihe in plan.zellen.items()
-                   if self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
+                   if alle or self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
                    for z in reihe.values())
+
+    def schichtzahl(self, plan: Plan, alle: bool = False) -> int:
+        """Wie viele Schichten - so viele Pausen gehen ab."""
+        return sum(1
+                   for mid, reihe in plan.zellen.items()
+                   if alle or self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
+                   for z in reihe.values() if z.arbeitet)
 
     def _stundenbudget(self, plan: Plan, add):
         """Die 255 h sind eine Obergrenze, kein Ziel.

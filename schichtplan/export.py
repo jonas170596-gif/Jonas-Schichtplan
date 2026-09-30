@@ -170,10 +170,12 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
                   else "")
         budget = (f'<div class="budget">Verkaeuferstunden gesamt: '
                   f'<b style="color:{ampel}">{ist:.1f} h netto</b> '
-                  f'(Budget {ziel:.0f} h{e(zusatz)}; '
-                  f'{bewerter.bruttostunden(plan):.1f} h Anwesenheit abzueglich '
-                  f'{stamm.bedarf.pause_minuten} min Pause je Schicht, '
-                  f'Azubistunden nicht gezaehlt)</div>')
+                  f'= {bewerter.bruttostunden(plan):.1f} h Anwesenheit abzueglich '
+                  f'{bewerter.schichtzahl(plan)} &times; '
+                  f'{stamm.bedarf.pause_minuten} min Pause, ohne Azubi. '
+                  f'Obergrenze {ziel:.0f} h netto{e(zusatz)}; mit Azubi waeren es '
+                  f'{bewerter.bruttostunden(plan, alle=True):.1f} h Anwesenheit.'
+                  f'</div>')
 
     hinweise = ""
     if bewertung is not None:
