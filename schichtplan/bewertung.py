@@ -667,6 +667,24 @@ class Bewerter:
                 f"{m.name}: {konto:+.1f} h Stundenkonto in {fenster} Wochen, "
                 f"im Schnitt sind es {schnitt_h:+.1f} h" if weg else "", "warnung")
 
+    def _kurzgrenze(self, mid: str) -> float:
+        """Kuerzeste Schicht, die fuer diese Person noch sinnvoll ist.
+
+        Im Plan steht die volle Schicht - ob jemand frueher geht, entscheidet
+        sich im Betrieb, nicht auf dem Papier. Der Faktor ist an zwei
+        Beispielen geeicht: 6-12 ist fuer eine 40-Stunden-Kraft zu kurz,
+        11-18 am Samstag in Ordnung. Nach oben begrenzt die kuerzeste Schicht,
+        die der/die MA ohnehin gewohnt ist - C. Kurz arbeitet mittwochs 8-13,
+        das soll kein Befund sein."""
+        m = self.stamm.mitarbeiter[mid]
+        tagwert = (self.soll_stunden[mid] / m.soll_tage) if m.soll_tage else 0.0
+        grenze = 0.85 * tagwert
+        gewohnt = [self.stamm.schichten[sid].dauer_h for sid in m.stamm_schichten
+                   if sid in self.stamm.schichten]
+        if gewohnt:
+            grenze = min(grenze, min(gewohnt))
+        return max(self.stamm.regeln.min_schicht_h, grenze)
+
     def _stammdaten_pruefung(self, add):
         """Vertragsstunden, die die gewohnten Schichten gar nicht hergeben.
 
@@ -1081,12 +1099,7 @@ class Bewerter:
                             f"{m.name}: {TAG_LANG[a]} spaet, {TAG_LANG[b_]} frueh - "
                             f"bei ihr ausgeschlossen (langer Heimweg)", "fehler")
 
-            # Untergrenze je Person: drei Viertel ihres normalen Arbeitstags,
-            # mindestens aber min_schicht_h. Fuer eine 40-Stunden-Kraft mit
-            # 8-Stunden-Tagen sind fuenf Stunden keine Schicht, fuer C. Kurz
-            # mit knapp sechs schon.
-            tagwert = (self.soll_stunden[mid] / m.soll_tage) if m.soll_tage else 0.0
-            kurz = max(self.stamm.regeln.min_schicht_h, 0.75 * tagwert)
+            kurz = self._kurzgrenze(mid)
             for tag, z in reihe.items():
                 if z.arbeitet and z.schicht.dauer_h < kurz:
                     # Fuer zwei, drei Stunden fahert niemand in den Laden. Ohne

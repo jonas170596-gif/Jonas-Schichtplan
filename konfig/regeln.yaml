@@ -8,9 +8,12 @@ ruhezeit_min_h: 10        # harte Untergrenze (Spaet 11-20 -> Frueh 6-14 sind ge
                           # kommt in den Altplaenen regelmaessig vor)
 stunden_toleranz_h: 3     # Abweichung vom Wochensoll, die straffrei bleibt
 max_tage_in_folge: 6
-min_schicht_h: 5          # absolute Untergrenze. Je Person gilt zusaetzlich
-                          # drei Viertel ihres normalen Arbeitstags - fuer eine
-                          # 40-Stunden-Kraft also sechs Stunden.
+min_schicht_h: 5          # absolute Untergrenze. Je Person gilt zusaetzlich 85 %
+                          # ihres normalen Arbeitstags, aber nie mehr als ihre
+                          # kuerzeste gewohnte Schicht. Im Plan steht die volle
+                          # Schicht - ob jemand frueher geht, entscheidet der Betrieb.
+                          # Geeicht: 6-12 ist fuer eine 40-Stunden-Kraft zu kurz,
+                          # 11-18 am Samstag geht in Ordnung.
 wechsel_max_pro_woche: 1  # kurze Wechsel (Spaetschicht bis 20 Uhr -> Frueh ab 6 Uhr)
                           # je Mitarbeiter und Woche; jeder weitere wird teuer
 ausgleich_fenster_wochen: 4  # rollierendes Fenster fuer den Frueh/Spaet-Ausgleich
