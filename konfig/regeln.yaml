@@ -8,6 +8,9 @@ ruhezeit_min_h: 10        # harte Untergrenze (Spaet 11-20 -> Frueh 6-14 sind ge
                           # kommt in den Altplaenen regelmaessig vor)
 stunden_toleranz_h: 3     # Abweichung vom Wochensoll, die straffrei bleibt
 max_tage_in_folge: 6
+min_schicht_h: 5          # absolute Untergrenze. Je Person gilt zusaetzlich
+                          # drei Viertel ihres normalen Arbeitstags - fuer eine
+                          # 40-Stunden-Kraft also sechs Stunden.
 wechsel_max_pro_woche: 1  # kurze Wechsel (Spaetschicht bis 20 Uhr -> Frueh ab 6 Uhr)
                           # je Mitarbeiter und Woche; jeder weitere wird teuer
 ausgleich_fenster_wochen: 4  # rollierendes Fenster fuer den Frueh/Spaet-Ausgleich
@@ -42,7 +45,13 @@ gewichte:
   # jemanden zu Hause zu lassen.
   kopfzahl_ueber: 900       # je Kopf ueber der Zielkopfzahl
   besetzung_unter: 250      # je fehlender Person und Halbstunde
-  besetzung_ueber: 10       # je ueberzaehliger Person und Halbstunde
+  besetzung_ueber: 14       # ab der zweiten ueberzaehligen Person je Halbstunde.
+                            # Das ist
+                            # der Hebel fuer den Umsatz je Verkaeuferstunde:
+                            # wer um 11 nicht gebraucht wird, faengt um 14 an.
+                            # Muss die gewohnte Schicht (stammschicht 110) ueber
+                            # drei Stunden schlagen, aber unter besetzung_unter
+                            # bleiben - Unterbesetzung ist nie ein Sparziel.
   # Frueh- und Schlussbesetzung sind ausdrueckliche Mindestvorgaben und muessen
   # die aus der Historie gemittelte Zielkopfzahl schlagen - sonst spart der
   # Planer lieber einen Kopf, als die Vorgabe zu erfuellen.
@@ -56,9 +65,7 @@ gewichte:
   # Obergrenze aber auch schwer: die Kopfzahl deckelt die Anzahl der Leute,
   # also ist das Budget der einzige Zug zu laengeren Schichten. 34 Personen-
   # tage mal 8 h brutto sind genau die 255 h netto.
-  gesamtstunden_ueber: 90   # je Stunde ueber dem Wochenbudget (ohne Azubi)
-  gesamtstunden_unter: 60   # je Stunde darunter, aber nur wenn die Mannschaft
-                            # sie haette leisten koennen - sonst nur ein Hinweis
+  gesamtstunden_ueber: 90   # je Stunde ueber der Obergrenze (ohne Azubi)
 
   # --- Team und Faehigkeiten ---
   faehigkeit: 2500          # Fleisch/Wurst/Ofen nicht besetzt (praktisch hart)
@@ -77,14 +84,20 @@ gewichte:
   # Ueber dem Soll bleibt teurer als darunter: Ueberstunden muss jemand
   # wirklich leisten, Minusstunden entstehen aus der Besetzung der Woche.
   # Wen sie treffen, regeln die beiden Konten weiter unten.
-  wochenstunden: 14         # je Stunde ueber dem Soll
-  wochenstunden_unter: 4    # je Stunde darunter
+  wochenstunden: 45         # je Stunde ueber dem Soll - Mehrarbeit muss jemand
+                            # leisten und darf nie billiger sein als eine Stunde
+                            # unter Soll
+  wochenstunden_unter: 40   # je Stunde darunter. Seit das Wochenbudget nur
+                            # noch eine Obergrenze ist, ist der Vertrag der
+                            # einzige Boden - sonst plant der Planer die Leute
+                            # auf die Mindestbesetzung herunter.
   arbeitstage: 120          # je Tag ueber dem Soll
   arbeitstage_unter: 90     # je Tag darunter
   max_tage: 5000            # Ueberschreitung von max_tage (praktisch hart)
   max_stunden: 800          # je Stunde ueber max_wochenstunden
   praesenztage: 900         # Schichten + Schultage weichen von der Vorgabe ab
   tage_in_folge: 300        # je Tag ueber max_tage_in_folge
+  kurzschicht: 200          # je Stunde, die eine Schicht unter min_schicht_h liegt
 
   # --- Wuensche ---
   wunsch_frei: 200          # nicht erfuellter Wunschfreitag

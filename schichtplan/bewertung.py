@@ -457,6 +457,10 @@ class Bewerter:
                     unter += soll - ist
                     luecken.append(start + i)
                 elif soll and ist > soll + 1:
+                    # Eine Person ueber der Kurve ist frei: nachmittags verlangt
+                    # sie nur zwei, die Zielkopfzahl aber fuenf Koepfe am Tag -
+                    # die muessen irgendwo stehen. Ab der zweiten ueberzaehligen
+                    # Person ist es eine Verkaeuferstunde, die keiner braucht.
                     ueber += ist - soll - 1
             if unter:
                 from .modelle import zu_zeit
@@ -862,36 +866,29 @@ class Bewerter:
                    for z in reihe.values())
 
     def _stundenbudget(self, plan: Plan, add):
+        """Die 255 h sind eine Obergrenze, kein Ziel.
+
+        Jede geplante Verkaeuferstunde kostet ein wenig: der Umsatz je Stunde
+        steigt, wenn dieselbe Besetzung mit weniger Stunden auskommt. Nach
+        unten halten die Besetzungskurve, die Arbeitstage und die beiden
+        Konten dagegen - es soll sparsam geplant werden, nicht knapp."""
         ziel = self.gesamtbudget()
         if not ziel:
             return
         ist = self.gesamtstunden(plan)
         toleranz = self.bedarf.wochenstunden_gesamt_toleranz
-        # Ueber Budget verschlechtert den Umsatz je Verkaeuferstunde und ist
-        # eine echte Planungsentscheidung. Unter Budget liegt meist an
-        # Abwesenheiten und laesst sich nicht wegplanen - das wird gemeldet,
-        # aber nur leicht gewichtet, sonst kaempft es gegen die Besetzung.
         add("gesamtstunden_ueber", max(0.0, ist - ziel - toleranz),
             f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - {ist - ziel:.1f} h darueber"
             if ist - ziel > toleranz else "", "warnung")
         if ziel - ist > toleranz:
-            # Bestraft wird nur der Teil der Luecke, den die anwesende
-            # Mannschaft ueberhaupt schliessen koennte. Was an Abwesenheiten
-            # liegt, laesst sich nicht wegplanen - Punkte dafuer wuerden den
-            # Planer nur dazu bringen, anderswo Unsinn zu bauen.
             erreichbar = self.erreichbare_stunden()
-            machbar = min(ziel, erreichbar)
-            add("gesamtstunden_unter", max(0.0, machbar - ist - toleranz),
-                f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - {machbar - ist:.1f} h "
-                f"ungenutzt, die Mannschaft haette {machbar:.0f} h hergeben koennen"
-                if machbar - ist > toleranz else "", "warnung")
-            if erreichbar < ziel - toleranz:
-                add("gesamtstunden_unter", 0,
-                    f"Gesamt {ist:.1f} h, Budget {ziel:.0f} h - mehr als "
-                    f"{erreichbar:.0f} h sind diese Woche nicht unterzubringen "
-                    f"(Sollstunden der Anwesenden und Zielkopfzahl je Tag), "
-                    f"der Rest waere Mehrarbeit oder Ueberbesetzung",
-                    "hinweis", nur_melden=True)
+            knapp = min(ziel, erreichbar)
+            add("gesamtstunden_unter", 0,
+                f"Gesamt {ist:.1f} h netto - {ziel - ist:.1f} h unter der "
+                f"Obergrenze von {ziel:.0f} h"
+                + (f" (mehr als {knapp:.0f} h waeren diese Woche ohnehin nicht "
+                   f"unterzubringen)" if knapp < ziel - toleranz else ""),
+                "hinweis", nur_melden=True)
 
     # ---- Arbeitszeit --------------------------------------------------- #
     def _arbeitszeit(self, plan: Plan, add):
@@ -1060,6 +1057,21 @@ class Bewerter:
                         add("spaet_vor_frueh", 1,
                             f"{m.name}: {TAG_LANG[a]} spaet, {TAG_LANG[b_]} frueh - "
                             f"bei ihr ausgeschlossen (langer Heimweg)", "fehler")
+
+            # Untergrenze je Person: drei Viertel ihres normalen Arbeitstags,
+            # mindestens aber min_schicht_h. Fuer eine 40-Stunden-Kraft mit
+            # 8-Stunden-Tagen sind fuenf Stunden keine Schicht, fuer C. Kurz
+            # mit knapp sechs schon.
+            tagwert = (self.soll_stunden[mid] / m.soll_tage) if m.soll_tage else 0.0
+            kurz = max(self.stamm.regeln.min_schicht_h, 0.75 * tagwert)
+            for tag, z in reihe.items():
+                if z.arbeitet and z.schicht.dauer_h < kurz:
+                    # Fuer zwei, drei Stunden fahert niemand in den Laden. Ohne
+                    # diese Bremse zerlegt der Planer die Schichten, um Stunden
+                    # zu sparen, und die Leute stehen mit Splittern da.
+                    add("kurzschicht", kurz - z.schicht.dauer_h,
+                        f"{m.name}: {TAG_LANG[tag]} nur {z.schicht.dauer_h:.1f} h "
+                        f"({z.schicht.label}) - unter {kurz:.0f} h", "warnung")
 
             for tag in m.bevorzugte_freie_tage:
                 if tag in self.tage and reihe[tag].arbeitet:

@@ -502,10 +502,13 @@ hoch, dass sie praktisch hart sind:
 | `kopfzahl` / `kopfzahl_ueber` | Zielkopfzahl je Tag - sie ist zugleich Untergrenze und Obergrenze |
 | `besetzung_unter` / `_ueber` | Mindestbesetzungskurve ueber den Tag |
 | `frueh_besetzung` / `schluss_besetzung` | genug Leute zum Aufbau und bis Ladenschluss |
-| `gesamtstunden` | 255 h je Woche, ohne Azubi, gekuerzt um Ausfaelle |
+| `gesamtstunden_ueber` | 255 h je Woche sind eine **Obergrenze**, ohne Azubi |
+| `besetzung_ueber` | ueberzaehlige Anwesenheit - der Hebel fuer den Umsatz je Stunde |
+| `kurzschicht` | Splitterschichten unter drei Vierteln des Arbeitstags |
 | `wechsel_ueber_limit` | hoechstens 1 kurzer Wechsel (20 Uhr -> 6 Uhr) je MA und Woche |
 | `wochenstunden` / `arbeitstage` | ueber dem individuellen Wochenmodell - Ueberstunden |
-| `wochenstunden_unter` / `arbeitstage_unter` | darunter; leicht gewichtet, die Verteilung regeln die Konten |
+| `wochenstunden_unter` | darunter - der Vertrag ist der Boden, seit das Budget nur noch deckelt |
+| `arbeitstage_unter` | ein Tag weniger als vereinbart; die Verteilung regeln die Konten |
 | `wunsch_frei` / `wunsch_schicht` | Wuensche der Woche |
 | `freie_tage_zusammenhaengend` | Kohls freie Tage aneinander |
 | `frueh_spaet_ausgleich` | Frueh und Spaet gleichen sich ueber 4 Wochen aus |
@@ -574,6 +577,31 @@ Ein Sonderfall bleibt: wessen Vertragsstunden die gewohnten Schichten gar nicht
 hergeben, laeuft dauerhaft ins Minus, ohne dass der Planer etwas falsch macht.
 Das meldet der Hinweis `stammdaten`; zu klaeren ist es in
 `konfig/mitarbeiter.yaml`.
+
+### Sparsam planen
+
+Die 255 h sind eine **Obergrenze, kein Ziel**. Dieselbe Besetzung mit weniger
+Stunden hebt den Umsatz je Verkaeuferstunde, also wird nach unten nichts
+bestraft - nur gemeldet. Was die Stunden trotzdem oben haelt:
+
+* die Mindestbesetzungskurve `besetzung_min` - das ist die eigentliche
+  Untergrenze des Plans,
+* `wochenstunden_unter`: der Vertrag jedes Einzelnen ist der Boden. Ohne ihn
+  plant der Planer alle auf die Mindestbesetzung herunter,
+* `kurzschicht`: keine Splitter. Die Untergrenze ist je Person drei Viertel
+  ihres normalen Arbeitstags, mindestens `min_schicht_h` - fuer eine
+  40-Stunden-Kraft also sechs Stunden, fuer C. Kurz gut vier.
+
+Nach unten zieht `besetzung_ueber`: jede Halbstunde, in der mehr als eine
+Person ueber der Kurve steht. Genau das schiebt eine Spaetschicht von 11 Uhr
+auf 14 Uhr, wo sie um 11 nicht gebraucht wird. Wer feste Startzeiten hat
+(Sannzenbacher und Kohl 12 Uhr, Marino und Rohwer 11 Uhr), hat 14-20 gar nicht
+in `erlaubte_schichten` - verschoben werden koennen nur Menzler, Nachtrieb,
+Reich und U. Kurz.
+
+Wie viel das ausmacht, haengt an der Woche: in KW42 sind es rund 20 h gegenueber
+der alten Rechnung, in der das Budget ein Ziel war und die Leute ueber ihre
+Vertragsstunden hinaus eingeplant wurden.
 
 ### Pausen
 

@@ -458,39 +458,6 @@ class TestBewertung(unittest.TestCase):
         self.assertLessEqual(b.erreichbare_stunden(),
                              plaetze * (laengste - b.bedarf.pause_h))
 
-    def test_unterdeckung_durch_abwesenheit_ist_nur_ein_hinweis(self):
-        """Was die Mannschaft nicht leisten kann, darf der Planer nicht
-        gegen die Besetzungsregeln aufwiegen."""
-        v = self._sauber()
-        for mid in ("marino_a", "rohwer_c", "kohl_b"):
-            v.abwesend[mid] = {t: "urlaub" for t in TAGE}
-        plan = grundgeruest(self.stamm, v)
-        befunde = [b for b in pruefen(plan, self.stamm, v).befunde
-                   if b.regel == "gesamtstunden_unter"]
-        self.assertTrue(befunde)
-        ohne_punkte = [b for b in befunde if b.punkte == 0]
-        self.assertTrue(ohne_punkte, "die unvermeidbare Luecke muss punktfrei sein")
-        self.assertIn("Sollstunden", ohne_punkte[0].text)
-
-    def test_nur_die_behebbare_luecke_kostet_punkte(self):
-        """Was die Mannschaft haette leisten koennen, zaehlt; der Rest nicht."""
-        v = self._sauber()
-        for mid in ("marino_a", "rohwer_c", "kohl_b"):
-            v.abwesend[mid] = {t: "urlaub" for t in TAGE}
-        b = Bewerter(self.stamm, v)
-        plan = grundgeruest(self.stamm, v)
-        mit_punkten = sum(x.punkte for x in b.bewerte(plan, detail=True).befunde
-                          if x.regel == "gesamtstunden_unter")
-        erreichbar = b.erreichbare_stunden()
-        toleranz = self.stamm.bedarf.wochenstunden_gesamt_toleranz
-        erwartet = (erreichbar - toleranz) * self.stamm.regeln.gewichte[
-            "gesamtstunden_unter"]
-        self.assertAlmostEqual(mit_punkten, erwartet)
-
-    def test_ueber_budget_wiegt_schwerer_als_darunter(self):
-        g = self.stamm.regeln.gewichte
-        self.assertGreater(g["gesamtstunden_ueber"], g["gesamtstunden_unter"])
-
     def test_reserve_kostet_je_stunde(self):
         """Der Gegendruck wirkt ohne Meldung - Reservestunden, die der Laden
         braucht, sind kein Befund."""
@@ -899,6 +866,63 @@ class TestPausen(unittest.TestCase):
         self.assertEqual(b.gesamtstunden(plan), 15.0)
 
 
+class TestSparsamPlanen(unittest.TestCase):
+    """Die 255 h sind eine Obergrenze, kein Ziel: wer dieselbe Besetzung mit
+    weniger Stunden hinbekommt, hebt den Umsatz je Verkaeuferstunde."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+
+    def test_unter_budget_kostet_nichts(self):
+        g = self.stamm.regeln.gewichte
+        self.assertNotIn("gesamtstunden_unter", g)
+        self.assertGreater(g["gesamtstunden_ueber"], 0)
+
+    def test_unter_budget_wird_gemeldet_ohne_punkte(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        befunde = [b for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                   if b.regel == "gesamtstunden_unter"]
+        self.assertTrue(befunde)
+        self.assertEqual([b.punkte for b in befunde], [0.0])
+
+    def test_ueber_budget_kostet(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for mid in self.stamm.mitarbeiter:
+            m = self.stamm.mitarbeiter[mid]
+            if not (m.im_plan and "11-20" in m.erlaubte_schichten):
+                continue
+            for tag in ("mo", "di", "mi", "do", "fr"):
+                plan.zellen[mid][tag].art = "schicht"
+                plan.zellen[mid][tag].schicht = self.stamm.schichten["11-20"]
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertIn("gesamtstunden_ueber", regeln)
+
+    def test_vertrag_ist_der_boden(self):
+        """Ohne diesen Boden plant der Planer alle auf die Mindestbesetzung
+        herunter - das Budget haelt seit der Umstellung nichts mehr dagegen."""
+        g = self.stamm.regeln.gewichte
+        self.assertGreaterEqual(g["wochenstunden_unter"], g["besetzung_ueber"])
+
+    def test_splitterschichten_werden_bemaengelt(self):
+        """Fuer drei Stunden faehrt niemand in den Laden."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        plan.zellen["kurka_j"]["mo"].art = "schicht"
+        plan.zellen["kurka_j"]["mo"].schicht = self.stamm.schichten["6-11"]
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "kurzschicht"]
+        self.assertTrue(any("Kurka" in x for x in texte), texte)
+
+    def test_die_untergrenze_haengt_am_vertragstag(self):
+        """5 h sind fuer eine 40-Stunden-Kraft zu wenig, fuer C. Kurz nicht."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        plan.zellen["kurz_c"]["mi"].art = "schicht"
+        plan.zellen["kurz_c"]["mi"].schicht = self.stamm.schichten["8-13"]   # 5 h
+        texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                 if b.regel == "kurzschicht"]
+        self.assertEqual([x for x in texte if "C. Kurz" in x], [])
+
+
 class TestKategorieprofil(unittest.TestCase):
     """Montag bis Donnerstag: zwei Frueh, eine Mittel, zwei Spaet."""
 
@@ -1037,8 +1061,7 @@ class TestUeberbesetzung(unittest.TestCase):
     def test_ein_kopf_zu_viel_kostet_mehr_als_ein_freier_tag(self):
         """Sonst stellt der Planer lieber jemanden ueberzaehlig in den Laden."""
         g = self.stamm.regeln.gewichte
-        freier_tag = (g["arbeitstage_unter"] + g["wochenstunden_unter"] * 8
-                      + g["gesamtstunden_unter"] * 8)
+        freier_tag = g["arbeitstage_unter"] + g["wochenstunden_unter"] * 8
         self.assertGreater(g["kopfzahl_ueber"] + g["besetzung_ueber"] * 16,
                            freier_tag * 0.9)
 
@@ -1053,11 +1076,11 @@ class TestUeberbesetzung(unittest.TestCase):
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
         self.assertIn("kopfzahl_ueber", regeln)
 
-    def test_unter_soll_ist_billiger_als_ueber_soll(self):
-        """Ueberstunden muss jemand leisten, Minusstunden entstehen von selbst."""
+    def test_ueberstunden_sind_nie_billiger_als_ein_ausfall(self):
+        """Mehrarbeit muss jemand wirklich leisten."""
         g = self.stamm.regeln.gewichte
-        self.assertLess(g["wochenstunden_unter"], g["wochenstunden"])
-        self.assertLess(g["arbeitstage_unter"], g["arbeitstage"])
+        self.assertGreaterEqual(g["wochenstunden"], g["wochenstunden_unter"])
+        self.assertGreater(g["arbeitstage"], g["arbeitstage_unter"])
 
     def test_stundenkonto_misst_gegen_den_teamschnitt(self):
         """Wer genau im Schnitt liegt, zahlt nichts - egal wie gross das

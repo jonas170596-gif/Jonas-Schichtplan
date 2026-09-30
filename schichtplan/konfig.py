@@ -140,6 +140,7 @@ class Regeln:
     ruhezeit_min_h: float = 10.0
     stunden_toleranz_h: float = 0.0
     max_tage_in_folge: int = 6
+    min_schicht_h: float = 5.0          # kuerzere Schichten lohnen den Weg nicht
     samstag_fenster_wochen: int = 0     # Fenster fuers Samstagskonto, 0 = ganze Historie
     samstag_toleranz: float = 1.0       # so viele Samstage Rueckstand bleiben straffrei
     fehltage_toleranz: float = 1.0      # so viele Fehltage im Fenster bleiben straffrei
@@ -325,6 +326,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         ruhezeit_min_h=float(roh_r.get("ruhezeit_min_h", 10)),
         stunden_toleranz_h=float(roh_r.get("stunden_toleranz_h", 0)),
         max_tage_in_folge=int(roh_r.get("max_tage_in_folge", 6)),
+        min_schicht_h=float(roh_r.get("min_schicht_h", 5)),
         samstag_fenster_wochen=int(roh_r.get("samstag_fenster_wochen", 0)),
         samstag_toleranz=float(roh_r.get("samstag_toleranz", 1)),
         fehltage_toleranz=float(roh_r.get("fehltage_toleranz", 1)),
