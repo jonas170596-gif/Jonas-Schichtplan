@@ -12,15 +12,23 @@ oeffnung:                     # Planungsfenster, nicht Ladenoeffnung
   fr: {von: "06:00", bis: "20:00"}
   sa: {von: "06:00", bis: "18:00"}
 
-# Wochenbudget fuer die Umsatzziele je Verkaeuferstunde. Azubistunden zaehlen
-# nicht mit (menzler_a: zaehlt_stundenbudget: false). Faellt jemand ganz oder
-# teilweise aus, sinkt das Budget automatisch um dessen Sollstunden.
-# Von jeder Schicht wird eine halbe Stunde Pause abgezogen (ArbZG 4). Die
-# Summen im Plan und das Budget unten sind deshalb Nettostunden - das ist
-# die Zeit, die tatsaechlich als Verkaeuferstunde zaehlt.
+# Von jeder Schicht wird eine halbe Stunde Pause abgezogen (ArbZG 4). Das
+# gilt fuer die Summenspalte je Mitarbeiter im Plan - das ist die bezahlte
+# Arbeitszeit.
 pause_minuten: 30
 
-wochenstunden_gesamt: 255
+# Die Kennzahl der Filiale rechnet anders, und danach richtet sich das Budget:
+# "Arbeitszeit in Stunden / EUR-Wochenumsatz (brutto)". Also Anwesenheit ohne
+# Pausenabzug, Azubi mitgezaehlt, Soll 105 EUR je Stunde. Bei 27.000 EUR
+# Wochenumsatz sind das die 255 h vom Auswertungsblatt.
+#
+# Stehen umsatz_erwartet und umsatz_je_stunde, werden die Sollstunden daraus
+# gerechnet und wochenstunden_gesamt ist nur noch der Rueckfall. Den erwarteten
+# Umsatz kann jede Wochenvorgabe ueberschreiben - eine Vorweihnachtswoche
+# traegt mehr Stunden als eine im Februar.
+umsatz_je_stunde: 105
+umsatz_erwartet: 27000
+wochenstunden_gesamt: 255     # Rueckfall, falls kein Umsatz hinterlegt ist
 wochenstunden_gesamt_toleranz: 5
 
 kopfzahl_toleranz_unter: 0    # unter der Zielkopfzahl wird sofort bestraft

@@ -125,9 +125,16 @@ gewichte:
   spaet_vor_frueh: 2500     # Spaetschicht direkt vor einer Fruehschicht bei MA,
                             # fuer die das ausgeschlossen ist (praktisch hart)
   bevorzugte_kategorie: 120 # je Schicht ausserhalb der Lieblingskategorie
-  wochenwechsel_uneinheitlich: 300  # die Tage des Blocks liegen auf verschiedenen Seiten
+  # Die drei muessen zueinander passen, sonst sitzt der Planer fest. Um Rohwers
+  # Fr/Sa von frueh auf spaet zu drehen, muss er einen Tag nach dem anderen
+  # umstellen - dazwischen liegen die beiden Tage auseinander. Waere dieser
+  # Zwischenschritt teurer als der falsche Takt, geht er ihn nie:
+  #   beide auf der falschen Seite  450
+  #   Tage liegen auseinander       200   <- der Weg dazwischen
+  #   beide auf der richtigen         0
+  wochenwechsel: 450        # zweite Woche in Folge dieselbe Seite
+  wochenwechsel_uneinheitlich: 200  # die Tage des Blocks liegen auf verschiedenen Seiten
   wochenwechsel_unvollstaendig: 260 # geschlossener Block nur halb belegt
-  wochenwechsel: 220        # zweite Woche in Folge dieselbe Seite
   bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA

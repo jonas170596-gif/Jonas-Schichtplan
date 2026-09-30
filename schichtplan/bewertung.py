@@ -798,17 +798,23 @@ class Bewerter:
 
     # ---- Gesamtstundenbudget -------------------------------------------- #
     def gesamtbudget(self) -> float:
-        """Das Wochenbudget aus bedarf.yaml - unabhaengig von Abwesenheiten.
+        """Sollstunden der Woche - brutto, inklusive Azubi.
 
-        Es haengt am Umsatz, nicht an der Anwesenheit: wer Urlaub hat, senkt
-        den Umsatzbedarf nicht. Frueher wurde es um die ausgefallenen
-        Sollstunden gekuerzt, das war falsch - in einer Woche mit drei
-        Abwesenden forderte die Besetzung dann mehr Stunden, als das
-        gekuerzte Budget erlaubte, und beide Regeln arbeiteten gegeneinander."""
-        return self.bedarf.wochenstunden_gesamt
+        So rechnet die Kennzahlenauswertung der Filiale: Arbeitszeit in
+        Stunden gegen Wochenumsatz, Ziel 105 EUR je Stunde. Bei 27.000 EUR
+        Umsatz sind das 255 h. Steht ein erwarteter Umsatz in der
+        Wochenvorgabe, werden die Sollstunden daraus gerechnet - eine
+        Vorweihnachtswoche traegt mehr Stunden als eine im Februar.
+
+        Das Budget haengt am Umsatz, nicht an der Anwesenheit: wer Urlaub
+        hat, senkt den Umsatzbedarf nicht."""
+        b = self.bedarf
+        if b.umsatz_erwartet and b.umsatz_je_stunde:
+            return b.umsatz_erwartet / b.umsatz_je_stunde
+        return b.wochenstunden_gesamt
 
     def erreichbare_stunden(self) -> float:
-        """Was die anwesende Mannschaft ueberhaupt leisten kann - netto.
+        """Was die anwesende Mannschaft ueberhaupt leisten kann - brutto.
 
         Drei Grenzen zugleich: das Wochensoll samt Toleranz, die laengste
         Schicht, die der/die Einzelne arbeiten darf, und - seit die
@@ -838,29 +844,38 @@ class Bewerter:
                         else self.stamm.regeln.stunden_toleranz_h)
             deckel = self.laengste_schicht.get(mid) or 0.0
             brutto = min(ziel + toleranz, tage * deckel) if deckel else ziel
-            kandidaten.append((brutto / tage, tage, m.zaehlt_stundenbudget))
+            kandidaten.append((brutto / tage, tage))
 
         summe = 0.0
-        for pro_tag, tage, zaehlt in sorted(kandidaten, reverse=True):
+        for pro_tag, tage in sorted(kandidaten, reverse=True):
             # Die ergiebigsten Plaetze zuerst - das ist die Obergrenze.
             tage = min(tage, plaetze)
             plaetze -= tage
-            if zaehlt:
-                summe += max(0.0, tage * (pro_tag - self.bedarf.pause_h))
+            summe += max(0.0, tage * pro_tag)
             if plaetze <= 0:
                 break
         return summe
 
     def gesamtstunden(self, plan: Plan) -> float:
-        """Nettostunden gegen das Budget - Pause ist abgezogen."""
-        pause = self.bedarf.pause_h
-        return sum(z.netto_stunden(pause)
-                   for mid, reihe in plan.zellen.items()
-                   if self.stamm.mitarbeiter[mid].zaehlt_stundenbudget
+        """Die Kennzahl der Filiale: Anwesenheit brutto, alle zusammen.
+
+        Kein Pausenabzug und der Azubi zaehlt mit - genau so steht es auf dem
+        Auswertungsblatt, gegen das der Umsatz je Stunde gerechnet wird. Die
+        Summenspalte je Mitarbeiter im Plan bleibt davon unberuehrt, die ist
+        netto (Plan.netto_stunden)."""
+        return sum(z.stunden
+                   for reihe in plan.zellen.values()
                    for z in reihe.values())
 
-    def bruttostunden(self, plan: Plan, alle: bool = False) -> float:
-        """Anwesenheitsstunden ohne Pausenabzug. `alle` nimmt den Azubi dazu."""
+    def nettostunden(self, plan: Plan) -> float:
+        """Bezahlte Arbeitszeit ohne Pausen - was die Summenspalten ergeben."""
+        pause = self.bedarf.pause_h
+        return sum(z.netto_stunden(pause)
+                   for reihe in plan.zellen.values()
+                   for z in reihe.values())
+
+    def bruttostunden(self, plan: Plan, alle: bool = True) -> float:
+        """Anwesenheitsstunden ohne Pausenabzug."""
         return sum(z.stunden
                    for mid, reihe in plan.zellen.items()
                    if alle or self.stamm.mitarbeiter[mid].zaehlt_stundenbudget

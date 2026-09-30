@@ -178,7 +178,9 @@ mitarbeiter:
     bevorzugte_kategorie: mittel   # als zweite Mittelschicht obendrauf; da ist
                                    # Zeit zum Lernen und Ueben. Spaetschichten
                                    # uebernimmt lieber jemand anderes.
-    zaehlt_stundenbudget: false    # Azubistunden zaehlen nicht gegen die 255 h
+    # zaehlt_stundenbudget bleibt true: das Auswertungsblatt der Filiale zaehlt
+    # seine Stunden mit. Dass er "offiziell nicht zaehlt", betrifft die
+    # Kopfzahl im Laden (zaehlt_kopfzahl), nicht die Stundenkennzahl.
     zaehlt_kopfzahl: [fr, sa]      # Mo-Do kommt er als zweite Mittelschicht auf
                                    # das Tagesgeruest obendrauf und belegt keinen
                                    # Platz aus bedarf.kopfzahl. Fr und Sa zaehlt

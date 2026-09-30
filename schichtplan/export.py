@@ -168,14 +168,16 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
         zusatz = (f", diese Woche unterzubringen sind hoechstens {erreichbar:.0f} h"
                   if erreichbar < ziel - stamm.bedarf.wochenstunden_gesamt_toleranz
                   else "")
-        budget = (f'<div class="budget">Verkaeuferstunden gesamt: '
-                  f'<b style="color:{ampel}">{ist:.1f} h netto</b> '
-                  f'= {bewerter.bruttostunden(plan):.1f} h Anwesenheit abzueglich '
-                  f'{bewerter.schichtzahl(plan)} &times; '
-                  f'{stamm.bedarf.pause_minuten} min Pause, ohne Azubi. '
-                  f'Obergrenze {ziel:.0f} h netto{e(zusatz)}; mit Azubi waeren es '
-                  f'{bewerter.bruttostunden(plan, alle=True):.1f} h Anwesenheit.'
-                  f'</div>')
+        b = stamm.bedarf
+        umsatz = (f' bei {b.umsatz_erwartet:,.0f} EUR Umsatz und '
+                  f'{b.umsatz_je_stunde:.0f} EUR/Std.'.replace(",", ".")
+                  if b.umsatz_erwartet and b.umsatz_je_stunde else "")
+        budget = (f'<div class="budget">Arbeitszeit gesamt: '
+                  f'<b style="color:{ampel}">{ist:.1f} h brutto</b> '
+                  f'(Soll {ziel:.0f} h{e(umsatz)}{e(zusatz)}) &mdash; '
+                  f'{bewerter.nettostunden(plan):.1f} h bezahlt, abzueglich '
+                  f'{bewerter.schichtzahl(plan, alle=True)} &times; '
+                  f'{b.pause_minuten} min Pause</div>')
 
     hinweise = ""
     if bewertung is not None:

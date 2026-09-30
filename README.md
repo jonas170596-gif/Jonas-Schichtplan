@@ -578,9 +578,37 @@ hergeben, laeuft dauerhaft ins Minus, ohne dass der Planer etwas falsch macht.
 Das meldet der Hinweis `stammdaten`; zu klaeren ist es in
 `konfig/mitarbeiter.yaml`.
 
+### Sollstunden, Brutto und Netto
+
+Zwei Stundenbegriffe stehen im Plan nebeneinander, und sie meinen verschiedene
+Dinge:
+
+* **Die Summenspalte je Mitarbeiter ist netto** - Anwesenheit minus einer
+  halben Stunde Pause je Schicht (`pause_minuten`, ArbZG 4). Das ist die
+  bezahlte Arbeitszeit.
+* **Die Kennzahl der Filiale ist brutto** - Anwesenheit ohne Pausenabzug, und
+  der Azubi zaehlt mit. Genau so steht es auf dem Auswertungsblatt:
+  "Arbeitszeit in Stunden / EUR-Wochenumsatz (brutto)", Soll 105 EUR je Stunde.
+
+Die Sollstunden kommen deshalb aus dem Umsatz und nicht aus einer festen Zahl:
+
+```yaml
+umsatz_je_stunde: 105       # konfig/bedarf.yaml
+umsatz_erwartet: 27000      # -> 257 Sollstunden brutto
+```
+
+27.000 EUR bei 105 EUR/Std. sind die 255 h vom Blatt. Jede Wochenvorgabe kann
+`umsatz_erwartet` ueberschreiben - eine Vorweihnachtswoche traegt mehr Stunden
+als eine im Februar. Ohne Umsatzangabe greift `wochenstunden_gesamt` als
+Rueckfall.
+
+Die 14 Altplaene liegen mit diesem Massstab im Schnitt bei 257,3 h brutto und
+treffen das Soll damit fast genau - nach der frueheren Rechnung (netto, ohne
+Azubi) waren es 216,9 h, und das Budget schien dauerhaft um 40 h unterschritten.
+
 ### Sparsam planen
 
-Die 255 h sind eine **Obergrenze, kein Ziel**. Dieselbe Besetzung mit weniger
+Die Sollstunden sind eine **Obergrenze, kein Ziel**. Dieselbe Besetzung mit weniger
 Stunden hebt den Umsatz je Verkaeuferstunde, also wird nach unten nichts
 bestraft - nur gemeldet. Was die Stunden trotzdem oben haelt:
 

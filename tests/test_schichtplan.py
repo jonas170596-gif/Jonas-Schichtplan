@@ -415,21 +415,34 @@ class TestBewertung(unittest.TestCase):
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
         self.assertIn("freie_tage_zusammenhaengend", regeln)
 
-    def test_azubistunden_zaehlen_nicht_gegen_das_budget(self):
+    def test_die_kennzahl_rechnet_brutto_und_mit_azubi(self):
+        """So steht es auf dem Auswertungsblatt der Filiale: Arbeitszeit in
+        Stunden gegen Wochenumsatz, ohne Pausenabzug, Azubi mitgezaehlt."""
         plan = grundgeruest(self.stamm, self.vorgabe)
         b = Bewerter(self.stamm, self.vorgabe)
         vorher = b.gesamtstunden(plan)
-        self._setze(plan, "menzler_a", "mo", "8-16")
-        self.assertEqual(b.gesamtstunden(plan), vorher)
+        self._setze(plan, "menzler_a", "mo", "8-16")          # 8 h
+        self.assertEqual(b.gesamtstunden(plan), vorher + 8.0)
+        self._setze(plan, "kurka_j", "mo", "6-14")            # nochmal 8 h
+        self.assertEqual(b.gesamtstunden(plan), vorher + 16.0)
+
+    def test_die_summenspalte_bleibt_netto(self):
+        """Die Kennzahl ist brutto, die bezahlte Zeit je Mitarbeiter nicht."""
+        v = self._sauber()
+        v.fest = {}                     # ein leeres Raster, nur eine Schicht
+        plan = grundgeruest(self.stamm, v)
+        b = Bewerter(self.stamm, v)
         self._setze(plan, "kurka_j", "mo", "6-14")
-        # 8 h Anwesenheit minus 30 min Pause
-        self.assertEqual(b.gesamtstunden(plan), vorher + 7.5)
+        self.assertEqual(plan.netto_stunden("kurka_j", b.bedarf.pause_h), 7.5)
+        self.assertEqual(b.gesamtstunden(plan), 8.0)
+        self.assertEqual(b.nettostunden(plan), 7.5)
 
     def test_budget_haengt_nicht_an_abwesenheiten(self):
         """Urlaub senkt den Umsatzbedarf nicht, also auch nicht das Budget."""
         v = self._sauber()
+        b = self.stamm.bedarf
         voll = Bewerter(self.stamm, v).gesamtbudget()
-        self.assertAlmostEqual(voll, self.stamm.bedarf.wochenstunden_gesamt)
+        self.assertAlmostEqual(voll, b.umsatz_erwartet / b.umsatz_je_stunde)
         v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
         self.assertAlmostEqual(Bewerter(self.stamm, v).gesamtbudget(), voll)
 
@@ -855,15 +868,15 @@ class TestPausen(unittest.TestCase):
         plan = grundgeruest(self.stamm, self.vorgabe)
         self.assertEqual(plan.netto_stunden("kurka_j", self.pause), 0.0)
 
-    def test_budget_rechnet_netto(self):
+    def test_kennzahl_brutto_bezahlte_zeit_netto(self):
         self.vorgabe.fest = {}          # sonst stehen schon Schichten im Raster
         plan = grundgeruest(self.stamm, self.vorgabe)
         for tag in ("mo", "di"):
             plan.zellen["rohwer_c"][tag].art = "schicht"
             plan.zellen["rohwer_c"][tag].schicht = self.stamm.schichten["6-14"]
         b = Bewerter(self.stamm, self.vorgabe)
-        self.assertEqual(b.bruttostunden(plan), 16.0)
-        self.assertEqual(b.gesamtstunden(plan), 15.0)
+        self.assertEqual(b.gesamtstunden(plan), 16.0)     # Kennzahl, brutto
+        self.assertEqual(b.nettostunden(plan), 15.0)      # bezahlte Zeit
 
 
 class TestSparsamPlanen(unittest.TestCase):
@@ -921,6 +934,35 @@ class TestSparsamPlanen(unittest.TestCase):
         texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
                  if b.regel == "kurzschicht"]
         self.assertEqual([x for x in texte if "C. Kurz" in x], [])
+
+
+class TestUmsatzbudget(unittest.TestCase):
+    """Die Sollstunden kommen aus dem erwarteten Umsatz: 27.000 EUR bei
+    105 EUR je Stunde sind die 255 h vom Auswertungsblatt."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+
+    def test_soll_kommt_aus_dem_umsatz(self):
+        b = self.stamm.bedarf
+        self.assertEqual(b.umsatz_je_stunde, 105)
+        soll = Bewerter(self.stamm, self.vorgabe).gesamtbudget()
+        self.assertAlmostEqual(soll, b.umsatz_erwartet / b.umsatz_je_stunde)
+        self.assertAlmostEqual(soll, 257.14, places=1)
+
+    def test_wochenvorgabe_kann_den_umsatz_uebersteuern(self):
+        """Eine Vorweihnachtswoche traegt mehr Stunden als eine im Februar."""
+        self.vorgabe.bedarf = {"umsatz_erwartet": 33600}
+        self.assertAlmostEqual(Bewerter(self.stamm, self.vorgabe).gesamtbudget(), 320.0)
+
+    def test_ohne_umsatz_greift_die_feste_stundenzahl(self):
+        import dataclasses
+        stamm = dataclasses.replace(
+            self.stamm,
+            bedarf=dataclasses.replace(self.stamm.bedarf, umsatz_erwartet=0))
+        self.assertAlmostEqual(Bewerter(stamm, self.vorgabe).gesamtbudget(),
+                               stamm.bedarf.wochenstunden_gesamt)
 
 
 class TestKategorieprofil(unittest.TestCase):
@@ -1094,6 +1136,7 @@ class TestUeberbesetzung(unittest.TestCase):
     def test_gleichmaessiges_minus_kostet_nichts(self):
         """Alle gleich weit zurueck heisst: gerecht verteilt."""
         v = self.vorgabe
+        v.fest = {}                     # ein wirklich leeres Raster
         b = Bewerter(self.stamm, v, self.wochen)
         gruppe = b._kontogruppe()
         # Der leere Plan legt jedem sein volles Wochensoll aufs Konto; die
@@ -1105,6 +1148,7 @@ class TestUeberbesetzung(unittest.TestCase):
 
     def test_einseitiges_minus_kostet(self):
         v = self.vorgabe
+        v.fest = {}
         b = Bewerter(self.stamm, v, self.wochen)
         gruppe = b._kontogruppe()
         b._minusstunden = {mid: 60.0 - b._ziel(mid)[0] for mid in gruppe}
@@ -1222,12 +1266,22 @@ class TestKonten(unittest.TestCase):
                            self.stamm.mitarbeiter["rohwer_c"].einsatzprioritaet)
 
     def test_fehltage_bei_marino_wiegen_schwerer_als_bei_rohwer(self):
+        """Gleicher Rueckstand, aber Marino soll ihre Tage eher bekommen.
+
+        Gemessen wird gegen den Teamschnitt, deshalb muessen die beiden
+        ueber dem Schnitt liegen - sonst kostet der Rueckstand nichts."""
+        self.vorgabe.fest = {}
+        b = Bewerter(self.stamm, self.vorgabe, self.historie)
+        b._fehltage = {mid: 0.0 for mid in self.stamm.mitarbeiter}
+        b._fehltage["marino_a"] = b._fehltage["rohwer_c"] = 6.0
+        befunde = b.bewerte(grundgeruest(self.stamm, self.vorgabe),
+                            detail=True).befunde
+
         def punkte(mid):
-            plan = grundgeruest(self.stamm, self.vorgabe)
-            b = Bewerter(self.stamm, self.vorgabe, self.historie)
-            return sum(x.punkte for x in b.bewerte(plan, detail=True).befunde
-                       if x.regel == "fehltage_konto"
-                       and self.stamm.mitarbeiter[mid].name in x.text)
+            name = self.stamm.mitarbeiter[mid].name
+            return sum(x.punkte for x in befunde
+                       if x.regel == "fehltage_konto" and name in x.text)
+        self.assertGreater(punkte("rohwer_c"), 0)
         self.assertGreater(punkte("marino_a"), punkte("rohwer_c"))
 
     def test_schultage_zaehlen_als_praesenz_im_fehltagekonto(self):

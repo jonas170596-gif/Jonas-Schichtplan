@@ -32,8 +32,13 @@ class Bedarf:
     besetzung_min: dict[str, list[tuple[int, int, int]]]   # tag -> [(von, bis, min)]
     kopfzahl_toleranz_unter: int = 0      # wie viele Koepfe unter Ziel straffrei
     kopfzahl_toleranz_ueber: int = 0      # wie viele Koepfe ueber Ziel straffrei
-    wochenstunden_gesamt: float = 0.0     # 0 = kein Gesamtbudget
+    wochenstunden_gesamt: float = 0.0     # 0 = kein Gesamtbudget. Brutto-
+                                          # Anwesenheit inkl. Azubi, so wie die
+                                          # Kennzahlenauswertung der Filiale rechnet
     wochenstunden_gesamt_toleranz: float = 5.0
+    umsatz_je_stunde: float = 0.0         # Soll-Umsatz je Verkaeuferstunde (105 EUR)
+    umsatz_erwartet: float = 0.0          # erwarteter Wochenumsatz; zusammen mit
+                                          # umsatz_je_stunde ergibt das die Sollstunden
     pause_minuten: int = 30            # je Schicht, wird von der Summe abgezogen
     kategorieprofil: dict[str, dict[str, int]] = field(default_factory=dict)
     feiertagsregeln: Feiertagsregeln = field(default_factory=Feiertagsregeln)
@@ -179,6 +184,10 @@ def effektiver_bedarf(grund: Bedarf, vorgabe) -> Bedarf:
             (zu_index(f["von"]), zu_index(f["bis"]), int(f["min"])) for f in fenster]
     if roh.get("wochenstunden_gesamt") is not None:
         neu.wochenstunden_gesamt = float(roh["wochenstunden_gesamt"])
+    if roh.get("umsatz_erwartet") is not None:
+        neu.umsatz_erwartet = float(roh["umsatz_erwartet"])
+    if roh.get("umsatz_je_stunde") is not None:
+        neu.umsatz_je_stunde = float(roh["umsatz_je_stunde"])
     return neu
 
 
@@ -307,6 +316,8 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         kopfzahl_toleranz_ueber=int(roh_b.get("kopfzahl_toleranz_ueber", 0)),
         wochenstunden_gesamt=float(roh_b.get("wochenstunden_gesamt", 0)),
         wochenstunden_gesamt_toleranz=float(roh_b.get("wochenstunden_gesamt_toleranz", 5)),
+        umsatz_je_stunde=float(roh_b.get("umsatz_je_stunde", 0)),
+        umsatz_erwartet=float(roh_b.get("umsatz_erwartet", 0)),
         pause_minuten=int(roh_b.get("pause_minuten", 30)),
         kategorieprofil={t_: {k: int(v) for k, v in p_.items()}
                          for t_, p_ in (roh_b.get("kategorieprofil") or {}).items()},
