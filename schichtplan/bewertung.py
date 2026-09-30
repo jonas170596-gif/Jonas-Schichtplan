@@ -475,15 +475,24 @@ class Bewerter:
             for tag in self.tage:
                 if not regel.gilt_am(tag):
                     continue
-                # Wer an dem Tag im Urlaub, krank oder in der Schule ist, kann
-                # die Regel nicht erfuellen. Der Anspruch sinkt entsprechend,
-                # sonst stuende bei jedem Urlaub eine unerfuellbare Forderung
-                # im Plan und der Solver wuerde sie gegen alles andere abwaegen.
-                verfuegbar = sum(
-                    1 for mid in regel.gruppe
-                    if tag not in self.vorgabe.abwesend.get(mid, {})
-                    and self.stamm.mitarbeiter[mid].im_plan)
+                # Wer an dem Tag nicht einsetzbar ist, kann die Regel nicht
+                # erfuellen - Urlaub, Schule, ein fester freier Tag oder ein im
+                # Kalender zugesagtes "frei". Der Anspruch sinkt entsprechend,
+                # sonst stuende eine unerfuellbare Forderung im Plan und der
+                # Solver wuerde sie gegen alles andere abwaegen. In KW45 hat
+                # Kurka den Montag frei - dann kann der Montagsanker an dem Tag
+                # nicht gelten.
+                verfuegbar = sum(1 for mid in regel.gruppe
+                                 if self.stamm.mitarbeiter[mid].im_plan
+                                 and self._einsetzbar(mid, tag))
                 noetig = min(regel.min, verfuegbar)
+                if noetig < regel.min:
+                    fehlen = [self.stamm.mitarbeiter[mid].name for mid in regel.gruppe
+                              if not self._einsetzbar(mid, tag)]
+                    add("gruppenbesetzung", 0,
+                        f"{TAG_LANG[tag]}: {regel.name} entfaellt - "
+                        f"{', '.join(fehlen)} nicht einsetzbar",
+                        "hinweis", nur_melden=True)
                 da = sum(1 for mid in regel.gruppe
                          if (z := plan.zellen.get(mid, {}).get(tag)) is not None
                          and z.arbeitet and regel.passt(tag, z.schicht))
@@ -642,6 +651,8 @@ class Bewerter:
         gruppe = self._kontogruppe()
         fenster = self.stamm.regeln.ausgleich_fenster_wochen
 
+        gruppe = [mid for mid in gruppe
+                  if any(self._einsetzbar(mid, t) for t in self.tage)]
         fehltage = {}
         for mid in gruppe:
             _, soll_t = self._ziel(mid)
@@ -657,7 +668,11 @@ class Bewerter:
                 f"{m.name}: {konto:.1f} Fehltage in {fenster} Wochen, "
                 f"im Schnitt sind es {schnitt_t:.1f}" if weg else "", "warnung")
 
-        stunden = self.stundenkonto(plan)
+        # Wer die ganze Woche abwesend ist, kann an seinem Konto nichts aendern
+        # und verzerrt nur den Schnitt. In KW44 waeren das Kurka, Kohl und
+        # Menzler mit drei Wochen Urlaub, waehrend der Rest Ueberstunden macht.
+        stunden = {mid: k for mid, k in self.stundenkonto(plan).items()
+                   if any(self._einsetzbar(mid, t) for t in self.tage)}
         schnitt_h = sum(stunden.values()) / len(stunden) if stunden else 0.0
         for mid, konto in stunden.items():
             m = self.stamm.mitarbeiter[mid]
@@ -925,7 +940,7 @@ class Bewerter:
             erreichbar = self.erreichbare_stunden()
             knapp = min(ziel, erreichbar)
             add("gesamtstunden_unter", 0,
-                f"Gesamt {ist:.1f} h netto - {ziel - ist:.1f} h unter der "
+                f"Gesamt {ist:.1f} h brutto - {ziel - ist:.1f} h unter der "
                 f"Obergrenze von {ziel:.0f} h"
                 + (f" (mehr als {knapp:.0f} h waeren diese Woche ohnehin nicht "
                    f"unterzubringen)" if knapp < ziel - toleranz else ""),

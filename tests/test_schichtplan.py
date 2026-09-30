@@ -277,14 +277,37 @@ class TestBewertung(unittest.TestCase):
                  if b.regel == "gruppenbesetzung"]
         self.assertFalse(any("Montags-Anker" in x for x in offen), offen)
 
+    def _anker(self, plan):
+        """Befunde zum Montagsanker, getrennt nach Punkten und blossem Hinweis."""
+        befunde = [b for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                   if b.regel == "gruppenbesetzung" and "Montags-Anker" in b.text]
+        return ([b.text for b in befunde if b.punkte > 0],
+                [b.text for b in befunde if b.punkte == 0])
+
     def test_kurka_montags_im_urlaub_blockiert_nicht(self):
-        """Eine Gruppenregel darf nicht an Abwesenden scheitern."""
+        """Eine Gruppenregel darf nicht an Abwesenden scheitern - gemeldet
+        wird der Ausfall trotzdem, nur ohne Punkte."""
         self.vorgabe.abwesend["kurka_j"] = {t: "urlaub" for t in TAGE}
         plan = grundgeruest(self.stamm, self.vorgabe)
         self._setze(plan, "rohwer_c", "mo", "6-14")
-        offen = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
-                 if b.regel == "gruppenbesetzung"]
-        self.assertFalse(any("Montags-Anker" in x for x in offen), offen)
+        punkte, hinweis = self._anker(plan)
+        self.assertEqual(punkte, [])
+        self.assertTrue(any("J. Kurka" in x for x in hinweis), hinweis)
+
+    def test_zugesagter_freier_montag_blockiert_auch_nicht(self):
+        """So liegt KW45: der Wandkalender gibt Kurka den Montag frei."""
+        self.vorgabe.fest.setdefault("kurka_j", {})["mo"] = "frei"
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "rohwer_c", "mo", "6-14")
+        punkte, hinweis = self._anker(plan)
+        self.assertEqual(punkte, [])
+        self.assertTrue(hinweis)
+
+    def test_anwesender_kurka_muss_montags_frueh_da_sein(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self._setze(plan, "rohwer_c", "mo", "6-14")
+        punkte, _ = self._anker(plan)
+        self.assertTrue(punkte, "ohne Kurka am Montag muss die Regel greifen")
 
     def _faehigkeitsluecken(self, plan, tag):
         return [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
