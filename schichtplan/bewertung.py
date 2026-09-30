@@ -369,17 +369,22 @@ class Bewerter:
     # ---- Besetzung ---------------------------------------------------- #
     def _besetzung(self, plan: Plan, add):
         b = self.bedarf
-        # Der Azubi zaehlt nicht gegen die Zielkopfzahl: er steht zusaetzlich
-        # im Laden, meist als zweite Mittelschicht, wo Zeit zum Lernen ist.
-        extra = {mid for mid, m in self.stamm.mitarbeiter.items()
-                 if not m.zaehlt_kopfzahl}
+        # Der Azubi zaehlt Mo-Do wahlweise mit: normalerweise steht er als zweite
+        # Mittelschicht zusaetzlich im Laden, bei einem Engpass macht er die
+        # Mittelschicht auch allein. Beides ist recht, deshalb ist die Kopfzahl
+        # an diesen Tagen eine Spanne. Fr und Sa zaehlt er fest mit - so sind
+        # die Zielkopfzahlen aus den Altplaenen gemittelt.
+        mitarbeiter = self.stamm.mitarbeiter
         for t in self.tage:
             zellen = [r[t] for r in plan.zellen.values() if r[t].arbeitet]
+            extra = {mid for mid, m in mitarbeiter.items() if not m.zaehlt_am(t)}
             koepfe = sum(1 for mid, r in plan.zellen.items()
                          if r[t].arbeitet and mid not in extra)
+            koepfe_max = sum(1 for r in plan.zellen.values() if r[t].arbeitet)
             ziel, _ = self.mindestwert(t, "kopfzahl", b.kopfzahl.get(t, koepfe))
             if koepfe < ziel:
-                weg = max(0, ziel - koepfe - b.kopfzahl_toleranz_unter)
+                # Wer wahlweise mitzaehlt, darf die Luecke schliessen.
+                weg = max(0, ziel - min(ziel, koepfe_max) - b.kopfzahl_toleranz_unter)
                 regel, wort = "kopfzahl", "nur"
             else:
                 weg = max(0, koepfe - ziel - b.kopfzahl_toleranz_ueber)
@@ -411,13 +416,19 @@ class Bewerter:
                 # darunter - deshalb wird nur ein Fehlbestand bestraft, kein
                 # Ueberhang.
                 ist = {"frueh": 0, "mittel": 0, "spaet": 0}
+                voll = {"frueh": 0, "mittel": 0, "spaet": 0}
                 for mid, r in plan.zellen.items():
-                    if r[t].arbeitet and mid not in extra:
+                    if not r[t].arbeitet:
+                        continue
+                    voll[r[t].schicht.kategorie] += 1
+                    if mid not in extra:
                         ist[r[t].schicht.kategorie] += 1
                 for kat, soll in profil.items():
-                    if ist[kat] < soll:
-                        add("kategorieprofil", soll - ist[kat],
-                            f"{TAG_LANG[t]}: {ist[kat]} statt {soll} "
+                    if voll[kat] < soll:
+                        # Der Azubi darf die Mittelschicht auch allein machen -
+                        # gemessen wird die Luecke deshalb an allen Anwesenden.
+                        add("kategorieprofil", soll - voll[kat],
+                            f"{TAG_LANG[t]}: {voll[kat]} statt {soll} "
                             f"{kat}-Schichten", "warnung")
                     elif ist[kat] > soll and kat != "mittel":
                         add("kategorieprofil", ist[kat] - soll,
@@ -688,11 +699,12 @@ class Bewerter:
                       for t in self.tage)
         vertrag = 0
         for mid, m in self.stamm.mitarbeiter.items():
-            if not (m.im_plan and m.aktiv and m.zaehlt_kopfzahl):
+            if not (m.im_plan and m.aktiv) or m.moeglichst_wenig:
                 continue
-            if m.moeglichst_wenig:
-                continue
-            vertrag += min(self._ziel(mid)[1], len(self.tage))
+            # Nur Tage, an denen der/die MA einen der Plaetze belegt. Der Azubi
+            # belegt Mo-Do keinen - dort kommt er obendrauf oder springt ein.
+            zaehlend = sum(1 for t in self.tage if m.zaehlt_am(t))
+            vertrag += min(self._ziel(mid)[1], zaehlend)
         return plaetze, vertrag
 
     def reservebedarf(self) -> int:
@@ -713,8 +725,10 @@ class Bewerter:
         reserve = 0
         fehlt: dict[str, int] = {}
         for mid, m in self.stamm.mitarbeiter.items():
-            if not (m.im_plan and m.aktiv and m.zaehlt_kopfzahl):
-                continue               # der Azubi steht zusaetzlich im Laden
+            if not (m.im_plan and m.aktiv):
+                continue
+            if all(not m.zaehlt_am(t) for t in self.tage):
+                continue               # steht durchweg zusaetzlich im Laden
             tage = sum(1 for z in plan.zellen[mid].values() if z.arbeitet)
             if m.moeglichst_wenig:
                 reserve += tage        # belegt Plaetze, ohne Soll zu haben
@@ -811,8 +825,9 @@ class Bewerter:
             else:
                 ziel, tage = self._ziel(mid)
             tage = min(tage, len(self.tage))
-            if not m.zaehlt_kopfzahl:
-                plaetze += tage        # steht zusaetzlich im Laden
+            tage = min(tage, sum(1 for t in self.tage if m.zaehlt_am(t)))
+            if tage <= 0:
+                continue
             if tage <= 0:
                 continue
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
@@ -1029,6 +1044,22 @@ class Bewerter:
                         f"{m.name}: {i + 1}. kurzer Wechsel in der Woche "
                         f"({TAG_LANG[a]} -> {TAG_LANG[b_]}, {pause / 2:.1f} h Ruhe) - "
                         f"erlaubt ist {grenze}", "warnung")
+
+            if m.kein_spaet_vor_frueh:
+                # Fuer wen der Heimweg lang ist, ist der Wechsel von der
+                # Spaetschicht in die Fruehschicht am Folgetag ausgeschlossen -
+                # unabhaengig davon, ob die Ruhezeit formal reicht.
+                for a, b_ in zip(self.tage, self.tage[1:]):
+                    za, zb = reihe[a], reihe[b_]
+                    if not (za.arbeitet and zb.arbeitet):
+                        continue
+                    if TAGE.index(b_) - TAGE.index(a) != 1:
+                        continue          # kein direkt folgender Kalendertag
+                    if za.schicht.kategorie == "spaet" and \
+                            zb.schicht.kategorie == "frueh":
+                        add("spaet_vor_frueh", 1,
+                            f"{m.name}: {TAG_LANG[a]} spaet, {TAG_LANG[b_]} frueh - "
+                            f"bei ihr ausgeschlossen (langer Heimweg)", "fehler")
 
             for tag in m.bevorzugte_freie_tage:
                 if tag in self.tage and reihe[tag].arbeitet:

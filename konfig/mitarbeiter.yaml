@@ -18,7 +18,9 @@
 #   schicht_wochenwechsel        Tagesblock, dessen Tage auf derselben Seite
 #                                liegen sollen; mit wechselt: true zusaetzlich
 #                                im Takt (eine Woche frueh, die naechste spaet)
-#   zaehlt_kopfzahl              false = steht zusaetzlich im Laden (Azubi)
+#   zaehlt_kopfzahl              false = steht zusaetzlich im Laden; eine Tagesliste
+#                                nennt die Tage, an denen der/die MA doch mitzaehlt
+#   kein_spaet_vor_frueh         true = Spaet und am Folgetag Frueh ist ausgeschlossen
 #   frueh_spaet_ausgleich        false = nimmt am Frueh/Spaet-Ausgleich nicht teil
 #   freie_tage_zusammenhaengend  true = freie Tage sollen aneinandergrenzen
 #   erlaubte_schichten           was der/die MA ueberhaupt arbeiten darf
@@ -81,6 +83,8 @@ mitarbeiter:
     soll_tage: 4
     bevorzugte_freie_tage: [mi, do]   # duerfen wandern, sollen aber zusammenbleiben
     freie_tage_zusammenhaengend: true
+    kein_spaet_vor_frueh: true        # langer Heimweg - Spaet und am naechsten Tag
+                                      # Frueh geht bei ihr nicht
     schicht_wochenwechsel:            # Mo/Di zusammen, Fr/Sa zusammen - aber
       - {tage: [mo, di], wechselt: false, geschlossen: true}
       - {tage: [fr, sa], wechselt: false, geschlossen: true}
@@ -175,9 +179,13 @@ mitarbeiter:
                                    # Zeit zum Lernen und Ueben. Spaetschichten
                                    # uebernimmt lieber jemand anderes.
     zaehlt_stundenbudget: false    # Azubistunden zaehlen nicht gegen die 255 h
-    zaehlt_kopfzahl: false         # und er belegt auch keinen der Plaetze aus
-                                   # bedarf.kopfzahl - er steht zusaetzlich im
-                                   # Laden, meist als zweite Mittelschicht
+    zaehlt_kopfzahl: [fr, sa]      # Mo-Do kommt er als zweite Mittelschicht auf
+                                   # das Tagesgeruest obendrauf und belegt keinen
+                                   # Platz aus bedarf.kopfzahl. Fr und Sa zaehlt
+                                   # er normal mit - so sind die Zielkopfzahlen
+                                   # aus den Altplaenen gemittelt.
+    bevorzugte_freie_tage: [mo, di]  # sein freier Tag soll frueh in der Woche
+                                     # liegen, nicht auf Fr oder Sa
     erlaubte_schichten: [8-16, 6-14, 11-20, 12-20, 6-13:30, 9-18, 10-18, 11-18, 12-18]
     stamm_schichten: {8-16: 0.45, 6-14: 0.20, 11-20: 0.10, 9-18: 0.10, 10-18: 0.10}
     notiz: >-

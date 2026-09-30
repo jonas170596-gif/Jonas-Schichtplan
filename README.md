@@ -177,13 +177,13 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 | J. Kurka | f w o | 40 | 5 | - | - | Frueh-Anker, **montags gesetzt**; Spaet nur im Notfall; freier Tag variabel (Di-Sa) |
 | C. Rohwer | f w o | 40 | 5 | Mi | - | Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet |
 | A. Marino | f w o | 40 | 5 | Mo | - | |
-| N. Sannzenbacher | f w | 30 | 4 | - | Mi, Do | nur 6-14 oder 12-20; Mo/Di und Fr/Sa jeweils dieselbe Schicht |
+| N. Sannzenbacher | f w | 30 | 4 | - | Mi, Do | nur 6-14 oder 12-20; Mo/Di und Fr/Sa jeweils dieselbe Schicht; **nie Spaet vor Frueh** (langer Heimweg) |
 | S. Reich | w | 30 | 4 | Mo, Mi | - | Aenderung nur nach Absprache |
 | I. Nachtrieb | f w | 24 | 3 (bis 5) | - | - | Monatsmittel, Wochentoleranz +/- 8 h |
 | B. Kohl | w | 30 | 4 | - | - | rund 7,5 h netto am Tag: 6-13:30, 8-15:30, 12-20, Sa 10-18 |
 | C. Kurz | f w o | 17 | 3 | Di | Fr, Sa | feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14, auf Nachfrage anders |
 | U. Kurz | f w | bis 22 | bis 3 | Di | - | Reserve: fuellt genau die Luecke zwischen Plaetzen und Vertragstagen |
-| A. Menzler | f w | 40* | 5* | - | - | Azubi und Springer; zaehlt nicht gegen die Zielkopfzahl |
+| A. Menzler | f w | 40* | 5* | - | Mo, Di | Azubi und Springer; Mo-Do zaehlt er wahlweise gegen die Zielkopfzahl |
 
 \* Menzler rechnet anders: 5 Praesenztage, Schichten **und** Schultage
 zusammen. Ein Schultag deckt 8 h des Wochensolls ab, also vier Schichten bei
@@ -192,10 +192,17 @@ wenn sonst niemand fehlt. Seine Stunden zaehlen nicht gegen das 255-h-Budget,
 und als Springer bekommt er keine Strafe fuer wechselnde Schichtarten.
 Spaetschichten sind moeglich, wenn die Besetzung es braucht - eine feste
 Obergrenze gibt es nicht. Die Regel gegen Spaet-Frueh-Wechsel gilt fuer ihn
-wie fuer alle anderen. Gegen die Zielkopfzahl zaehlt er nicht
-(`zaehlt_kopfzahl: false`): er steht zusaetzlich im Laden, meist als zweite
-Mittelschicht, wo Zeit zum Lernen und Ueben ist. Eine Wochenvorgabe, die
-`bedarf.kopfzahl` uebersteuert, meint deshalb immer die Koepfe **ohne** ihn.
+wie fuer alle anderen.
+
+Gegen die Zielkopfzahl zaehlt er **wahlweise** (`zaehlt_kopfzahl: [fr, sa]`).
+Montag bis Donnerstag kommt er normalerweise als zweite Mittelschicht auf das
+Tagesgeruest obendrauf - da ist Zeit zum Lernen und Ueben. Ist an einem Tag
+sonst niemand zu bekommen, macht er die Mittelschicht auch allein und fuellt
+den Platz. Beides ist recht, deshalb ist die Kopfzahl an diesen Tagen eine
+Spanne: ueberzaehlig macht er nie, eine Luecke darf er schliessen. Freitag und
+Samstag zaehlt er fest mit - so sind die Zielkopfzahlen aus den Altplaenen
+gemittelt (Schnitt mit Azubi 6,79 bzw. 6,38 bei Ziel 7). Eine Wochenvorgabe,
+die `bedarf.kopfzahl` uebersteuert, meint immer die Koepfe **ohne** ihn.
 
 Zwei Stellschrauben fuer Soll-Werte:
 
@@ -510,6 +517,7 @@ hoch, dass sie praktisch hart sind:
 | `wochenwechsel_unvollstaendig` | geschlossener Block nur halb belegt (Sannzenbacher Mo/Di) |
 | `wochenwechsel` | Rohwer Fr/Sa zweite Woche in Folge dieselbe Seite |
 | `schichtwunsch` (Schicht) | C. Kurz Mo 8-14 / Mi 8-13 / Do 8-14 |
+| `spaet_vor_frueh` | Sannzenbacher nie Spaetschicht vor einer Fruehschicht |
 | `bevorzugter_freier_tag` | weiche freie Tage (Sannzenbacher Mi/Do, C. Kurz Fr/Sa) |
 | `stammschicht` | jeder bekommt moeglichst seine gewohnte Schicht |
 | `sparsam_einsetzen` | leichter Gegendruck gegen Reservestunden, ohne Meldung |

@@ -277,7 +277,9 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
                                  in (m.get("abwesenheit_stunden") or {}).items()},
             moeglichst_wenig=bool(m.get("moeglichst_wenig", False)),
             zaehlt_stundenbudget=bool(m.get("zaehlt_stundenbudget", True)),
-            zaehlt_kopfzahl=bool(m.get("zaehlt_kopfzahl", True)),
+            zaehlt_kopfzahl=(roh_k if isinstance(roh_k := m.get("zaehlt_kopfzahl", True),
+                                                 (bool, list)) else bool(roh_k)),
+            kein_spaet_vor_frueh=bool(m.get("kein_spaet_vor_frueh", False)),
             stunden_toleranz_h=(float(m["stunden_toleranz_h"])
                                 if m.get("stunden_toleranz_h") is not None else None),
             erlaubte_schichten=erlaubt,

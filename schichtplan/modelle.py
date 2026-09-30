@@ -103,7 +103,12 @@ class Mitarbeiter:
     abwesenheit_stunden: dict[str, float] = field(default_factory=dict)
     moeglichst_wenig: bool = False
     zaehlt_stundenbudget: bool = True
-    zaehlt_kopfzahl: bool = True        # False -> steht zusaetzlich im Laden (Azubi)
+    # True | False | Liste von Tagen, an denen der/die MA mitzaehlt. Der Azubi
+    # kommt Mo-Do als zweite Mittelschicht aufs Tagesgeruest obendrauf, Fr und
+    # Sa zaehlt er normal mit - so stehen die Zielkopfzahlen in den Altplaenen.
+    zaehlt_kopfzahl: bool | list[str] = True
+    kein_spaet_vor_frueh: bool = False  # Spaetschicht direkt vor einer Fruehschicht
+                                        # ist ausgeschlossen (langer Heimweg)
     stunden_toleranz_h: float | None = None
     erlaubte_schichten: list[str] = field(default_factory=list)
     stamm_schichten: dict[str, float] = field(default_factory=dict)  # id -> Gewicht 0..1
@@ -112,6 +117,12 @@ class Mitarbeiter:
 
     def kann(self, faehigkeit: str) -> bool:
         return faehigkeit in self.faehigkeiten
+
+    def zaehlt_am(self, tag: str) -> bool:
+        """Zaehlt der/die MA an dem Tag gegen die Zielkopfzahl?"""
+        if isinstance(self.zaehlt_kopfzahl, bool):
+            return self.zaehlt_kopfzahl
+        return tag in self.zaehlt_kopfzahl
 
 
 @dataclass
