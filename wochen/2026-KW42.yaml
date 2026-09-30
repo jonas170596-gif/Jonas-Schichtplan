@@ -23,9 +23,13 @@ sonstige: {}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
 fest: 
-  kohl_b: {mi: frei}
-  kurz_c: {do: frei}
-  kurka_j: {fr: frei}
+  kurka_j: {fr: frei}              # Kalender 16.10.
+  sannzenbacher_n: {mi: frei}
+  nachtrieb_i: {mi: 6-14}
+  reich_s: {do: frei}
+  kohl_b: {mo: frei, mi: 12-20}    # Kalender hatte Mi frei - von Hand ueberstimmt
+  kurz_c: {mi: 8-13, do: 8-14, sa: frei}   # Kalender hatte Do frei - ueberstimmt
+  kurz_u: {mi: frei, sa: 8-16}
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
 
