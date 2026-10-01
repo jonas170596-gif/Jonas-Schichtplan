@@ -175,7 +175,7 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 | | kann | Stunden | Tage | fest frei | bevorzugt frei | Besonderheit |
 |---|---|---|---|---|---|---|
 | J. Kurka | f w o | 40 | 5 | - | - | Frueh-Anker, **montags gesetzt**; Spaet nur im Notfall; freier Tag variabel (Di-Sa) |
-| C. Rohwer | f w o | 40 | 5 | Mi | - | Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet |
+| C. Rohwer | f w o | 40 | 5 | Mi | - | Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet; **ein freier Fr oder Sa ist erlaubt**, auch wenn sie dafuer unter fuenf Tage faellt |
 | A. Marino | f w o | 40 | 5 | Mo | - | |
 | N. Sannzenbacher | f w | 30 | 4 | - | Mi, Do | nur 6-14 oder 12-20; Mo/Di und Fr/Sa jeweils dieselbe Schicht; **nie Spaet vor Frueh** (langer Heimweg) |
 | S. Reich | w | 30 | 4 | Mo, Mi | - | Aenderung nur nach Absprache |
@@ -183,7 +183,7 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 | B. Kohl | w | 30 | 4 | - | - | rund 7,5 h netto am Tag: 6-13:30, 8-15:30, 12-20, Sa 10-18 |
 | C. Kurz | f w o | 17 | 3 | Di | Fr, Sa | feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14, auf Nachfrage anders |
 | U. Kurz | f w | bis 22 | bis 3 | Di | - | Reserve: fuellt genau die Luecke zwischen Plaetzen und Vertragstagen |
-| A. Menzler | f w | 40* | 5* | - | Mo, Di | Azubi und Springer; Mo-Do zaehlt er wahlweise gegen die Zielkopfzahl |
+| A. Menzler | f w | 40* | 5* | - | Mo, Di | Azubi und Springer; Mo-Do zaehlt er wahlweise mit; **keine Fruehschicht unter drei Koepfen** |
 
 \* Menzler rechnet anders: 5 Praesenztage, Schichten **und** Schultage
 zusammen. Ein Schultag deckt 8 h des Wochensolls ab, also vier Schichten bei
@@ -630,6 +630,53 @@ Reich und U. Kurz.
 Wie viel das ausmacht, haengt an der Woche: in KW42 sind es rund 20 h gegenueber
 der alten Rechnung, in der das Budget ein Ziel war und die Leute ueber ihre
 Vertragsstunden hinaus eingeplant wurden.
+
+### Aushilfe aus einer anderen Filiale
+
+Wenn mehrere gleichzeitig Urlaub haben, reicht die eigene Mannschaft nicht.
+Dann kommt jemand aus einer anderen Filiale dazu - nur fuer diese eine Woche,
+deshalb steht sie in der Wochenvorgabe und nicht in den Stammdaten:
+
+```yaml
+aushilfe:
+  - id: aushilfe_1
+    name: "M. Weber (Schorndorf)"
+    faehigkeiten: [f, w]        # f = Fleisch, w = Wurst, o = Ofen
+    soll_stunden: 32
+    soll_tage: 4
+    tage: [do, fr, sa]          # weglassen = ganze Woche
+```
+
+Sie zaehlt normal gegen Kopfzahl, Besetzungskurve und Faehigkeiten, nimmt aber
+an keinem der rollierenden Konten teil - naechste Woche ist sie wieder weg.
+
+In KW44 (Kurka, Kohl und Menzler gleichzeitig im Urlaub, zehn Personentage zu
+wenig) faellt der Plan damit von 6645 auf 3780 Strafpunkte, und Freitag und
+Samstag sind wieder voll besetzt.
+
+### Mitten in der Woche umplanen
+
+Faellt jemand am Mittwoch aus, sind Montag und Dienstag schon gearbeitet. Die
+duerfen sich nicht mehr aendern:
+
+```
+python -m schichtplan plan wochen/2026-KW44.yaml \
+       --ab mi --bestehend ausgabe/2026-KW44.json
+```
+
+Alles vor dem genannten Tag wird aus dem bestehenden Plan uebernommen und
+festgesetzt, der Rest neu gerechnet. Den Ausfall vorher unter `krank`
+eintragen - Urlaub und Krankheit gehen den uebernommenen Zellen vor.
+
+### Konten auf einen Blick
+
+```
+python -m schichtplan konten --html ausgabe/konten.html
+```
+
+Frueh/Spaet, freie Samstage und das Stundenkonto in einer Tabelle, dazu der
+Wochenverlauf je Mitarbeiter als Spur. Das beantwortet die Frage, die beim
+Planen wirklich zaehlt: wer ist insgesamt dran?
 
 ### Pausen
 

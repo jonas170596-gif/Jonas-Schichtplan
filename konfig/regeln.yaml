@@ -125,6 +125,12 @@ gewichte:
                             # Schicht. Rohwers Mo-Do frueh und die feste Struktur
                             # von C. Kurz sind Absprachen, keine Vorlieben - das
                             # muss die gewohnte Schicht und die Konten schlagen.
+  azubi_fuellt_luecke: 150  # der Azubi schliesst eine Luecke in der Kopfzahl.
+                            # Erlaubt, aber ein Kopf mit Vertrag ist besser -
+                            # montags gehoert die zweite Mittelschicht C. Kurz,
+                            # der Azubi kommt obendrauf.
+  frueh_zu_duenn: 900       # Azubi in einer duenn besetzten Fruehschicht -
+                            # fachlich traegt er sie noch nicht mit
   spaet_vor_frueh: 2500     # Spaetschicht direkt vor einer Fruehschicht bei MA,
                             # fuer die das ausgeschlossen ist (praktisch hart)
   bevorzugte_kategorie: 120 # je Schicht ausserhalb der Lieblingskategorie

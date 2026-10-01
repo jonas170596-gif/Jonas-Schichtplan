@@ -120,6 +120,12 @@ class Bewerter:
         freien Tag hat, muss samstags ran - dann waere ein Rueckstand im
         Konto eine Forderung, die der Planer nie erfuellen kann."""
         m = self.stamm.mitarbeiter[mid]
+        if m.samstag_moeglich:
+            # Ausdruecklich zugelassen: dann darf sie dafuer unter ihre
+            # Solltage fallen. Rohwer hat Mittwoch fest frei und fuenf
+            # Solltage - ohne diese Ausnahme kaeme sie nie an einen freien
+            # Samstag, und das Konto waere eine Dauerforderung ins Leere.
+            return False
         verfuegbar = len(set(self.stamm.bedarf.offene_tage) - set(m.feste_freie_tage))
         return verfuegbar - m.soll_tage <= 0
 
@@ -383,7 +389,13 @@ class Bewerter:
             koepfe_max = sum(1 for r in plan.zellen.values() if r[t].arbeitet)
             ziel, _ = self.mindestwert(t, "kopfzahl", b.kopfzahl.get(t, koepfe))
             if koepfe < ziel:
-                # Wer wahlweise mitzaehlt, darf die Luecke schliessen.
+                # Wer wahlweise mitzaehlt, darf die Luecke schliessen - aber
+                # lieber kommt jemand mit Vertrag. Montags ist die zweite
+                # Mittelschicht fuer C. Kurz gedacht, der Azubi obendrauf.
+                springt_ein = min(ziel, koepfe_max) - koepfe
+                add("azubi_fuellt_luecke", springt_ein,
+                    f"{TAG_LANG[t]}: {springt_ein} Platz vom Azubi gefuellt - "
+                    f"mit Vertrag waere jemand anderes dran" if springt_ein else "")
                 weg = max(0, ziel - min(ziel, koepfe_max) - b.kopfzahl_toleranz_unter)
                 regel, wort = "kopfzahl", "nur"
             else:
@@ -1097,6 +1109,23 @@ class Bewerter:
                         f"{m.name}: {i + 1}. kurzer Wechsel in der Woche "
                         f"({TAG_LANG[a]} -> {TAG_LANG[b_]}, {pause / 2:.1f} h Ruhe) - "
                         f"erlaubt ist {grenze}", "warnung")
+
+            if m.frueh_ab_koepfen:
+                # Der Azubi ist fachlich noch nicht so weit, die Fruehschicht
+                # zu zweit zu stemmen. Er darf frueh arbeiten, aber nur wenn
+                # genug erfahrene Leute daneben stehen.
+                for tag in self.tage:
+                    z = reihe[tag]
+                    if not (z.arbeitet and z.schicht.kategorie == "frueh"):
+                        continue
+                    koepfe = sum(1 for r in plan.zellen.values()
+                                 if r[tag].arbeitet
+                                 and r[tag].schicht.kategorie == "frueh")
+                    if koepfe < m.frueh_ab_koepfen:
+                        add("frueh_zu_duenn", m.frueh_ab_koepfen - koepfe,
+                            f"{m.name}: {TAG_LANG[tag]} frueh mit nur {koepfe} "
+                            f"Koepfen - er braucht mindestens "
+                            f"{m.frueh_ab_koepfen}", "warnung")
 
             if m.kein_spaet_vor_frueh:
                 # Fuer wen der Heimweg lang ist, ist der Wechsel von der

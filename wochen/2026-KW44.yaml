@@ -44,6 +44,17 @@ arbeitet: {}
 
 # Nur diese Schichten kommen an dem Tag in Frage (oder frei).
 # Zusammen mit wunsch_frei bildet das "frueh oder frei" ab.
+# Leihkraft aus einer anderen Filiale - gilt nur fuer diese Woche.
+#   faehigkeiten: f = Fleisch, w = Wurst, o = Ofen
+#   tage:         an welchen Tagen sie kann (weglassen = ganze Woche)
+aushilfe: []
+#  - id: aushilfe_1
+#    name: "M. Weber (Schorndorf)"
+#    faehigkeiten: [f, w]
+#    soll_stunden: 32
+#    soll_tage: 4
+#    tage: [do, fr, sa]
+
 nur_schichten: 
   marino_a: {sa: [6-14]}
 #  kurz_u: {sa: [6-14]}

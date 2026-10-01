@@ -182,6 +182,10 @@ def effektiver_bedarf(grund: Bedarf, vorgabe) -> Bedarf:
     for tag, fenster in (roh.get("besetzung_min") or {}).items():
         neu.besetzung_min[tag] = [
             (zu_index(f["von"]), zu_index(f["bis"]), int(f["min"])) for f in fenster]
+    neu.aushilfe = list(roh.get("aushilfe") or [])
+    for a in neu.aushilfe:
+        if not a.get("id") or not a.get("name"):
+            raise ValueError("aushilfe: jede Leihkraft braucht 'id' und 'name'")
     if roh.get("wochenstunden_gesamt") is not None:
         neu.wochenstunden_gesamt = float(roh["wochenstunden_gesamt"])
     if roh.get("umsatz_erwartet") is not None:
@@ -290,6 +294,8 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             zaehlt_kopfzahl=(roh_k if isinstance(roh_k := m.get("zaehlt_kopfzahl", True),
                                                  (bool, list)) else bool(roh_k)),
             kein_spaet_vor_frueh=bool(m.get("kein_spaet_vor_frueh", False)),
+            samstag_moeglich=bool(m.get("samstag_moeglich", False)),
+            frueh_ab_koepfen=int(m.get("frueh_ab_koepfen", 0) or 0),
             stunden_toleranz_h=(float(m["stunden_toleranz_h"])
                                 if m.get("stunden_toleranz_h") is not None else None),
             erlaubte_schichten=erlaubt,
@@ -402,6 +408,58 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
                           for k, v in (roh_t.get("faehigkeiten") or {}).items()},
         wochenwechsel=verteilung,
     )
+
+
+def mit_aushilfen(stamm: Stammdaten, vorgabe) -> Stammdaten:
+    """Stammdaten um die Leihkraefte dieser Woche ergaenzt.
+
+    In einer Woche wie KW44, in der drei Leute gleichzeitig Urlaub haben,
+    fehlen zehn Personentage. Dann kommt jemand aus einer anderen Filiale.
+    Die Aushilfe steht nur in der Wochenvorgabe, nicht in den Stammdaten -
+    naechste Woche ist sie wieder weg.
+
+        aushilfe:
+          - id: aushilfe_schorndorf
+            name: "M. Weber (Schorndorf)"
+            faehigkeiten: [f, w]
+            soll_stunden: 24
+            soll_tage: 3
+            tage: [do, fr, sa]        # nur an diesen Tagen verfuegbar
+    """
+    import dataclasses
+    if not vorgabe.aushilfe:
+        return stamm
+    mitarbeiter = dict(stamm.mitarbeiter)
+    alle = set(stamm.schichten)
+    for a in vorgabe.aushilfe:
+        mid = a["id"]
+        if mid in mitarbeiter:
+            raise ValueError(f"aushilfe/{mid}: das Kuerzel gibt es schon in den Stammdaten")
+        erlaubt = list(a.get("erlaubte_schichten") or sorted(alle))
+        unbekannt = [x for x in erlaubt if x not in alle]
+        if unbekannt:
+            raise ValueError(f"aushilfe/{mid}: unbekannte Schichten {unbekannt}")
+        tage = _tageliste(a.get("tage")) if a.get("tage") else list(TAGE)
+        mitarbeiter[mid] = Mitarbeiter(
+            id=mid,
+            name=a["name"],
+            vorname=a.get("vorname", ""),
+            soll_stunden=float(a.get("soll_stunden", 0)),
+            soll_tage=int(a.get("soll_tage", 0)),
+            max_tage=int(a.get("max_tage", a.get("soll_tage", 6))),
+            faehigkeiten=frozenset(a.get("faehigkeiten") or []),
+            feste_freie_tage=[t for t in TAGE if t not in tage],
+            erlaubte_schichten=erlaubt,
+            samstag_konto=False,        # kein Konto - sie ist naechste Woche weg
+            frueh_spaet_ausgleich=False,
+            notiz=a.get("notiz", "Aushilfe, nur diese Woche"),
+        )
+        # Tage ausserhalb ihrer Verfuegbarkeit gelten als abwesend, damit sie
+        # weder in den Konten noch in der Tagesbilanz als Luecke erscheinen.
+        for t in TAGE:
+            if t not in tage:
+                vorgabe.abwesend.setdefault(mid, {})[t] = "nicht_im_plan"
+    return dataclasses.replace(stamm, mitarbeiter=mitarbeiter)
 
 
 @dataclass
@@ -572,6 +630,7 @@ class Wochenvorgabe:
     modus: str = "auto"                                 # auto | manuell
     bedarf: dict = field(default_factory=dict)          # Uebersteuerung je Woche
     regeln_aus: list[str] = field(default_factory=list)  # Regeln, die nicht gelten
+    aushilfe: list[dict] = field(default_factory=list)   # Leihkraft aus einer anderen Filiale
     notiz: str = ""
 
 
@@ -584,6 +643,16 @@ def _tageliste(wert) -> list[str]:
     if unbekannt:
         raise ValueError(f"unbekannte Wochentage: {unbekannt}")
     return list(wert)
+
+
+def _aushilfen(roh) -> list[dict]:
+    """Leihkraefte aus der Wochenvorgabe, nur grob geprueft - den Rest macht
+    `mit_aushilfen`, wenn der Schichtkatalog bekannt ist."""
+    liste = list(roh or [])
+    for a in liste:
+        if not isinstance(a, dict) or not a.get("id") or not a.get("name"):
+            raise ValueError("aushilfe: jede Leihkraft braucht 'id' und 'name'")
+    return liste
 
 
 def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
@@ -652,5 +721,6 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
         modus=modus,
         bedarf=dict(roh.get("bedarf") or {}),
         regeln_aus=list(roh.get("regeln_aus") or []),
+        aushilfe=_aushilfen(roh.get("aushilfe")),
         notiz=roh.get("notiz", ""),
     )

@@ -98,6 +98,11 @@ class Mitarbeiter:
     bevorzugte_kategorie: str = ""      # bekommt am liebsten diese Schichtart
     einsatzprioritaet: float = 1.0      # >1: bekommt eher Tage als andere
     samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
+    samstag_moeglich: bool = False      # True = ein freier Samstag ist erlaubt,
+                                        # auch wenn Solltage und feste freie Tage
+                                        # die Woche rechnerisch ausfuellen
+    frueh_ab_koepfen: int = 0           # Fruehschicht nur, wenn so viele Koepfe
+                                        # in der Fruehschicht stehen (Azubi)
     springer: bool = False
     praesenztage: int | None = None          # Arbeitstage + gezaehlte Abwesenheiten
     abwesenheit_stunden: dict[str, float] = field(default_factory=dict)

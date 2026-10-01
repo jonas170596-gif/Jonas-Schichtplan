@@ -30,7 +30,7 @@ from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .feiertage import Kalender, feiertage_bw, sondertage
 from .historie import kalenderabgleich, lade_historie
-from .konfig import (KONFIG_DIR, Wochenvorgabe, lade_kalender,
+from .konfig import (KONFIG_DIR, Wochenvorgabe, lade_kalender, mit_aushilfen,
                      lade_schulplaene, lade_stammdaten, lade_wochenvorgabe)
 from .modelle import ABWESEND, TAGE, TAG_LANG, Plan, Zelle, zu_index
 
@@ -320,9 +320,45 @@ def cmd_feiertage(args) -> int:
     return 0
 
 
+def _restwoche_fixieren(vorgabe, stamm, pfad: str, ab: str) -> None:
+    """Alles vor `ab` aus einem bestehenden Plan uebernehmen und festnageln.
+
+    Fuer den Fall, der im Betrieb staendig vorkommt: mitten in der Woche faellt
+    jemand aus. Die Tage, die schon gearbeitet sind, stehen fest - nur der Rest
+    wird neu gerechnet. Den Ausfall traegt man vorher unter 'krank' ein."""
+    if ab not in TAGE:
+        raise ValueError(f"--ab {ab!r}: erwartet eines von {', '.join(TAGE)}")
+    alt_plan = _plan_aus_json(pathlib.Path(pfad), stamm)
+    grenze = TAGE.index(ab)
+    uebernommen = 0
+    for mid, reihe in alt_plan.zellen.items():
+        for tag, z in reihe.items():
+            if TAGE.index(tag) >= grenze:
+                continue
+            if mid in vorgabe.abwesend and tag in vorgabe.abwesend[mid]:
+                continue          # Urlaub/krank geht vor
+            vorgabe.fest.setdefault(mid, {})[tag] = (
+                z.schicht.label if z.arbeitet else "frei")
+            uebernommen += 1
+    print(f"Restwoche ab {TAG_LANG[ab]}: {uebernommen} Zellen aus {pfad} "
+          f"uebernommen und festgesetzt.\n")
+
+
 def cmd_plan(args) -> int:
     stamm = lade_stammdaten(args.konfig)
     vorgabe = lade_wochenvorgabe(args.vorgabe)
+    if getattr(args, "ab", None):
+        if not args.bestehend:
+            print("--ab braucht --bestehend mit dem bisherigen Plan", file=sys.stderr)
+            return 1
+        _restwoche_fixieren(vorgabe, stamm, args.bestehend, args.ab)
+    stamm = mit_aushilfen(stamm, vorgabe)
+    if vorgabe.aushilfe:
+        for a in vorgabe.aushilfe:
+            print(f"Aushilfe dabei: {a['name']} "
+                  f"({a.get('soll_tage', '?')} Tage, "
+                  f"{', '.join(a.get('tage') or ['ganze Woche'])})")
+        print()
     vorwochen = lade_historie(args.historie) if args.historie else []
 
     kalender = Kalender(stamm.bedarf.feiertagsregeln.bundesland)
@@ -399,6 +435,29 @@ def cmd_backtest(args) -> int:
     if args.woche:
         wochen = [w for w in wochen if w.woche in args.woche]
     print(_backtest.bericht(wochen, stamm, seed=args.seed, iterationen=args.iterationen))
+    return 0
+
+
+def cmd_konten(args) -> int:
+    """Alle drei rollierenden Konten nebeneinander."""
+    from . import konten as _konten
+    stamm = lade_stammdaten(args.konfig)
+    wochen = lade_historie(args.historie)
+    if not wochen:
+        print("Keine Altplaene in", args.historie, file=sys.stderr)
+        return 1
+    fenster = args.fenster or stamm.regeln.ausgleich_fenster_wochen
+    eng = wochen[-fenster:] if fenster else wochen
+    titel = (f"Frueh/Spaet und Stundenkonto ueber {len(eng)} Wochen "
+             f"({eng[0].woche} bis {eng[-1].woche}), "
+             f"freie Samstage ueber {len(wochen)} Wochen")
+    zeilen = _konten.sammle(stamm, wochen, fenster)
+    print(_konten.als_text(zeilen, stamm, titel))
+    if args.html:
+        ziel = pathlib.Path(args.html)
+        ziel.parent.mkdir(parents=True, exist_ok=True)
+        ziel.write_text(_konten.als_html(zeilen, stamm, titel), encoding="utf-8")
+        print("\nGeschrieben:", ziel)
     return 0
 
 
@@ -659,6 +718,10 @@ def main(argv=None) -> int:
     g.add_argument("--seed", type=int, default=1)
     g.add_argument("--arbeitsbereich", default="", help="Spaltenwert fuer den e2n-Export")
     g.add_argument("--pause", type=int, default=0, help="Pausenminuten im e2n-Export")
+    g.add_argument("--ab", metavar="TAG",
+                   help="nur die Restwoche ab diesem Tag neu rechnen (mo..sa)")
+    g.add_argument("--bestehend", metavar="JSON",
+                   help="bisheriger Plan, aus dem die Tage vor --ab uebernommen werden")
     g.set_defaults(func=cmd_plan)
 
     bt = sub.add_parser("backtest", help="Konfiguration gegen die Altplaene messen")
@@ -667,6 +730,14 @@ def main(argv=None) -> int:
     bt.add_argument("--iterationen", type=int, default=20000)
     bt.add_argument("--seed", type=int, default=1)
     bt.set_defaults(func=cmd_backtest)
+
+    ko = sub.add_parser("konten", help="alle Konten in einer Tabelle")
+    ko.add_argument("--historie", default="daten/historie")
+    ko.add_argument("--fenster", type=int, default=0,
+                    help="Wochen fuer Frueh/Spaet und Stunden (0 = aus regeln.yaml)")
+    ko.add_argument("--html", metavar="DATEI",
+                    help="Tabelle zusaetzlich als HTML schreiben")
+    ko.set_defaults(func=cmd_konten)
 
     au = sub.add_parser("ausgleich", help="Frueh/Spaet-Bilanz je Mitarbeiter")
     au.add_argument("--historie", default="daten/historie")

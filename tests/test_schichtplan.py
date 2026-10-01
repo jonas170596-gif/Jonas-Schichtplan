@@ -959,6 +959,69 @@ class TestSparsamPlanen(unittest.TestCase):
         self.assertEqual([x for x in texte if "C. Kurz" in x], [])
 
 
+class TestAushilfeUndRestwoche(unittest.TestCase):
+    """Zwei Faelle aus dem Betrieb: jemand kommt aus einer anderen Filiale
+    dazu, und jemand faellt mitten in der Woche aus."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+
+    def test_aushilfe_steht_in_der_wochenvorgabe(self):
+        self.assertTrue(self.vorgabe.aushilfe)
+        self.assertEqual(self.vorgabe.aushilfe[0]["id"], "aushilfe_1")
+
+    def test_aushilfe_kommt_in_die_stammdaten(self):
+        from schichtplan.konfig import mit_aushilfen
+        erweitert = mit_aushilfen(self.stamm, self.vorgabe)
+        self.assertNotIn("aushilfe_1", self.stamm.mitarbeiter)   # Original unberuehrt
+        a = erweitert.mitarbeiter["aushilfe_1"]
+        self.assertEqual(a.soll_tage, 4)
+        self.assertIn("f", a.faehigkeiten)
+        self.assertFalse(a.samstag_konto)      # naechste Woche ist sie wieder weg
+
+    def test_aushilfe_schliesst_die_luecke(self):
+        from schichtplan.konfig import mit_aushilfen
+        ohne = Bewerter(self.stamm, lade_wochenvorgabe(
+            WURZEL / "wochen/2026-KW44.yaml")).reservebedarf()
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        mit = Bewerter(mit_aushilfen(self.stamm, v), v).reservebedarf()
+        self.assertLess(mit, ohne)
+
+    def test_nur_verfuegbare_tage(self):
+        from schichtplan.konfig import mit_aushilfen
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        v.aushilfe = [{"id": "leih", "name": "Leihkraft", "faehigkeiten": ["w"],
+                       "soll_stunden": 16, "soll_tage": 2, "tage": ["fr", "sa"]}]
+        b = Bewerter(mit_aushilfen(self.stamm, v), v)
+        self.assertFalse(b._einsetzbar("leih", "mo"))
+        self.assertTrue(b._einsetzbar("leih", "fr"))
+
+    def test_fehlende_angaben_fallen_auf(self):
+        from schichtplan.konfig import _aushilfen
+        with self.assertRaises(ValueError):
+            _aushilfen([{"name": "ohne Kuerzel"}])
+
+    def test_restwoche_nagelt_die_vergangenen_tage_fest(self):
+        from schichtplan.cli import _restwoche_fixieren
+        import json, tempfile
+        plan = erzeuge(self.stamm, self.vorgabe, iterationen=3000, seed=1).plan
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            f.write(export.als_json(plan, self.stamm))   # liefert fertiges JSON
+            pfad = f.name
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        _restwoche_fixieren(v, self.stamm, pfad, "mi")
+        self.assertIn("mo", v.fest.get("rohwer_c", {}))
+        self.assertIn("di", v.fest.get("rohwer_c", {}))
+        self.assertNotIn("mi", v.fest.get("rohwer_c", {}))
+        self.assertNotIn("sa", v.fest.get("rohwer_c", {}))
+
+    def test_unbekannter_tag_faellt_auf(self):
+        from schichtplan.cli import _restwoche_fixieren
+        with self.assertRaises(ValueError):
+            _restwoche_fixieren(self.vorgabe, self.stamm, "egal.json", "sonntag")
+
+
 class TestUmsatzbudget(unittest.TestCase):
     """Die Sollstunden kommen aus dem erwarteten Umsatz: 27.000 EUR bei
     105 EUR je Stunde sind die 255 h vom Auswertungsblatt."""
@@ -1259,21 +1322,28 @@ class TestKonten(unittest.TestCase):
     def test_strukturell_unmoegliche_samstage(self):
         """Wer fuenf Tage soll und einen festen freien Tag hat, muss samstags
         ran - dafuer darf ihn der Planer nicht bestrafen."""
-        for mid in ("rohwer_c", "marino_a", "reich_s"):
+        for mid in ("marino_a", "reich_s"):
             self.assertTrue(self.b.samstag_zwingend(mid), mid)
         for mid in ("nachtrieb_i", "kohl_b", "sannzenbacher_n", "kurka_j"):
             self.assertFalse(self.b.samstag_zwingend(mid), mid)
 
+    def test_rohwer_darf_einen_samstag_frei_haben(self):
+        """Ausdruecklich zugelassen: dann faellt sie dafuer unter ihre fuenf
+        Tage. Ohne diese Ausnahme kaeme sie strukturell nie an einen freien
+        Samstag, und das Konto waere eine Dauerforderung ins Leere."""
+        self.assertTrue(self.stamm.mitarbeiter["rohwer_c"].samstag_moeglich)
+        self.assertFalse(self.b.samstag_zwingend("rohwer_c"))
+
     def test_zwingende_samstage_erzeugen_keine_strafe(self):
         plan = grundgeruest(self.stamm, self.vorgabe)
         for tag in ("di", "do", "fr", "sa"):
-            plan.zellen["rohwer_c"][tag].art = "schicht"
-            plan.zellen["rohwer_c"][tag].schicht = self.stamm.schichten[
-                "6-14" if tag != "sa" else "11-18"]
+            plan.zellen["marino_a"][tag].art = "schicht"
+            plan.zellen["marino_a"][tag].schicht = self.stamm.schichten[
+                "6-14" if tag != "sa" else "10-18"]
         texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe,
                                          self.historie).befunde
                  if b.regel == "samstag_konto"]
-        self.assertFalse(any("Rohwer" in x for x in texte), texte)
+        self.assertFalse(any("Marino" in x for x in texte), texte)
 
     def test_freier_samstag_verbessert_das_konto(self):
         plan = grundgeruest(self.stamm, self.vorgabe)

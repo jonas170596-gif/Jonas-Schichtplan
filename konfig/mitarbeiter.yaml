@@ -21,6 +21,9 @@
 #   zaehlt_kopfzahl              false = steht zusaetzlich im Laden; eine Tagesliste
 #                                nennt die Tage, an denen der/die MA doch mitzaehlt
 #   kein_spaet_vor_frueh         true = Spaet und am Folgetag Frueh ist ausgeschlossen
+#   samstag_moeglich             true = ein freier Samstag ist erlaubt, auch wenn
+#                                Solltage und feste freie Tage die Woche ausfuellen
+#   frueh_ab_koepfen             Fruehschicht nur ab so vielen Koepfen in der Frueh
 #   frueh_spaet_ausgleich        false = nimmt am Frueh/Spaet-Ausgleich nicht teil
 #   freie_tage_zusammenhaengend  true = freie Tage sollen aneinandergrenzen
 #   erlaubte_schichten           was der/die MA ueberhaupt arbeiten darf
@@ -38,8 +41,8 @@ mitarbeiter:
     feste_freie_tage: []          # freier Tag variabel, der Planer legt ihn
     vermeiden: [spaet]            # der Frueh-Anker, Spaet nur im Notfall
     frueh_spaet_ausgleich: false  # nimmt am Ausgleich bewusst nicht teil
-    erlaubte_schichten: [6-14, 6-13:30, 6-12, 6-11, 11-20]
-    stamm_schichten: {6-14: 0.88, 6-13:30: 0.05, 11-20: 0.04}
+    erlaubte_schichten: [6-14, 11-20]
+    stamm_schichten: {6-14: 0.93, 11-20: 0.04}
     notiz: "Hauptsaechlicher Frueh-Anker, montags gesetzt (siehe team.yaml).
       Einziger Kandidat fuer die Teamleitersitzung am Dienstag."
 
@@ -53,11 +56,13 @@ mitarbeiter:
     schichtwunsch: {mo: frueh, di: frueh, mi: frueh, do: frueh}
     frueh_spaet_ausgleich: false  # Mo-Do frueh ist gesetzt, damit ist er frueh-lastig;
                                   # der Ausgleich passiert bei ihm nur ueber Fr/Sa
+    samstag_moeglich: true        # ein freier Fr oder Sa ist zugelassen, auch
+                                  # wenn sie dafuer unter ihre fuenf Tage faellt
     schicht_wochenwechsel:
       - tage: [fr, sa]            # Freitag und Samstag gehoeren zusammen:
                                   # eine Woche beide frueh, die naechste beide
                                   # spaet, dann wieder frueh
-    erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-12, 9-18, 10-18, 11-18]
+    erlaubte_schichten: [6-14, 11-20, 9-18, 10-18, 11-18]
     stamm_schichten: {6-14: 0.56, 11-20: 0.30}
     notiz: "Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet."
 
@@ -71,8 +76,8 @@ mitarbeiter:
     einsatzprioritaet: 1.6         # soll seine Tage eher bekommen als Rohwer;
                                    # ein zusaetzlicher freier Tag geht lieber
                                    # an Rohwer
-    erlaubte_schichten: [6-14, 11-20, 6-13:30, 6-11, 9-18, 10-18]
-    stamm_schichten: {11-20: 0.48, 6-14: 0.41, 9-18: 0.06}
+    erlaubte_schichten: [6-14, 11-20, 9-18, 10-18]
+    stamm_schichten: {11-20: 0.48, 6-14: 0.46, 9-18: 0.06}
 
   # ---------------- Teilzeit ----------------
   sannzenbacher_n:
@@ -136,7 +141,7 @@ mitarbeiter:
     feste_freie_tage: [di]
     bevorzugte_freie_tage: [fr, sa]   # nur nach Absprache einsetzen
     schichtwunsch: {mo: 8-14, mi: 8-13, do: 8-14}   # ihre feste Struktur
-    erlaubte_schichten: [8-14, 8-13, 8-11, 6-12, 6-14]
+    erlaubte_schichten: [8-14, 8-13, 8-16]   # faengt nie um 6 an
     stamm_schichten: {8-14: 0.64, 8-13: 0.28}
     notiz: "Feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14; auf Nachfrage geht
       anderes. Fr oder Sa nur nach Absprache - dann in der Wochenvorgabe
@@ -155,7 +160,7 @@ mitarbeiter:
     max_tage: 4
     frueh_spaet_ausgleich: false   # Reserve bekommt, was uebrig bleibt
     feste_freie_tage: [di]
-    erlaubte_schichten: [14-20, 12-20, 11-20, 8-16, 8-14, 8-11, 6-14, 10-18, 11-18, 12-18]
+    erlaubte_schichten: [14-20, 12-20, 11-20, 8-16, 8-14, 6-14, 10-18, 11-18, 12-18]
     stamm_schichten: {14-20: 0.56, 12-18: 0.08}
     notiz: "Flexible Reserve, breit einsetzbar. Bis zu drei Tage pro Woche sind
       unproblematisch, darueber wird es teuer."
@@ -186,12 +191,14 @@ mitarbeiter:
                                    # Platz aus bedarf.kopfzahl. Fr und Sa zaehlt
                                    # er normal mit - so sind die Zielkopfzahlen
                                    # aus den Altplaenen gemittelt.
+    frueh_ab_koepfen: 3              # Fruehschicht nur mit mindestens drei Koepfen -
+                                     # fachlich traegt er sie zu zweit noch nicht mit
     bevorzugte_freie_tage: [mo, di]  # sein freier Tag soll frueh in der Woche
                                      # liegen, nicht auf Fr oder Sa
-    erlaubte_schichten: [8-16, 6-14, 11-20, 6-13:30, 9-18, 10-18, 11-18, 12-18]
+    erlaubte_schichten: [8-16, 6-14, 11-20, 9-18, 10-18, 11-18, 12-18]
     # Mo-Fr faengt seine Spaetschicht um 11 an: ein spaeterer Start kuerzt dem
     # Azubi die Stunden zu stark. Samstags darf verkuerzt werden (11-18, 12-18).
-    stamm_schichten: {8-16: 0.45, 6-14: 0.20, 11-20: 0.10, 9-18: 0.10, 10-18: 0.10}
+    stamm_schichten: {8-16: 0.45, 6-14: 0.25, 11-20: 0.10, 9-18: 0.10, 10-18: 0.10}
     notiz: >-
       Springer. Berufsschultage je Woche in der Wochenvorgabe unter 'schule'
       eintragen. Ohne Schultag arbeitet er fuenf Schichten, mit einem vier -
