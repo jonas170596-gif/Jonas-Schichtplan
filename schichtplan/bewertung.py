@@ -647,8 +647,14 @@ class Bewerter:
                 continue              # unerfuellbar, siehe samstag_zwingend
             m = self.stamm.mitarbeiter[mid]
             rueckstand = soll - frei
-            add("samstag_konto",
-                max(0.0, rueckstand - self.stamm.regeln.samstag_toleranz),
+            # Quadratisch, nicht linear. Linear ist das Verschieben eines
+            # Samstags ein Nullsummenspiel: wer ihn abgibt, verliert genau so
+            # viel, wie der andere gewinnt - und weil der Schnitt dabei steigt,
+            # kostet die gerechtere Verteilung sogar mehr. Quadratisch zaehlt
+            # der groesste Rueckstand am schwersten, und jede Angleichung senkt
+            # die Summe.
+            offen = max(0.0, rueckstand - self.stamm.regeln.samstag_toleranz)
+            add("samstag_konto", offen * offen,
                 f"{m.name}: {frei} von {moeglich} Samstagen frei, "
                 f"im Schnitt waeren es {soll:.1f}"
                 if rueckstand > self.stamm.regeln.samstag_toleranz else "",
