@@ -23,7 +23,10 @@ krank: {}
 sonstige: {}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
-fest: {}
+fest: 
+  # Rohwer kommt samstags schon um 9, damit jemand da ist, der die Aushilfe
+  # einweisen kann.
+  rohwer_c: {sa: 9-18}
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
 
@@ -56,6 +59,10 @@ aushilfe:
     faehigkeiten: [f, w, o]
     soll_stunden: 48
     soll_tage: 6
+    # Keine Fruehschicht und kein spaeter Start: sie kommt aus einer anderen
+    # Filiale, kennt sich nicht aus und braucht jemanden, der ihr etwas zeigt.
+    # Um 11 ist der Laden besetzt, um 6 waere sie mit zweien allein.
+    erlaubte_schichten: [11-20, 8-16, 9-18, 10-18, 11-18]
 
 nur_schichten: 
   marino_a: {sa: [6-14]}
