@@ -1029,6 +1029,7 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
             f.write(export.als_json(plan, self.stamm))   # liefert fertiges JSON
             pfad = f.name
         v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        v.fest = {}        # was die Beispielwoche selbst festlegt, stoert hier
         _restwoche_fixieren(v, self.stamm, pfad, "mi")
         self.assertIn("mo", v.fest.get("rohwer_c", {}))
         self.assertIn("di", v.fest.get("rohwer_c", {}))
