@@ -247,6 +247,10 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
     for mid, m in roh_m["mitarbeiter"].items():
         erlaubt = list(m.get("erlaubte_schichten", []))
         unbekannt = [s for s in erlaubt if s not in schichten]
+        for tag, liste in (m.get("zusatzschichten") or {}).items():
+            if tag not in TAGE:
+                raise ValueError(f"{mid}/zusatzschichten: unbekannter Tag {tag!r}")
+            unbekannt += [s for s in liste if s not in schichten]
         if unbekannt:
             raise ValueError(f"{mid}: unbekannte Schichten {unbekannt}")
         # Ein Schichtwunsch ist entweder eine Kategorie oder eine konkrete
@@ -283,6 +287,9 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
                           if m.get("spaet_anteil") is not None else None),
             bevorzugte_kategorie=m.get("bevorzugte_kategorie", ""),
             einsatzprioritaet=float(m.get("einsatzprioritaet", 1.0)),
+            stundenprioritaet=float(m.get("stundenprioritaet", 1.0)),
+            zusatzschichten={t: list(v) for t, v in
+                             (m.get("zusatzschichten") or {}).items()},
             samstag_konto=bool(m.get("samstag_konto", True)),
             springer=bool(m.get("springer", False)),
             praesenztage=(int(m["praesenztage"])
@@ -452,6 +459,11 @@ def mit_aushilfen(stamm: Stammdaten, vorgabe) -> Stammdaten:
             erlaubte_schichten=erlaubt,
             samstag_konto=False,        # kein Konto - sie ist naechste Woche weg
             frueh_spaet_ausgleich=False,
+            # Sie wird nur eingesetzt, soweit die eigene Mannschaft nicht
+            # reicht. Genau ihre Schichten sind damit die Antwort auf die
+            # Frage, fuer welche Zeiten Ersatz gebraucht wird.
+            moeglichst_wenig=bool(a.get("nur_bei_bedarf", True)),
+            nur_obergrenze=bool(a.get("nur_bei_bedarf", True)),
             notiz=a.get("notiz", "Aushilfe, nur diese Woche"),
         )
         # Tage ausserhalb ihrer Verfuegbarkeit gelten als abwesend, damit sie

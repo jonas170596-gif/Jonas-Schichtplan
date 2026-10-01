@@ -689,6 +689,23 @@ class Bewerter:
         # Wer die ganze Woche abwesend ist, kann an seinem Konto nichts aendern
         # und verzerrt nur den Schnitt. In KW44 waeren das Kurka, Kohl und
         # Menzler mit drei Wochen Urlaub, waehrend der Rest Ueberstunden macht.
+        # Die Reserven zusammen: nur was ueber die Luecke hinausgeht, kostet
+        # jemandem mit Vertrag einen Tag. Einzeln geprueft wuerde es doppelt
+        # zaehlen, sobald eine Aushilfe neben U. Kurz steht.
+        reserve = [mid for mid, m in self.stamm.mitarbeiter.items()
+                   if m.im_plan and m.aktiv and m.moeglichst_wenig]
+        if reserve:
+            gesamt = sum(1 for mid in reserve
+                         for z in plan.zellen.get(mid, {}).values() if z.arbeitet)
+            bedarf = self.reservebedarf()
+            namen = ", ".join(self.stamm.mitarbeiter[mid].name for mid in reserve
+                              if any(z.arbeitet
+                                     for z in plan.zellen.get(mid, {}).values()))
+            add("reserve_ueber_bedarf", max(0, gesamt - bedarf),
+                f"Reserve {gesamt} Tage, aufzufuellen waren {bedarf} ({namen}) - "
+                f"dafuer faellt jemand mit Vertrag unter sein Soll"
+                if gesamt > bedarf else "", "warnung")
+
         stunden = {mid: k for mid, k in self.stundenkonto(plan).items()
                    if any(self._einsetzbar(mid, t) for t in self.tage)}
         schnitt_h = sum(stunden.values()) / len(stunden) if stunden else 0.0
@@ -696,7 +713,7 @@ class Bewerter:
             m = self.stamm.mitarbeiter[mid]
             weg = max(0.0, konto - schnitt_h
                       - self.stamm.regeln.minusstunden_toleranz_h)
-            add("minusstunden_konto", weg * m.einsatzprioritaet,
+            add("minusstunden_konto", weg * m.stundenprioritaet,
                 f"{m.name}: {konto:+.1f} h Stundenkonto in {fenster} Wochen, "
                 f"im Schnitt sind es {schnitt_h:+.1f} h" if weg else "", "warnung")
 
@@ -978,14 +995,6 @@ class Bewerter:
                 # Leichter Gegendruck ohne Meldung: die Reserve wird nur
                 # eingesetzt, wenn die Besetzung es rechtfertigt.
                 add("sparsam_einsetzen", stunden)
-                # Gemeldet wird nur, was ueber die Luecke hinausgeht. Die
-                # Tage, die der Laden ohnehin nicht aus den Vertraegen fuellen
-                # kann, sind kein Befund - dafuer ist die Reserve da.
-                bedarf = self.reservebedarf()
-                add("reserve_ueber_bedarf", max(0, tage - bedarf),
-                    f"{m.name}: {tage} Tage, aufzufuellen waren {bedarf} - "
-                    f"dafuer faellt jemand mit Vertrag unter sein Soll"
-                    if tage > bedarf else "", "warnung")
 
             soll_h, soll_t = self._ziel(mid)
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None

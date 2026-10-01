@@ -97,6 +97,11 @@ class Mitarbeiter:
     spaet_anteil: float | None = None   # Zielanteil Spaetschichten im Fenster
     bevorzugte_kategorie: str = ""      # bekommt am liebsten diese Schichtart
     einsatzprioritaet: float = 1.0      # >1: bekommt eher Tage als andere
+    stundenprioritaet: float = 1.0      # >1: soll seine Stunden eher erreichen;
+                                        # <1: darf eher darunter bleiben
+    zusatzschichten: dict[str, list[str]] = field(default_factory=dict)
+                                        # tag -> Schichten, die nur an dem Tag
+                                        # zusaetzlich erlaubt sind
     samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
     samstag_moeglich: bool = False      # True = ein freier Samstag ist erlaubt,
                                         # auch wenn Solltage und feste freie Tage

@@ -181,7 +181,7 @@ Beides geht auch in normalen Wochen, etwa fuer einen Aktionstag.
 | S. Reich | w | 30 | 4 | Mo, Mi | - | Aenderung nur nach Absprache |
 | I. Nachtrieb | f w | 24 | 3 (bis 5) | - | - | Monatsmittel, Wochentoleranz +/- 8 h |
 | B. Kohl | w | 30 | 4 | - | - | rund 7,5 h netto am Tag: 6-13:30, 8-15:30, 12-20, Sa 10-18 |
-| C. Kurz | f w o | 17 | 3 | Di | Fr, Sa | feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14, auf Nachfrage anders |
+| C. Kurz | f w o | 17 | 3 | Di | Fr, Sa | feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14; unter der Woche nie vor 8, samstags geht 6-14 |
 | U. Kurz | f w | bis 22 | bis 3 | Di | - | Reserve: fuellt genau die Luecke zwischen Plaetzen und Vertragstagen |
 | A. Menzler | f w | 40* | 5* | - | Mo, Di | Azubi und Springer; Mo-Do zaehlt er wahlweise mit; **keine Fruehschicht unter drei Koepfen** |
 
@@ -615,7 +615,11 @@ bestraft - nur gemeldet. Was die Stunden trotzdem oben haelt:
 * die Mindestbesetzungskurve `besetzung_min` - das ist die eigentliche
   Untergrenze des Plans,
 * `wochenstunden_unter`: der Vertrag jedes Einzelnen ist der Boden. Ohne ihn
-  plant der Planer alle auf die Mindestbesetzung herunter,
+  plant der Planer alle auf die Mindestbesetzung herunter. Wie hart der Boden
+  je Person ist, steuert `stundenprioritaet`: Kurka, Marino, Sannzenbacher und
+  der Azubi sollen ihre Stunden am ehesten erreichen (1,6), Rohwer darf eher
+  darunter bleiben (0,5) - dafuer bekommt sie eher einen freien Samstag. Der
+  Samstagsausgleich selbst bleibt davon unberuehrt und gilt fuer alle gleich,
 * `kurzschicht`: keine Splitter. Die Untergrenze ist je Person drei Viertel
   ihres normalen Arbeitstags, mindestens `min_schicht_h` - fuer eine
   40-Stunden-Kraft also sechs Stunden, fuer C. Kurz gut vier.
@@ -647,8 +651,23 @@ aushilfe:
     tage: [do, fr, sa]          # weglassen = ganze Woche
 ```
 
-Sie zaehlt normal gegen Kopfzahl, Besetzungskurve und Faehigkeiten, nimmt aber
-an keinem der rollierenden Konten teil - naechste Woche ist sie wieder weg.
+Sie zaehlt gegen Kopfzahl, Besetzungskurve und Faehigkeiten, nimmt aber an
+keinem der rollierenden Konten teil - naechste Woche ist sie wieder weg. Und
+sie wird nur eingesetzt, soweit die eigene Mannschaft nicht reicht
+(`nur_bei_bedarf`, voreingestellt).
+
+**Damit laesst sich der Ersatzbedarf ausrechnen.** Man setzt sie offen an -
+alle Tage, genug Stunden - und laesst planen. Was dann in ihrer Zeile steht,
+ist genau die Liste, die in der anderen Filiale angefragt werden muss:
+
+```yaml
+aushilfe:
+  - id: ersatz
+    name: "Ersatz noetig"
+    faehigkeiten: [f, w, o]
+    soll_stunden: 48
+    soll_tage: 6
+```
 
 In KW44 (Kurka, Kohl und Menzler gleichzeitig im Urlaub, zehn Personentage zu
 wenig) faellt der Plan damit von 6645 auf 3780 Strafpunkte, und Freitag und

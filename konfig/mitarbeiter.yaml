@@ -20,6 +20,10 @@
 #                                im Takt (eine Woche frueh, die naechste spaet)
 #   zaehlt_kopfzahl              false = steht zusaetzlich im Laden; eine Tagesliste
 #                                nennt die Tage, an denen der/die MA doch mitzaehlt
+#   stundenprioritaet            >1: soll seine Stunden eher erreichen, <1: darf
+#                                eher darunter bleiben. Trifft nur das Stundenkonto,
+#                                der Samstagsausgleich bleibt unberuehrt
+#   zusatzschichten              tag -> Schichten, die nur an dem Tag erlaubt sind
 #   kein_spaet_vor_frueh         true = Spaet und am Folgetag Frueh ist ausgeschlossen
 #   samstag_moeglich             true = ein freier Samstag ist erlaubt, auch wenn
 #                                Solltage und feste freie Tage die Woche ausfuellen
@@ -38,6 +42,7 @@ mitarbeiter:
     faehigkeiten: [f, w, o]
     soll_stunden: 40
     soll_tage: 5
+    stundenprioritaet: 1.6        # soll seine Stunden am ehesten erreichen
     feste_freie_tage: []          # freier Tag variabel, der Planer legt ihn
     vermeiden: [spaet]            # der Frueh-Anker, Spaet nur im Notfall
     frueh_spaet_ausgleich: false  # nimmt am Ausgleich bewusst nicht teil
@@ -56,6 +61,8 @@ mitarbeiter:
     schichtwunsch: {mo: frueh, di: frueh, mi: frueh, do: frueh}
     frueh_spaet_ausgleich: false  # Mo-Do frueh ist gesetzt, damit ist er frueh-lastig;
                                   # der Ausgleich passiert bei ihm nur ueber Fr/Sa
+    stundenprioritaet: 0.5        # darf eher unter ihren Stunden bleiben - dafuer
+                                  # zaehlt sie beim Samstagsausgleich voll mit
     samstag_moeglich: true        # ein freier Fr oder Sa ist zugelassen, auch
                                   # wenn sie dafuer unter ihre fuenf Tage faellt
     schicht_wochenwechsel:
@@ -73,6 +80,7 @@ mitarbeiter:
     soll_stunden: 40
     soll_tage: 5
     feste_freie_tage: [mo]
+    stundenprioritaet: 1.6         # soll ihre Stunden am ehesten erreichen
     einsatzprioritaet: 1.6         # soll seine Tage eher bekommen als Rohwer;
                                    # ein zusaetzlicher freier Tag geht lieber
                                    # an Rohwer
@@ -86,6 +94,7 @@ mitarbeiter:
     faehigkeiten: [f, w]
     soll_stunden: 30
     soll_tage: 4
+    stundenprioritaet: 1.6            # soll ihre Stunden am ehesten erreichen
     bevorzugte_freie_tage: [mi, do]   # duerfen wandern, sollen aber zusammenbleiben
     freie_tage_zusammenhaengend: true
     kein_spaet_vor_frueh: true        # langer Heimweg - Spaet und am naechsten Tag
@@ -141,7 +150,8 @@ mitarbeiter:
     feste_freie_tage: [di]
     bevorzugte_freie_tage: [fr, sa]   # nur nach Absprache einsetzen
     schichtwunsch: {mo: 8-14, mi: 8-13, do: 8-14}   # ihre feste Struktur
-    erlaubte_schichten: [8-14, 8-13, 8-16]   # faengt nie um 6 an
+    erlaubte_schichten: [8-14, 8-13, 8-16]   # unter der Woche nie vor 8
+    zusatzschichten: {sa: [6-14]}            # samstags geht 6 Uhr
     stamm_schichten: {8-14: 0.64, 8-13: 0.28}
     notiz: "Feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14; auf Nachfrage geht
       anderes. Fr oder Sa nur nach Absprache - dann in der Wochenvorgabe
@@ -172,6 +182,7 @@ mitarbeiter:
     faehigkeiten: [f, w]
     soll_stunden: 40               # Wochensoll inklusive Berufsschule
     soll_tage: 5
+    stundenprioritaet: 1.6         # die Ausbildungszeit muss zusammenkommen
     praesenztage: 5                # Schichten + Schultage ergeben immer 5 Tage
     abwesenheit_stunden: {schule: 8}   # ein Schultag deckt 8 h des Wochensolls
     springer: true                 # wechselnde Schichten sind bei ihm gewollt;

@@ -30,7 +30,10 @@ def _optionen(stamm: Stammdaten, mid: str, tag: str,
     `nur_schichten` in der Wochenvorgabe engt das weiter ein - so laesst sich
     "an dem Tag entweder frei oder die Fruehschicht" abbilden."""
     m = stamm.mitarbeiter[mid]
-    erlaubt = [stamm.schichten[s] for s in m.erlaubte_schichten
+    # Manche Schichten gelten nur an einem bestimmten Tag: C. Kurz faengt nur
+    # samstags um 6 an, unter der Woche nie.
+    ids = list(m.erlaubte_schichten) + list(m.zusatzschichten.get(tag, []))
+    erlaubt = [stamm.schichten[s] for s in dict.fromkeys(ids)
                if tag in stamm.schichten[s].tage]
     if vorgabe is not None:
         nur = vorgabe.nur_schichten.get(mid, {}).get(tag)

@@ -47,13 +47,15 @@ arbeitet: {}
 # Leihkraft aus einer anderen Filiale - gilt nur fuer diese Woche.
 #   faehigkeiten: f = Fleisch, w = Wurst, o = Ofen
 #   tage:         an welchen Tagen sie kann (weglassen = ganze Woche)
-aushilfe: []
-#  - id: aushilfe_1
-#    name: "M. Weber (Schorndorf)"
-#    faehigkeiten: [f, w]
-#    soll_stunden: 32
-#    soll_tage: 4
-#    tage: [do, fr, sa]
+aushilfe:
+  # Offen angesetzt: der Planer nimmt nur so viel davon, wie die eigene
+  # Mannschaft nicht hergibt. Ihre Schichten sind damit die Liste dessen,
+  # was in der anderen Filiale angefragt werden muss.
+  - id: ersatz
+    name: "Ersatz noetig"
+    faehigkeiten: [f, w, o]
+    soll_stunden: 48
+    soll_tage: 6
 
 nur_schichten: 
   marino_a: {sa: [6-14]}

@@ -986,13 +986,26 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
         self.assertIn("f", a.faehigkeiten)
         self.assertFalse(a.samstag_konto)      # naechste Woche ist sie wieder weg
 
-    def test_aushilfe_schliesst_die_luecke(self):
+    def test_aushilfe_ist_eine_reserve(self):
+        """Sie senkt die Luecke nicht, sie fuellt sie - deshalb zeigen genau
+        ihre Schichten, wofuer Ersatz gebraucht wird."""
         from schichtplan.konfig import mit_aushilfen
-        ohne = Bewerter(self.stamm, self.vorgabe).reservebedarf()
         v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
         v.aushilfe = [dict(self.LEIHKRAFT)]
-        mit = Bewerter(mit_aushilfen(self.stamm, v), v).reservebedarf()
-        self.assertLess(mit, ohne)
+        erweitert = mit_aushilfen(self.stamm, v)
+        a = erweitert.mitarbeiter["aushilfe_1"]
+        self.assertTrue(a.moeglichst_wenig)
+        self.assertTrue(a.nur_obergrenze)
+        self.assertEqual(Bewerter(erweitert, v).reservebedarf(),
+                         Bewerter(self.stamm, self.vorgabe).reservebedarf())
+
+    def test_aushilfe_vergroessert_das_machbare(self):
+        from schichtplan.konfig import mit_aushilfen
+        ohne = Bewerter(self.stamm, self.vorgabe).erreichbare_stunden()
+        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        v.aushilfe = [dict(self.LEIHKRAFT)]
+        mit = Bewerter(mit_aushilfen(self.stamm, v), v).erreichbare_stunden()
+        self.assertGreater(mit, ohne)
 
     def test_nur_verfuegbare_tage(self):
         from schichtplan.konfig import mit_aushilfen
