@@ -967,12 +967,18 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
         self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
 
-    def test_aushilfe_steht_in_der_wochenvorgabe(self):
-        self.assertTrue(self.vorgabe.aushilfe)
-        self.assertEqual(self.vorgabe.aushilfe[0]["id"], "aushilfe_1")
+    LEIHKRAFT = {"id": "aushilfe_1", "name": "M. Weber (Schorndorf)",
+                 "faehigkeiten": ["f", "w"], "soll_stunden": 32, "soll_tage": 4,
+                 "tage": ["mo", "di", "mi", "do", "fr", "sa"]}
+
+    def test_aushilfe_wird_aus_der_wochenvorgabe_gelesen(self):
+        from schichtplan.konfig import _aushilfen
+        gelesen = _aushilfen([self.LEIHKRAFT])
+        self.assertEqual(gelesen[0]["id"], "aushilfe_1")
 
     def test_aushilfe_kommt_in_die_stammdaten(self):
         from schichtplan.konfig import mit_aushilfen
+        self.vorgabe.aushilfe = [dict(self.LEIHKRAFT)]
         erweitert = mit_aushilfen(self.stamm, self.vorgabe)
         self.assertNotIn("aushilfe_1", self.stamm.mitarbeiter)   # Original unberuehrt
         a = erweitert.mitarbeiter["aushilfe_1"]
@@ -982,9 +988,9 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
 
     def test_aushilfe_schliesst_die_luecke(self):
         from schichtplan.konfig import mit_aushilfen
-        ohne = Bewerter(self.stamm, lade_wochenvorgabe(
-            WURZEL / "wochen/2026-KW44.yaml")).reservebedarf()
+        ohne = Bewerter(self.stamm, self.vorgabe).reservebedarf()
         v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        v.aushilfe = [dict(self.LEIHKRAFT)]
         mit = Bewerter(mit_aushilfen(self.stamm, v), v).reservebedarf()
         self.assertLess(mit, ohne)
 

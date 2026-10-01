@@ -147,7 +147,11 @@ gewichte:
   bevorzugter_freier_tag: 160  # weicher freier Tag musste weichen
   freie_tage_zusammenhaengend: 150  # je zusaetzlichem Block freier Tage
   stammschicht: 110        # Abweichung von den gewohnten Schichten des MA
-  samstag_konto: 180        # je Samstag Rueckstand gegenueber dem Schnitt
+  samstag_konto: 400        # je Samstag Rueckstand gegenueber dem Schnitt. Muss
+                            # den Tag schlagen koennen, den jemand dafuer verliert
+                            # (arbeitstage_unter 260 + wochenstunden_unter), sonst
+                            # bleibt ein Rueckstand ewig stehen - Rohwer hatte in
+                            # 15 Wochen keinen einzigen freien Samstag.
   # Die beiden Konten verteilen die Minusstunden gerecht: gemessen wird nicht
   # gegen das eigene Soll, sondern gegen den Schnitt der Mannschaft ueber das
   # rollierende Fenster. Wer schon mehr Rueckstand hat als die anderen, ist
