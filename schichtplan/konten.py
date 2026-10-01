@@ -42,9 +42,12 @@ def sammle(stamm: Stammdaten, wochen: list, fenster: int | None = None) -> list[
     fenster = fenster or stamm.regeln.ausgleich_fenster_wochen
     eng = wochen[-fenster:] if fenster else wochen
     # Fuer die Konten braucht der Bewerter eine Wochenvorgabe; die letzte Woche
-    # der Historie dient als Platzhalter, gerechnet wird nur ueber die Historie.
+    # der Historie dient als Platzhalter. Als Vorwochen gehen ALLE Wochen ein,
+    # auch die letzte - sonst fehlt in der Tabelle genau die Woche, die man
+    # gerade gerechnet hat, und ein frisch vergebener freier Samstag taucht
+    # nicht auf.
     from .backtest import vorgabe_aus_historie
-    bew = Bewerter(stamm, vorgabe_aus_historie(wochen[-1], stamm), wochen[:-1])
+    bew = Bewerter(stamm, vorgabe_aus_historie(wochen[-1], stamm), wochen)
     samstage = bew.samstagskonto()
     stunden = bew.stundenkonto()
 
