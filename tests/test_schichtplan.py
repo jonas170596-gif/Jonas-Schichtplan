@@ -1559,5 +1559,62 @@ class TestExport(unittest.TestCase):
         self.assertIn("A. Menzler", text)
 
 
+class TestPapierUndUebersicht(unittest.TestCase):
+    """Was aus dem Werkzeug faellt: Papierplan, Teamleiteruebersicht, PDF."""
+
+    def setUp(self):
+        self.stamm = lade_stammdaten(WURZEL / "konfig")
+        self.vorgabe = woche()
+        self.plan = erzeuge(self.stamm, self.vorgabe, iterationen=1500,
+                            neustarts=1, seed=11).plan
+        self.bewerter = Bewerter(self.stamm, self.vorgabe)
+        self.bew = pruefen(self.plan, self.stamm, self.vorgabe)
+
+    def test_zusatzzeile_steht_im_papierplan(self):
+        self.assertIn("Palmstrasse Aushilfe", self.stamm.bedarf.zusatzzeilen)
+        h = export.als_html(self.plan, self.stamm, self.bew, bewerter=self.bewerter)
+        self.assertIn("Palmstrasse Aushilfe", h)
+        self.assertIn("zusatz-zeile", h)
+
+    def test_zusatzzeile_ist_leer(self):
+        """Sie wird von Hand ausgefuellt - der Planer schreibt nichts hinein."""
+        h = export.als_html(self.plan, self.stamm, self.bew, bewerter=self.bewerter)
+        zeile = h.split('class="zusatz-zeile"')[1].split("</tr>")[0]
+        self.assertEqual(zeile.count('<td class="leer"></td>'), 6)   # sechs Tage
+        self.assertIn('<td class="summe leer"></td>', zeile)         # und die Summe
+        self.assertNotIn("6-14", zeile)
+
+    def test_uebersicht_nennt_befunde_und_stunden(self):
+        from schichtplan import uebersicht
+        h = uebersicht.als_html(self.plan, self.stamm, self.bew, self.bewerter)
+        self.assertIn("Teamleiteruebersicht", h)
+        self.assertIn("Arbeitszeit", h)
+        for mid, m in self.stamm.mitarbeiter.items():
+            if m.im_plan and m.aktiv and self.plan.arbeitstage(mid):
+                self.assertIn(m.name, h, mid)
+
+    def test_uebersicht_zeigt_konten_wenn_historie_da_ist(self):
+        from schichtplan import konten, uebersicht
+        wochen = lade_historie(WURZEL / "daten/historie")
+        zeilen = konten.sammle(self.stamm, wochen)
+        h = uebersicht.als_html(self.plan, self.stamm, self.bew, self.bewerter,
+                                zeilen)
+        self.assertIn("Rollierende Konten", h)
+        ohne = uebersicht.als_html(self.plan, self.stamm, self.bew, self.bewerter)
+        self.assertNotIn("Rollierende Konten", ohne)
+
+    def test_pdf_wird_erzeugt_wenn_ein_browser_da_ist(self):
+        import tempfile
+        from schichtplan import pdf
+        if not pdf.browser():
+            self.skipTest("kein Chromium im System")
+        h = export.als_html(self.plan, self.stamm, self.bew, bewerter=self.bewerter)
+        with tempfile.TemporaryDirectory() as tmp:
+            ziel = pathlib.Path(tmp) / "plan.pdf"
+            pdf.aus_html(h, ziel)
+            self.assertTrue(ziel.exists())
+            self.assertEqual(ziel.read_bytes()[:4], b"%PDF")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -37,6 +37,9 @@ class Bedarf:
                                           # Kennzahlenauswertung der Filiale rechnet
     wochenstunden_gesamt_toleranz: float = 5.0
     umsatz_je_stunde: float = 0.0         # Soll-Umsatz je Verkaeuferstunde (105 EUR)
+    zusatzzeilen: list[str] = field(default_factory=list)
+                                          # leere Zeilen am Fuss des Papierplans,
+                                          # zum Eintragen von Hand
     umsatz_erwartet: float = 0.0          # erwarteter Wochenumsatz; zusammen mit
                                           # umsatz_je_stunde ergibt das die Sollstunden
     pause_minuten: int = 30            # je Schicht, wird von der Summe abgezogen
@@ -332,6 +335,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         wochenstunden_gesamt_toleranz=float(roh_b.get("wochenstunden_gesamt_toleranz", 5)),
         umsatz_je_stunde=float(roh_b.get("umsatz_je_stunde", 0)),
         umsatz_erwartet=float(roh_b.get("umsatz_erwartet", 0)),
+        zusatzzeilen=list(roh_b.get("zusatzzeilen") or []),
         pause_minuten=int(roh_b.get("pause_minuten", 30)),
         kategorieprofil={t_: {k: int(v) for k, v in p_.items()}
                          for t_, p_ in (roh_b.get("kategorieprofil") or {}).items()},

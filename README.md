@@ -697,6 +697,29 @@ Frueh/Spaet, freie Samstage und das Stundenkonto in einer Tabelle, dazu der
 Wochenverlauf je Mitarbeiter als Spur. Das beantwortet die Frage, die beim
 Planen wirklich zaehlt: wer ist insgesamt dran?
 
+### Was aus dem Werkzeug faellt
+
+```
+python -m schichtplan plan wochen/2026-KW42.yaml --pdf
+```
+
+| Datei | wofuer |
+|---|---|
+| `KW42.html` / `.pdf` | Papierplan im Layout des alten Formulars, A4 quer, zum Aushaengen |
+| `KW42-teamleiter.html` / `.pdf` | Teamleiteruebersicht: Befunde, Stunden je Person, rollierende Konten |
+| `KW42.json` | Vollstaendiger Plan - Eingabe fuer `uebernehmen` und `--bestehend` |
+| `KW42.csv` | Tabelle zum Weiterverarbeiten |
+| `KW42-e2n-schichten.csv` | Import fuer e2n |
+| `KW42-e2n-abwesenheiten.csv` | Urlaub, Krankheit und Schule fuer e2n |
+
+Der Papierplan traegt unten die Leerzeilen aus `bedarf.zusatzzeilen` - auf dem
+alten Formular ist das die Zeile fuer die Aushilfe aus der Palmstrasse, die
+nicht in den Stammdaten gefuehrt wird und von Hand eingetragen wird.
+
+`--pdf` braucht einen Chromium im System; ohne ihn bleibt der Weg ueber den
+Browser (HTML oeffnen, Strg+P, als PDF speichern), das Layout ist dafuer
+gebaut.
+
 ### Pausen
 
 Von jeder Schicht geht eine halbe Stunde Pause ab (`pause_minuten` in

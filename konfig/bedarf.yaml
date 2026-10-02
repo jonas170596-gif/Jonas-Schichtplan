@@ -31,6 +31,11 @@ umsatz_erwartet: 27000
 wochenstunden_gesamt: 255     # Rueckfall, falls kein Umsatz hinterlegt ist
 wochenstunden_gesamt_toleranz: 5
 
+# Leerzeilen am Fuss des Papierplans, zum Eintragen von Hand. Auf dem alten
+# Formular steht unten die Zeile fuer die Aushilfe aus der Palmstrasse.
+zusatzzeilen:
+  - "Palmstrasse Aushilfe"
+
 kopfzahl_toleranz_unter: 0    # unter der Zielkopfzahl wird sofort bestraft
 kopfzahl_toleranz_ueber: 0    # ueberbesetzt wird nicht: wenn die Mannschaft
                               # mehr Tage hergibt als der Tag braucht, bekommt

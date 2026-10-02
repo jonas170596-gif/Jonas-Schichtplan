@@ -407,8 +407,29 @@ def cmd_plan(args) -> int:
             plan, stamm, arbeitsbereich=args.arbeitsbereich, pause_min=args.pause),
         f"{basis}-e2n-abwesenheiten.csv": export.als_abwesenheits_csv(plan, stamm),
     }
+    # Teamleiteruebersicht: Befunde, Stunden und Konten auf einer Seite. Die
+    # Konten brauchen die Historie - ohne sie bleibt der Block weg.
+    from . import uebersicht as _uebersicht
+    kontozeilen = None
+    if vorwochen:
+        from . import konten as _konten
+        kontozeilen = _konten.sammle(stamm, vorwochen)
+    dateien[f"{basis}-teamleiter.html"] = _uebersicht.als_html(
+        plan, stamm, bew, bewerter, kontozeilen)
     for pfad, inhalt in dateien.items():
         pathlib.Path(pfad).write_text(inhalt, encoding="utf-8")
+
+    if args.pdf:
+        from . import pdf as _pdf
+        for name, quer in ((f"{basis}.html", True),
+                           (f"{basis}-teamleiter.html", False)):
+            try:
+                erzeugt = _pdf.aus_html(pathlib.Path(name).read_text(encoding="utf-8"),
+                                        pathlib.Path(name[:-5] + ".pdf"), quer=quer)
+                dateien[str(erzeugt)] = None
+            except _pdf.KeinBrowser as fehler:
+                print(f"\nPDF nicht erzeugt: {fehler}", file=sys.stderr)
+                break
 
     print(_textplan(plan, stamm, bewerter))
     if bewerter.feiertagsumfeld:
@@ -723,6 +744,8 @@ def main(argv=None) -> int:
                    help="nur die Restwoche ab diesem Tag neu rechnen (mo..sa)")
     g.add_argument("--bestehend", metavar="JSON",
                    help="bisheriger Plan, aus dem die Tage vor --ab uebernommen werden")
+    g.add_argument("--pdf", action="store_true",
+                   help="Papierplan und Teamleiteruebersicht zusaetzlich als PDF")
     g.set_defaults(func=cmd_plan)
 
     bt = sub.add_parser("backtest", help="Konfiguration gegen die Altplaene messen")

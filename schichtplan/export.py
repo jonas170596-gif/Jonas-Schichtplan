@@ -107,6 +107,8 @@ td.zu { background:repeating-linear-gradient(45deg,#fff,#fff 6px,#eee 6px,#eee 1
 td.summe { font-size:9.5pt; color:#444; background:#fafafa; }
 th.summe { font-size:9.5pt; }
 .zusatz { display:block; font-size:8pt; color:#555; }
+tr.zusatz-zeile td.ma { font-weight:600; color:#555; font-style:italic; }
+td.leer { background:repeating-linear-gradient(0deg,#fff,#fff 10px,#f4f4f4 10px,#f4f4f4 11px); }
 .fuss { margin-top:4mm; font-size:8.5pt; color:#555; display:flex; justify-content:space-between; }
 .budget { margin-top:4mm; font-size:10pt; }
 .hinweise { margin-top:5mm; font-size:9pt; }
@@ -158,6 +160,14 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
         tds.append(f'<td class="summe">{netto:.1f} h<span class="zusatz">'
                    f'{tage_text}</span></td>')
         zeilen.append("<tr>" + "".join(tds) + "</tr>")
+
+    # Leerzeilen zum Eintragen von Hand - auf dem Papierplan steht unten die
+    # Zeile fuer die Aushilfe aus der Palmstrasse, die nicht in den Stammdaten
+    # gefuehrt wird.
+    for beschriftung in stamm.bedarf.zusatzzeilen:
+        leer = "".join('<td class="leer"></td>' for _ in alle)
+        zeilen.append(f'<tr class="zusatz-zeile"><td class="ma">{e(beschriftung)}</td>'
+                      f'{leer}<td class="summe leer"></td></tr>')
 
     budget = ""
     if bewerter is not None and bewerter.gesamtbudget():
