@@ -89,7 +89,7 @@ def als_abwesenheits_csv(plan: Plan, stamm: Stammdaten) -> str:
 
 # --------------------------------------------------------------------- #
 _CSS = """
-@page { size: A4 landscape; margin: 10mm; }
+@page { size: A4 AUSRICHTUNG; margin: 10mm; }
 * { box-sizing: border-box; }
 body { font-family: "Segoe UI", Arial, sans-serif; color:#111; margin:0; padding:10mm; }
 .kopf { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6mm; }
@@ -215,7 +215,9 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
     kopfzeilen = "".join(f"<th>{TAG_LANG[t]}</th>" for t in alle)
     return f"""<!doctype html>
 <html lang="de"><head><meta charset="utf-8">
-<title>{e(kopf)} {e(kw)}</title><style>{_CSS}</style></head><body>
+<title>{e(kopf)} {e(kw)}</title>
+<style>{_CSS.replace("AUSRICHTUNG", "portrait" if stamm.bedarf.papier_hoch else "landscape")}</style>
+</head><body>
 <div class="kopf">
   <div class="meta"><b>Woche:</b> {e(kw)}<br><b>Datum von:</b> {e(plan.datum_von)}
     &nbsp; <b>bis:</b> {e(plan.datum_bis or '')}</div>

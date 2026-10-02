@@ -37,6 +37,7 @@ class Bedarf:
                                           # Kennzahlenauswertung der Filiale rechnet
     wochenstunden_gesamt_toleranz: float = 5.0
     umsatz_je_stunde: float = 0.0         # Soll-Umsatz je Verkaeuferstunde (105 EUR)
+    papier_hoch: bool = False             # Papierplan hochkant statt quer
     zusatzzeilen: list[str] = field(default_factory=list)
                                           # leere Zeilen am Fuss des Papierplans,
                                           # zum Eintragen von Hand
@@ -335,6 +336,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         wochenstunden_gesamt_toleranz=float(roh_b.get("wochenstunden_gesamt_toleranz", 5)),
         umsatz_je_stunde=float(roh_b.get("umsatz_je_stunde", 0)),
         umsatz_erwartet=float(roh_b.get("umsatz_erwartet", 0)),
+        papier_hoch=(roh_b.get("papier_ausrichtung", "quer") == "hoch"),
         zusatzzeilen=list(roh_b.get("zusatzzeilen") or []),
         pause_minuten=int(roh_b.get("pause_minuten", 30)),
         kategorieprofil={t_: {k: int(v) for k, v in p_.items()}

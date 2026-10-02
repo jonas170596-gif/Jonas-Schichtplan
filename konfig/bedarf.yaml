@@ -31,6 +31,10 @@ umsatz_erwartet: 27000
 wochenstunden_gesamt: 255     # Rueckfall, falls kein Umsatz hinterlegt ist
 wochenstunden_gesamt_toleranz: 5
 
+# Ausrichtung des Papierplans: quer (voreingestellt, sechs Tagesspalten
+# nebeneinander wie auf dem alten Formular) oder hoch. Beides ist DIN A4.
+papier_ausrichtung: quer
+
 # Leerzeilen am Fuss des Papierplans, zum Eintragen von Hand. Auf dem alten
 # Formular steht unten die Zeile fuer die Aushilfe aus der Palmstrasse.
 zusatzzeilen:

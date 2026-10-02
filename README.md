@@ -705,7 +705,7 @@ python -m schichtplan plan wochen/2026-KW42.yaml --pdf
 
 | Datei | wofuer |
 |---|---|
-| `KW42.html` / `.pdf` | Papierplan im Layout des alten Formulars, A4 quer, zum Aushaengen |
+| `KW42.html` / `.pdf` | Papierplan im Layout des alten Formulars, DIN A4, zum Aushaengen |
 | `KW42-teamleiter.html` / `.pdf` | Teamleiteruebersicht: Befunde, Stunden je Person, rollierende Konten |
 | `KW42.json` | Vollstaendiger Plan - Eingabe fuer `uebernehmen` und `--bestehend` |
 | `KW42.csv` | Tabelle zum Weiterverarbeiten |
@@ -715,6 +715,10 @@ python -m schichtplan plan wochen/2026-KW42.yaml --pdf
 Der Papierplan traegt unten die Leerzeilen aus `bedarf.zusatzzeilen` - auf dem
 alten Formular ist das die Zeile fuer die Aushilfe aus der Palmstrasse, die
 nicht in den Stammdaten gefuehrt wird und von Hand eingetragen wird.
+
+Beide Seiten sind DIN A4: der Papierplan quer (sechs Tagesspalten wie auf dem
+alten Formular), die Uebersicht hoch. Mit `papier_ausrichtung: hoch` in
+`konfig/bedarf.yaml` steht auch der Plan hochkant.
 
 `--pdf` braucht einen Chromium im System; ohne ihn bleibt der Weg ueber den
 Browser (HTML oeffnen, Strg+P, als PDF speichern), das Layout ist dafuer

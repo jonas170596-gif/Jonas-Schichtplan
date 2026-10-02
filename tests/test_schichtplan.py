@@ -1584,6 +1584,24 @@ class TestPapierUndUebersicht(unittest.TestCase):
         self.assertIn('<td class="summe leer"></td>', zeile)         # und die Summe
         self.assertNotIn("6-14", zeile)
 
+    def test_papier_ist_din_a4(self):
+        h = export.als_html(self.plan, self.stamm, self.bew, bewerter=self.bewerter)
+        self.assertIn("@page { size: A4 landscape", h)
+        self.assertNotIn("AUSRICHTUNG", h)
+
+    def test_papier_laesst_sich_hochkant_stellen(self):
+        import dataclasses
+        stamm = dataclasses.replace(
+            self.stamm,
+            bedarf=dataclasses.replace(self.stamm.bedarf, papier_hoch=True))
+        h = export.als_html(self.plan, stamm, self.bew, bewerter=self.bewerter)
+        self.assertIn("@page { size: A4 portrait", h)
+
+    def test_uebersicht_ist_din_a4(self):
+        from schichtplan import uebersicht
+        h = uebersicht.als_html(self.plan, self.stamm, self.bew, self.bewerter)
+        self.assertIn("@page { size: A4 portrait", h)
+
     def test_uebersicht_nennt_befunde_und_stunden(self):
         from schichtplan import uebersicht
         h = uebersicht.als_html(self.plan, self.stamm, self.bew, self.bewerter)
