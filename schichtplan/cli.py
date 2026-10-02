@@ -54,7 +54,7 @@ urlaub: {urlaub}
 
 schule: {schule}
 
-krank: {{}}
+krank: {krank}
 sonstige: {{}}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
@@ -206,7 +206,7 @@ def cmd_neu(args) -> int:
     # Urlaub und Wuensche aus dem Wandkalender vorbelegen
     kalender = lade_kalender(args.kalender,
                              lade_stammdaten(args.konfig).mitarbeiter)
-    aus_kalender = {"urlaub": {}, "fest": {}, "wunsch_frei": {},
+    aus_kalender = {"urlaub": {}, "krank": {}, "fest": {}, "wunsch_frei": {},
                     "wunsch_schicht": {}, "arbeitet": {}, "nur_schichten": {}}
     for e, tage in kalender.fuer_woche(montag):
         if e.ma not in alle_ma:
@@ -224,7 +224,7 @@ def cmd_neu(args) -> int:
             # "Vorname frueh" auf dem Wandkalender meint die Schicht 6-14
             aus_kalender["wunsch_schicht"].setdefault(e.ma, {}).update(
                 {t_: SCHICHT_FRUEH for t_ in tage})
-        elif e.art in ("urlaub", "wunsch_frei", "arbeitet"):
+        elif e.art in ("urlaub", "krank", "wunsch_frei", "arbeitet"):
             aus_kalender[e.art].setdefault(e.ma, []).extend(tage)
 
     def _block(feld, eintraege):
@@ -249,6 +249,7 @@ def cmd_neu(args) -> int:
                                          if feiertage else "[]"),
                             schule="\n".join(schulzeilen),
                             urlaub=_block("urlaub", aus_kalender["urlaub"]),
+                            krank=_block("krank", aus_kalender["krank"]),
                             fest=_block("fest", aus_kalender["fest"]),
                             wunsch_frei=_block("wunsch_frei",
                                                aus_kalender["wunsch_frei"]),

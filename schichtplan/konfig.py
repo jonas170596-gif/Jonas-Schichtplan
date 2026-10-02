@@ -440,8 +440,11 @@ def mit_aushilfen(stamm: Stammdaten, vorgabe) -> Stammdaten:
     alle = set(stamm.schichten)
     for a in vorgabe.aushilfe:
         mid = a["id"]
-        if mid in mitarbeiter:
-            raise ValueError(f"aushilfe/{mid}: das Kuerzel gibt es schon in den Stammdaten")
+        if mid in mitarbeiter and mitarbeiter[mid].im_plan:
+            raise ValueError(f"aushilfe/{mid}: das Kuerzel gibt es schon in den "
+                             f"Stammdaten und steht dort im Plan")
+        # Wer in den Stammdaten steht, aber mit im_plan: false, wird hier fuer
+        # diese Woche aktiviert - der Seniorchef springt nur gelegentlich ein.
         erlaubt = list(a.get("erlaubte_schichten") or sorted(alle))
         unbekannt = [x for x in erlaubt if x not in alle]
         if unbekannt:
@@ -564,7 +567,7 @@ class Kalender:
                 if montag <= _dt.date.fromisoformat(str(f["tag"])) <= ende]
 
 
-ARTEN_KALENDER = ("urlaub", "frei", "wunsch_frei", "wunsch_frueh",
+ARTEN_KALENDER = ("urlaub", "krank", "frei", "wunsch_frei", "wunsch_frueh",
                   "frei_oder_frueh", "arbeitet")
 
 

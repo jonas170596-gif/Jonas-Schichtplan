@@ -17,6 +17,8 @@
 #   frei_oder_frueh - "frueh/frei" bzw. "morgens oder frei": bevorzugt frei,
 #                     und wenn die Besetzung es doch verlangt, dann nur die
 #                     Fruehschicht 6-14 und nichts anderes.
+#   krank           - harte Abwesenheit wie Urlaub. Bei offenem Ende ein
+#                     Platzhalterdatum setzen und nach der Gesundmeldung kuerzen.
 #   arbeitet        - hebt einen festen freien Tag auf (Carina dienstags)
 #
 # Gestrichene Eintraege stehen unter 'storniert' und wirken nicht mehr.
@@ -50,14 +52,19 @@ eintraege:
   - {vorname: Baerbel,   von: 2026-10-26, bis: 2026-10-31, art: urlaub}
   # ---------------- November ----------------
   - {vorname: Jonas,     tag: 2026-11-02,   art: frei}
-  - {vorname: Jonas,     tag: 2026-11-07,   art: wunsch_frueh}
+  - {vorname: Jonas,     tag: 2026-11-07,   art: frei}
   - {vorname: Jonas,     tag: 2026-11-13,   art: wunsch_frueh}
   - {vorname: Jonas,     tag: 2026-11-14,   art: frei}
+  - {vorname: Carmen,    von: 2026-11-16, bis: 2026-11-21, art: urlaub}
   - {vorname: Carmen,    von: 2026-11-23, bis: 2026-11-28, art: urlaub}
   - {vorname: Carina,    von: 2026-11-23, bis: 2026-11-28, art: urlaub}
   - {vorname: Ingrid,    von: 2026-11-27, bis: 2026-11-28, art: frei}
   - {vorname: Anna,      tag: 2026-11-28,   art: wunsch_frueh}
-  - {vorname: Sibylle,   von: 2026-11-30, bis: 2026-12-05, art: urlaub}
+  # Krankgeschrieben ab 05.11., Ende nicht absehbar. Das Enddatum ist ein
+  # Platzhalter bis zur Gesundmeldung - dann hier kuerzen.
+  - {vorname: Sibylle,   von: 2026-11-05, bis: 2026-12-31, art: krank,
+     grund: "ohne absehbares Ende"}
+#  - {vorname: Sibylle,   von: 2026-11-30, bis: 2026-12-05, art: urlaub}  # faellt in die Krankheit
   # ---------------- Dezember ----------------
   - {vorname: Jonas,     tag: 2026-12-05,   art: frei_oder_frueh}
   - {vorname: Anna,      tag: 2026-12-12,   art: wunsch_frueh}

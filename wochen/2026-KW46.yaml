@@ -1,43 +1,37 @@
-# Wochenvorgabe 2026-KW44 - alles, was sich von Woche zu Woche aendert.
+# Wochenvorgabe 2026-KW46 - alles, was sich von Woche zu Woche aendert.
 # Tageskuerzel: mo di mi do fr sa   (weglassen/'alle' = ganze Woche)
 
-woche: 2026-KW44
-datum_von: 2026-10-26          # Montag
-datum_bis: 2026-10-31          # Samstag
+woche: 2026-KW46
+datum_von: 2026-11-09          # Montag
+datum_bis: 2026-11-14          # Samstag
 filiale: Winterbach
 
 # Tage, an denen der Laden zu ist. Aus dem BW-Feiertagskalender vorbelegt.
 geschlossen: []
 
 # --- Abwesenheiten (hart) ---
-urlaub: 
-  kurka_j: alle
-  menzler_a: alle
-  kohl_b: alle
+urlaub: {}
 #  reich_s: alle
 #  kohl_b: [do, fr, sa]
 
-schule: {}
+schule: 
+  menzler_a: [mo, do]         # Gruppe B
 
-krank: {}
+krank: 
+  reich_s: alle
 sonstige: {}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
 fest: 
-  # Samstag nach Ansage: Rohwer frueh, damit jemand von Anfang an da ist,
-  # Marino hat ihren Wunschtag frei, und Sannzenbacher macht spaet und
-  # unterstuetzt damit die Aushilfe.
-  rohwer_c: {sa: 6-14}
-  marino_a: {sa: frei}
-  sannzenbacher_n: {sa: 12-18}
+  kurka_j: {sa: frei}
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
 
 # --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
-wunsch_frei: 
-  marino_a: [sa]
+wunsch_frei: {}
 
-wunsch_schicht: {}
+wunsch_schicht: 
+  kurka_j: {fr: 6-14}
 #  kohl_b: {fr: 6-13:30}
 
 # Wunsch nach einer Schichtart statt einer bestimmten Schicht
@@ -50,34 +44,7 @@ arbeitet: {}
 
 # Nur diese Schichten kommen an dem Tag in Frage (oder frei).
 # Zusammen mit wunsch_frei bildet das "frueh oder frei" ab.
-# Leihkraft aus einer anderen Filiale - gilt nur fuer diese Woche.
-#   faehigkeiten: f = Fleisch, w = Wurst, o = Ofen
-#   tage:         an welchen Tagen sie kann (weglassen = ganze Woche)
-aushilfe:
-  # Offen angesetzt: der Planer nimmt nur so viel davon, wie die eigene
-  # Mannschaft nicht hergibt. Ihre Schichten sind damit die Liste dessen,
-  # was in der anderen Filiale angefragt werden muss.
-  - id: ersatz
-    name: "Ersatz noetig"
-    faehigkeiten: [f, w, o]
-    soll_stunden: 48
-    soll_tage: 6
-    # Keine Fruehschicht und kein spaeter Start: sie kommt aus einer anderen
-    # Filiale, kennt sich nicht aus und braucht jemanden, der ihr etwas zeigt.
-    # Um 11 ist der Laden besetzt, um 6 waere sie mit zweien allein.
-    erlaubte_schichten: [11-20, 8-16, 9-18, 10-18, 11-18]
-
-  # Seniorchef, springt gelegentlich ein: nur 6-11 und nur Fleisch.
-  - id: kurz_t
-    name: "T. Kurz (Senior)"
-    faehigkeiten: [f]
-    soll_stunden: 15
-    soll_tage: 3
-    max_tage: 3
-    erlaubte_schichten: [6-11]
-
-nur_schichten: 
-  marino_a: {sa: [6-14]}
+nur_schichten: {}
 #  kurz_u: {sa: [6-14]}
 
 # --- Termine: Schicht muss zu dieser Zeit enden ---
