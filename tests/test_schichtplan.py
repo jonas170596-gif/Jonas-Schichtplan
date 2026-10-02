@@ -11,12 +11,37 @@ from schichtplan.bewertung import Bewerter, pruefen
 from schichtplan.feiertage import Kalender, feiertage_bw, ostersonntag
 from schichtplan.generator import erzeuge, grundgeruest
 from schichtplan.historie import kalenderabgleich, lade_historie
-from schichtplan.konfig import (lade_schulplaene, lade_stammdaten,
-                                lade_wochenvorgabe)
+from schichtplan.konfig import (Wochenvorgabe, lade_schulplaene,
+                                lade_stammdaten, lade_wochenvorgabe)
 from schichtplan.modelle import TAGE, TAG_LANG, zu_index, zu_text
 from schichtplan import export
 
 WURZEL = pathlib.Path(__file__).resolve().parents[1]
+
+
+def woche(name: str = "2026-KW42", **felder) -> Wochenvorgabe:
+    """Eine leere Wochenvorgabe fuer den Test.
+
+    Nicht `wochen/2026-KW42.yaml` lesen: das ist eine echte Arbeitsdatei, die
+    sich mit jeder Handkorrektur aendert. Ein Test, der darauf baut, faellt
+    irgendwann um, ohne dass an der geprueften Regel etwas kaputt ist - genau
+    das ist in dieser Entwicklung mehrfach passiert. Wer eine Abwesenheit oder
+    eine feste Schicht braucht, traegt sie hier ausdruecklich ein.
+
+        v = woche()
+        v.abwesend["kurka_j"] = {"sa": "urlaub"}
+    """
+    jahr, kw = name.split("-KW")
+    montag = datetime.date.fromisocalendar(int(jahr), int(kw), 1)
+    vorgabe = Wochenvorgabe(
+        woche=name,
+        datum_von=montag.isoformat(),
+        datum_bis=(montag + datetime.timedelta(days=5)).isoformat(),
+        filiale="Winterbach",
+    )
+    for feld, wert in felder.items():
+        setattr(vorgabe, feld, wert)
+    return vorgabe
 
 
 class TestZeit(unittest.TestCase):
@@ -103,7 +128,7 @@ class TestKonfig(unittest.TestCase):
 class TestGenerator(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
 
     def test_harte_vorgaben_bleiben_stehen(self):
         erg = erzeuge(self.stamm, self.vorgabe, iterationen=800, neustarts=1, seed=7)
@@ -133,7 +158,6 @@ class TestGenerator(unittest.TestCase):
     def test_arbeitet_hebt_den_festen_freien_tag_auf(self):
         """'Carina arbeiten' am Dienstag - ihr fester freier Tag faellt weg."""
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}
-        self.vorgabe.fest.pop("kurz_c", None)
         self.assertIn("di", self.stamm.mitarbeiter["kurz_c"].feste_freie_tage)
         plan = grundgeruest(self.stamm, self.vorgabe)
         self.assertFalse(plan.zellen["kurz_c"]["di"].fixiert)
@@ -142,7 +166,6 @@ class TestGenerator(unittest.TestCase):
 
     def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}
-        self.vorgabe.fest.pop("kurz_c", None)
         plan = grundgeruest(self.stamm, self.vorgabe)       # Di bleibt leer
         regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
         self.assertIn("soll_arbeiten", regeln)
@@ -176,21 +199,14 @@ class TestGenerator(unittest.TestCase):
 class TestBewertung(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
 
     def test_leerer_plan_wird_bestraft(self):
         leer = grundgeruest(self.stamm, self.vorgabe)
         self.assertGreater(pruefen(leer, self.stamm, self.vorgabe).punkte, 1000)
 
-    def _sauber(self):
-        """Wochenvorgabe ohne Kalendereintraege - als Bezugspunkt."""
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
-        v.abwesend, v.fest, v.arbeitet = {}, {}, {}
-        v.wunsch_frei, v.wunsch_schicht, v.termine = {}, {}, []
-        return v
-
     def test_urlaub_kuerzt_das_stundensoll(self):
-        v = self._sauber()
+        v = woche()
         v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
         b = Bewerter(self.stamm, v)
         soll_h, soll_t = b._ziel("marino_a")
@@ -201,20 +217,20 @@ class TestBewertung(unittest.TestCase):
 
     def test_ein_freier_tag_allein_senkt_das_soll_nicht(self):
         """Sechs offene Tage minus einer sind fuenf - das Soll bleibt haltbar."""
-        v = self._sauber()
+        v = woche()
         self.assertEqual(Bewerter(self.stamm, v)._ziel("kurka_j"), (40.0, 5))
         v.fest["kurka_j"] = {"fr": "frei"}
         self.assertEqual(Bewerter(self.stamm, v)._ziel("kurka_j"), (40.0, 5))
 
     def test_freier_tag_plus_urlaub_senkt_das_soll(self):
         """So liegt KW42: Freitag zugesagt frei, Samstag Urlaub."""
-        v = self._sauber()
+        v = woche()
         v.fest["kurka_j"] = {"fr": "frei"}
         v.abwesend["kurka_j"] = {"sa": "urlaub"}
         self.assertEqual(Bewerter(self.stamm, v)._ziel("kurka_j"), (32.0, 4))
 
     def test_fester_freier_tag_erzeugt_keinen_fehltag(self):
-        v = self._sauber()
+        v = woche()
         v.fest["kurka_j"] = {"fr": "frei"}
         plan = grundgeruest(self.stamm, v)
         for tag in ("mo", "di", "mi", "do", "sa"):
@@ -225,7 +241,7 @@ class TestBewertung(unittest.TestCase):
         self.assertFalse(any("Kurka" in x for x in texte), texte)
 
     def test_arbeitet_macht_den_tag_wieder_einsetzbar(self):
-        v = self._sauber()
+        v = woche()
         b = Bewerter(self.stamm, v)
         self.assertFalse(b._einsetzbar("kurz_c", "di"))    # fester freier Tag
         v.arbeitet["kurz_c"] = ["di"]
@@ -451,8 +467,7 @@ class TestBewertung(unittest.TestCase):
 
     def test_die_summenspalte_bleibt_netto(self):
         """Die Kennzahl ist brutto, die bezahlte Zeit je Mitarbeiter nicht."""
-        v = self._sauber()
-        v.fest = {}                     # ein leeres Raster, nur eine Schicht
+        v = woche()
         plan = grundgeruest(self.stamm, v)
         b = Bewerter(self.stamm, v)
         self._setze(plan, "kurka_j", "mo", "6-14")
@@ -462,7 +477,7 @@ class TestBewertung(unittest.TestCase):
 
     def test_budget_haengt_nicht_an_abwesenheiten(self):
         """Urlaub senkt den Umsatzbedarf nicht, also auch nicht das Budget."""
-        v = self._sauber()
+        v = woche()
         b = self.stamm.bedarf
         voll = Bewerter(self.stamm, v).gesamtbudget()
         self.assertAlmostEqual(voll, b.umsatz_erwartet / b.umsatz_je_stunde)
@@ -475,7 +490,7 @@ class TestBewertung(unittest.TestCase):
         Marino bringt 40 h Anwesenheit auf 5 Schichten mit, netto 37.5 h.
         Weniger als das darf die Woche verlieren, weil andere in ihre
         freigewordenen Plaetze nachruecken koennen."""
-        v = self._sauber()
+        v = woche()
         voll = Bewerter(self.stamm, v).erreichbare_stunden()
         v.abwesend["marino_a"] = {t: "urlaub" for t in TAGE}
         ohne = Bewerter(self.stamm, v).erreichbare_stunden()
@@ -487,7 +502,7 @@ class TestBewertung(unittest.TestCase):
 
         Sonst mahnt das Budget Stunden an, fuer die es keine Plaetze gibt -
         in einer kurzen Woche mit Feiertag ist das der Regelfall."""
-        v = self._sauber()
+        v = woche()
         b = Bewerter(self.stamm, v)
         plaetze = sum(b.bedarf.kopfzahl[t] for t in b.tage)
         laengste = max(s.dauer_h for s in self.stamm.schichten.values())
@@ -530,7 +545,7 @@ class TestGeschlosseneTage(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
         self.vorgabe.geschlossen = ["fr"]
         self.vorgabe.abwesend = {}
         self.vorgabe.termine = []
@@ -574,6 +589,8 @@ class TestGeschlosseneTage(unittest.TestCase):
 
 
 class TestFeiertage(unittest.TestCase):
+    # Liest absichtlich die echte KW40: geprueft wird, dass die Feiertagswoche
+    # in der Datei richtig abgebildet ist, nicht nur die Feiertagsrechnung.
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
         self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW40.yaml")
@@ -623,7 +640,7 @@ class TestFeiertage(unittest.TestCase):
 class TestAusgleich(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
         self.historie = lade_historie(WURZEL / "daten/historie")
 
     def test_fenster_umfasst_vier_wochen(self):
@@ -647,7 +664,6 @@ class TestAusgleich(unittest.TestCase):
 
     def test_einseitige_bilanz_wird_bestraft(self):
         """Lauter Spaetschichten muessen die Bilanz messbar verschieben."""
-        self.vorgabe.fest = {}      # das Raster soll wirklich leer starten
         b = Bewerter(self.stamm, self.vorgabe, self.historie)
         leer = grundgeruest(self.stamm, self.vorgabe)
         vorher = b.frueh_spaet_bilanz(leer, "reich_s")
@@ -680,7 +696,7 @@ class TestAusgleich(unittest.TestCase):
 class TestTerminWechsel(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
         self.historie = lade_historie(WURZEL / "daten/historie")
 
     def test_vorlage_nennt_nur_kurka(self):
@@ -749,7 +765,9 @@ class TestBacktest(unittest.TestCase):
 
 
 class TestHandplan(unittest.TestCase):
-    """Weihnachtswoche: der Planer rechnet nicht, er prueft und exportiert."""
+    """Weihnachtswoche: der Planer rechnet nicht, er prueft und exportiert.
+
+    Liest absichtlich die echte KW52 - geprueft wird genau dieser Handplan."""
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
@@ -866,7 +884,7 @@ class TestPausen(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
         self.pause = self.stamm.bedarf.pause_h
 
     def test_pause_ist_konfiguriert(self):
@@ -893,7 +911,6 @@ class TestPausen(unittest.TestCase):
         self.assertEqual(plan.netto_stunden("kurka_j", self.pause), 0.0)
 
     def test_kennzahl_brutto_bezahlte_zeit_netto(self):
-        self.vorgabe.fest = {}          # sonst stehen schon Schichten im Raster
         plan = grundgeruest(self.stamm, self.vorgabe)
         for tag in ("mo", "di"):
             plan.zellen["rohwer_c"][tag].art = "schicht"
@@ -909,7 +926,7 @@ class TestSparsamPlanen(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
 
     def test_unter_budget_kostet_nichts(self):
         g = self.stamm.regeln.gewichte
@@ -966,7 +983,7 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        self.vorgabe = woche("2026-KW44")
 
     LEIHKRAFT = {"id": "aushilfe_1", "name": "M. Weber (Schorndorf)",
                  "faehigkeiten": ["f", "w"], "soll_stunden": 32, "soll_tage": 4,
@@ -991,7 +1008,7 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
         """Sie senkt die Luecke nicht, sie fuellt sie - deshalb zeigen genau
         ihre Schichten, wofuer Ersatz gebraucht wird."""
         from schichtplan.konfig import mit_aushilfen
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        v = woche("2026-KW44")
         v.aushilfe = [dict(self.LEIHKRAFT)]
         erweitert = mit_aushilfen(self.stamm, v)
         a = erweitert.mitarbeiter["aushilfe_1"]
@@ -1003,14 +1020,14 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
     def test_aushilfe_vergroessert_das_machbare(self):
         from schichtplan.konfig import mit_aushilfen
         ohne = Bewerter(self.stamm, self.vorgabe).erreichbare_stunden()
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        v = woche("2026-KW44")
         v.aushilfe = [dict(self.LEIHKRAFT)]
         mit = Bewerter(mit_aushilfen(self.stamm, v), v).erreichbare_stunden()
         self.assertGreater(mit, ohne)
 
     def test_nur_verfuegbare_tage(self):
         from schichtplan.konfig import mit_aushilfen
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
+        v = woche("2026-KW44")
         v.aushilfe = [{"id": "leih", "name": "Leihkraft", "faehigkeiten": ["w"],
                        "soll_stunden": 16, "soll_tage": 2, "tage": ["fr", "sa"]}]
         b = Bewerter(mit_aushilfen(self.stamm, v), v)
@@ -1029,8 +1046,7 @@ class TestAushilfeUndRestwoche(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             f.write(export.als_json(plan, self.stamm))   # liefert fertiges JSON
             pfad = f.name
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW44.yaml")
-        v.fest = {}        # was die Beispielwoche selbst festlegt, stoert hier
+        v = woche("2026-KW44")
         _restwoche_fixieren(v, self.stamm, pfad, "mi")
         self.assertIn("mo", v.fest.get("rohwer_c", {}))
         self.assertIn("di", v.fest.get("rohwer_c", {}))
@@ -1049,7 +1065,7 @@ class TestUmsatzbudget(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
 
     def test_soll_kommt_aus_dem_umsatz(self):
         b = self.stamm.bedarf
@@ -1077,7 +1093,7 @@ class TestKategorieprofil(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
 
     def test_profil_ist_hinterlegt(self):
         for tag in ("mo", "di", "mi", "do"):
@@ -1132,8 +1148,7 @@ class TestFreiOderFrueh(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
-        self.vorgabe.fest.pop("kurz_u", None)   # sonst steht ihr Samstag fest
+        self.vorgabe = woche()
         self.vorgabe.nur_schichten = {"kurz_u": {"sa": ["6-14"]}}
         self.vorgabe.wunsch_frei = {"kurz_u": ["sa"]}
 
@@ -1201,7 +1216,7 @@ class TestUeberbesetzung(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
         self.wochen = lade_historie(WURZEL / "daten/historie")
 
     def test_zielkopfzahl_ist_eine_obergrenze(self):
@@ -1243,7 +1258,6 @@ class TestUeberbesetzung(unittest.TestCase):
     def test_gleichmaessiges_minus_kostet_nichts(self):
         """Alle gleich weit zurueck heisst: gerecht verteilt."""
         v = self.vorgabe
-        v.fest = {}                     # ein wirklich leeres Raster
         b = Bewerter(self.stamm, v, self.wochen)
         gruppe = b._kontogruppe()
         # Der leere Plan legt jedem sein volles Wochensoll aufs Konto; die
@@ -1255,7 +1269,6 @@ class TestUeberbesetzung(unittest.TestCase):
 
     def test_einseitiges_minus_kostet(self):
         v = self.vorgabe
-        v.fest = {}
         b = Bewerter(self.stamm, v, self.wochen)
         gruppe = b._kontogruppe()
         b._minusstunden = {mid: 60.0 - b._ziel(mid)[0] for mid in gruppe}
@@ -1296,7 +1309,7 @@ class TestUeberbesetzung(unittest.TestCase):
 class TestArbeitszeitgrenzen(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
 
     def test_obergrenze_ist_gesetzt(self):
         self.assertEqual(self.stamm.regeln.max_wochenstunden, 48)
@@ -1326,7 +1339,7 @@ class TestKonten(unittest.TestCase):
 
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
         self.historie = lade_historie(WURZEL / "daten/historie")
         self.b = Bewerter(self.stamm, self.vorgabe, self.historie)
 
@@ -1384,7 +1397,6 @@ class TestKonten(unittest.TestCase):
 
         Gemessen wird gegen den Teamschnitt, deshalb muessen die beiden
         ueber dem Schnitt liegen - sonst kostet der Rueckstand nichts."""
-        self.vorgabe.fest = {}
         b = Bewerter(self.stamm, self.vorgabe, self.historie)
         b._fehltage = {mid: 0.0 for mid in self.stamm.mitarbeiter}
         b._fehltage["marino_a"] = b._fehltage["rohwer_c"] = 6.0
@@ -1447,12 +1459,15 @@ class TestSchulplan(unittest.TestCase):
                 self.assertIn(tag, TAGE, f"{woche}/{tag}")
 
     def test_wochenvorgabe_enthaelt_die_schultage(self):
+        """Hier absichtlich die echte Datei: geprueft wird, dass 'neu' die
+        Schultage aus dem Jahresplan eingetragen hat."""
         v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
         self.assertEqual(v.abwesend["menzler_a"], {"mi": "schule", "do": "schule"})
 
     def test_mehr_als_fuenf_praesenztage_ist_ein_fehler(self):
         stamm = lade_stammdaten(WURZEL / "konfig")
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")   # Mi + Do Schule
+        v = woche()
+        v.abwesend["menzler_a"] = {"mi": "schule", "do": "schule"}
         plan = grundgeruest(stamm, v)
         for tag in ("mo", "di", "fr", "sa"):       # 4 Schichten + 2 Schultage = 6
             plan.zellen["menzler_a"][tag].art = "schicht"
@@ -1464,7 +1479,8 @@ class TestSchulplan(unittest.TestCase):
 
     def test_genau_fuenf_praesenztage_sind_in_ordnung(self):
         stamm = lade_stammdaten(WURZEL / "konfig")
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        v = woche()
+        v.abwesend["menzler_a"] = {"mi": "schule", "do": "schule"}
         plan = grundgeruest(stamm, v)
         for tag in ("mo", "fr", "sa"):             # 3 Schichten + 2 Schultage = 5
             plan.zellen["menzler_a"][tag].art = "schicht"
@@ -1474,17 +1490,19 @@ class TestSchulplan(unittest.TestCase):
 
     def test_zwei_schultage_lassen_drei_schichten(self):
         stamm = lade_stammdaten(WURZEL / "konfig")
-        v = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        v = woche()
+        v.abwesend["menzler_a"] = {"mi": "schule", "do": "schule"}
         stunden, tage = Bewerter(stamm, v)._ziel("menzler_a")
         self.assertEqual(tage, 3)          # 5 Praesenztage minus 2 Schultage
         self.assertEqual(stunden, 24.0)    # 40 h minus 2 x 8 h Schule
 
 
 class TestWochenBedarf(unittest.TestCase):
+    # Liest absichtlich die echte KW52: geprueft wird deren Bedarfsuebersteuerung.
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
         self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW52.yaml")
-        self.normal = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.normal = woche()
 
     def test_heiligabend_schliesst_frueher(self):
         b = Bewerter(self.stamm, self.vorgabe)       # 24.12.2026 ist ein Donnerstag
@@ -1508,7 +1526,10 @@ class TestWochenBedarf(unittest.TestCase):
 class TestExport(unittest.TestCase):
     def setUp(self):
         self.stamm = lade_stammdaten(WURZEL / "konfig")
-        self.vorgabe = lade_wochenvorgabe(WURZEL / "wochen/2026-KW42.yaml")
+        self.vorgabe = woche()
+        # Eine Abwesenheit je Art, damit der Export etwas zu zeigen hat.
+        self.vorgabe.abwesend["menzler_a"] = {"mi": "schule", "do": "schule"}
+        self.vorgabe.abwesend["kurka_j"] = {"sa": "urlaub"}
         self.plan = erzeuge(self.stamm, self.vorgabe, iterationen=1500,
                             neustarts=1, seed=11).plan
 
