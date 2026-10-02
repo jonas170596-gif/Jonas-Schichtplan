@@ -17,20 +17,20 @@ urlaub: {}
 schule: 
   menzler_a: [mi, do]         # Gruppe B
 
-krank: {}
+krank: 
+  reich_s: [do, fr, sa]       # krankgeschrieben ab 05.11., Ende offen
 sonstige: {}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
 fest: 
-  kurka_j: {mo: frei}
+  kurka_j: {mo: frei, sa: frei}   # 02.11. und 07.11. laut Wandkalender
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
 
 # --- Wuensche (weich, der Planer versucht sie zu erfuellen) ---
 wunsch_frei: {}
 
-wunsch_schicht: 
-  kurka_j: {sa: 6-14}
+wunsch_schicht: {}
 #  kohl_b: {fr: 6-13:30}
 
 # Wunsch nach einer Schichtart statt einer bestimmten Schicht
@@ -43,6 +43,13 @@ arbeitet: {}
 
 # Nur diese Schichten kommen an dem Tag in Frage (oder frei).
 # Zusammen mit wunsch_frei bildet das "frueh oder frei" ab.
+aushilfe: []
+#  - id: ersatz
+#    name: "Ersatz noetig"
+#    faehigkeiten: [f, w, o]
+#    soll_stunden: 48
+#    soll_tage: 6
+
 nur_schichten: {}
 #  kurz_u: {sa: [6-14]}
 
