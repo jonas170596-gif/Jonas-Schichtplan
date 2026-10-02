@@ -29,6 +29,10 @@ fest:
   reich_s: {do: frei}
 #  rohwer_c: {di: frei, fr: 11-20, sa: 11-18}  # macht der Planer inzwischen selbst
 #  marino_a: {di: 6-14, fr: 6-14, sa: 6-14}
+  # Dienstag getauscht: so hat Marino Di/Mi beide spaet statt frueh/spaet und
+  # kommt auf einen Schichtwechsel in der Woche statt zwei.
+  marino_a: {di: 11-20}
+  reich_s: {di: 6-14}
   kohl_b: {mo: frei, mi: frei}     # Mi frei kommt aus dem Wandkalender (14.10.)
   kurz_c: {mi: 8-13, do: frei, sa: frei}   # Do frei aus dem Wandkalender (15.10.)
   kurz_u: {sa: 8-16}               # Mi bleibt offen: ohne Kohl ist sie der 5. Kopf

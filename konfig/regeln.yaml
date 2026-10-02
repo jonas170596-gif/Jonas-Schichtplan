@@ -108,6 +108,12 @@ gewichte:
   soll_arbeiten: 2000       # ausdruecklich zugesagter Arbeitstag nicht belegt
 
   # --- Qualitaet / Gewohnheit ---
+  richtungswechsel: 300     # zweiter und jeder weitere Wechsel zwischen Frueh
+                            # und Spaet an aufeinanderfolgenden Tagen. Einer in
+                            # der Woche geht, zwei zerreissen den Rhythmus.
+                            # Uebergaenge von und zur Mittelschicht zaehlen nicht.
+  begleitung: 2500          # jemand steht in einer Schicht, in der er laut
+                            # Stammdaten Begleitung braucht (praktisch hart)
   wechsel: 150              # erster kurzer Wechsel Spaet -> Frueh in der Woche
   wechsel_ueber_limit: 1200 # jeder weitere kurze Wechsel
   ruhezeit_verletzung: 3000 # Ruhe unter ruhezeit_min_h (praktisch hart)

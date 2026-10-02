@@ -117,6 +117,9 @@ class Mitarbeiter:
     # kommt Mo-Do als zweite Mittelschicht aufs Tagesgeruest obendrauf, Fr und
     # Sa zaehlt er normal mit - so stehen die Zielkopfzahlen in den Altplaenen.
     zaehlt_kopfzahl: bool | list[str] = True
+    begleitung: dict = field(default_factory=dict)
+                                        # {kategorie, gruppe}: in dieser Kategorie
+                                        # nur zusammen mit jemandem aus der Gruppe
     kein_spaet_vor_frueh: bool = False  # Spaetschicht direkt vor einer Fruehschicht
                                         # ist ausgeschlossen (langer Heimweg)
     stunden_toleranz_h: float | None = None

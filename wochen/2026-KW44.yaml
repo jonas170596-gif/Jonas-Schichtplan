@@ -66,6 +66,11 @@ aushilfe:
     # Filiale, kennt sich nicht aus und braucht jemanden, der ihr etwas zeigt.
     # Um 11 ist der Laden besetzt, um 6 waere sie mit zweien allein.
     erlaubte_schichten: [11-20, 8-16, 9-18, 10-18, 11-18]
+    # Solange unklar ist, wie erfahren die Person ist: Spaetschicht nur,
+    # wenn eine der drei Erfahrenen ebenfalls spaet arbeitet.
+    begleitung:
+      kategorie: spaet
+      gruppe: [rohwer_c, marino_a, sannzenbacher_n]
 
   # Seniorchef, springt gelegentlich ein: nur 6-11 und nur Fleisch.
   - id: kurz_t

@@ -301,6 +301,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             zaehlt_kopfzahl=(roh_k if isinstance(roh_k := m.get("zaehlt_kopfzahl", True),
                                                  (bool, list)) else bool(roh_k)),
             kein_spaet_vor_frueh=bool(m.get("kein_spaet_vor_frueh", False)),
+            begleitung=dict(m.get("begleitung") or {}),
             samstag_moeglich=bool(m.get("samstag_moeglich", False)),
             frueh_ab_koepfen=int(m.get("frueh_ab_koepfen", 0) or 0),
             stunden_toleranz_h=(float(m["stunden_toleranz_h"])
@@ -467,6 +468,7 @@ def mit_aushilfen(stamm: Stammdaten, vorgabe) -> Stammdaten:
             # Frage, fuer welche Zeiten Ersatz gebraucht wird.
             moeglichst_wenig=bool(a.get("nur_bei_bedarf", True)),
             nur_obergrenze=bool(a.get("nur_bei_bedarf", True)),
+            begleitung=dict(a.get("begleitung") or {}),
             notiz=a.get("notiz", "Aushilfe, nur diese Woche"),
         )
         # Tage ausserhalb ihrer Verfuegbarkeit gelten als abwesend, damit sie

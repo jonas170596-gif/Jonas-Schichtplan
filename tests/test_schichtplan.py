@@ -647,6 +647,7 @@ class TestAusgleich(unittest.TestCase):
 
     def test_einseitige_bilanz_wird_bestraft(self):
         """Lauter Spaetschichten muessen die Bilanz messbar verschieben."""
+        self.vorgabe.fest = {}      # das Raster soll wirklich leer starten
         b = Bewerter(self.stamm, self.vorgabe, self.historie)
         leer = grundgeruest(self.stamm, self.vorgabe)
         vorher = b.frueh_spaet_bilanz(leer, "reich_s")

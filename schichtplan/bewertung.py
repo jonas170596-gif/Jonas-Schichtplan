@@ -1125,6 +1125,26 @@ class Bewerter:
                         f"({TAG_LANG[a]} -> {TAG_LANG[b_]}, {pause / 2:.1f} h Ruhe) - "
                         f"erlaubt ist {grenze}", "warnung")
 
+            # Richtungswechsel: frueh auf spaet oder spaet auf frueh an zwei
+            # aufeinanderfolgenden Tagen. Einer in der Woche ist in Ordnung,
+            # zwei zerreissen den Rhythmus - Marino hatte in KW42 Di frueh ->
+            # Mi spaet und Do spaet -> Fr frueh. Die Mittelschicht ist davon
+            # ausgenommen, der Uebergang von und zu ihr faellt nicht auf.
+            richtung = []
+            for a, b_ in zip(self.tage, self.tage[1:]):
+                za, zb = reihe[a], reihe[b_]
+                if not (za.arbeitet and zb.arbeitet):
+                    continue
+                if TAGE.index(b_) - TAGE.index(a) != 1:
+                    continue            # dazwischen liegt ein geschlossener Tag
+                ka, kb = za.schicht.kategorie, zb.schicht.kategorie
+                if {ka, kb} == {"frueh", "spaet"}:
+                    richtung.append((a, b_, ka, kb))
+            for i, (a, b_, ka, kb) in enumerate(richtung[1:], start=2):
+                add("richtungswechsel", 1,
+                    f"{m.name}: {i}. Schichtwechsel der Woche "
+                    f"({TAG_LANG[a]} {ka} -> {TAG_LANG[b_]} {kb})", "warnung")
+
             if m.frueh_ab_koepfen:
                 # Der Azubi ist fachlich noch nicht so weit, die Fruehschicht
                 # zu zweit zu stemmen. Er darf frueh arbeiten, aber nur wenn
@@ -1167,6 +1187,29 @@ class Bewerter:
                     add("kurzschicht", kurz - z.schicht.dauer_h,
                         f"{m.name}: {TAG_LANG[tag]} nur {z.schicht.dauer_h:.1f} h "
                         f"({z.schicht.label}) - unter {kurz:.0f} h", "warnung")
+
+            if m.begleitung:
+                # Eine neue Aushilfe soll die Spaetschicht nicht allein mit
+                # Leuten stemmen, die selbst noch wenig Routine haben. Steht
+                # sie in der Kategorie, muss jemand aus der Gruppe dieselbe
+                # Kategorie haben.
+                kat = m.begleitung.get("kategorie")
+                gruppe = m.begleitung.get("gruppe", [])
+                for tag in self.tage:
+                    z = reihe[tag]
+                    if not (z.arbeitet and (not kat or z.schicht.kategorie == kat)):
+                        continue
+                    dabei = [g for g in gruppe
+                             if (y := plan.zellen.get(g, {}).get(tag)) is not None
+                             and y.arbeitet
+                             and (not kat or y.schicht.kategorie == kat)]
+                    if not dabei:
+                        namen = ", ".join(self.stamm.mitarbeiter[g].name
+                                          for g in gruppe
+                                          if g in self.stamm.mitarbeiter)
+                        add("begleitung", 1,
+                            f"{m.name}: {TAG_LANG[tag]} {kat or 'Schicht'} ohne "
+                            f"Begleitung - gebraucht wird {namen}", "fehler")
 
             for tag in m.bevorzugte_freie_tage:
                 if tag in self.tage and reihe[tag].arbeitet:
