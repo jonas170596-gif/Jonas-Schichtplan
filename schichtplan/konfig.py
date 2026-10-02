@@ -576,7 +576,7 @@ class Kalender:
 
 
 ARTEN_KALENDER = ("urlaub", "krank", "frei", "wunsch_frei", "wunsch_frueh",
-                  "frei_oder_frueh", "arbeitet")
+                  "frei_oder_frueh", "arbeitet", "kann_arbeiten")
 
 
 def lade_kalender(pfad: pathlib.Path | str = "daten/kalender.yaml",
@@ -645,7 +645,8 @@ class Wochenvorgabe:
     wunsch_frei: dict[str, list[str]] = field(default_factory=dict)
     wunsch_schicht: dict[str, dict[str, str]] = field(default_factory=dict)
     wunsch_kategorie: dict[str, dict[str, str]] = field(default_factory=dict)
-    arbeitet: dict[str, list[str]] = field(default_factory=dict)   # hebt feste freie Tage auf
+    arbeitet: dict[str, list[str]] = field(default_factory=dict)   # hebt feste freie Tage auf UND verpflichtet
+    kann_arbeiten: dict[str, list[str]] = field(default_factory=dict)  # hebt nur auf, ohne Pflicht
     nur_schichten: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     zusatz: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     soll_stunden: dict[str, float] = field(default_factory=dict)       # Override
@@ -693,6 +694,8 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
     wunsch_kategorie = {ma: dict(v)
                         for ma, v in (roh.get("wunsch_kategorie") or {}).items()}
     arbeitet = {ma: _tageliste(v) for ma, v in (roh.get("arbeitet") or {}).items()}
+    kann_arbeiten = {ma: _tageliste(v)
+                     for ma, v in (roh.get("kann_arbeiten") or {}).items()}
     nur_schichten = {ma: {tag: list(s) for tag, s in tage.items()}
                      for ma, tage in (roh.get("nur_schichten") or {}).items()}
     zusatz = {ma: {t: (v if isinstance(v, list) else [v]) for t, v in tage.items()}
@@ -737,6 +740,7 @@ def lade_wochenvorgabe(pfad: pathlib.Path | str) -> Wochenvorgabe:
         wunsch_schicht=wunsch_schicht,
         wunsch_kategorie=wunsch_kategorie,
         arbeitet=arbeitet,
+        kann_arbeiten=kann_arbeiten,
         nur_schichten=nur_schichten,
         zusatz=zusatz,
         soll_stunden={k: float(v) for k, v in (roh.get("soll_stunden") or {}).items()},

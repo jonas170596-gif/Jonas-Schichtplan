@@ -164,6 +164,25 @@ class TestGenerator(unittest.TestCase):
         erg = erzeuge(self.stamm, self.vorgabe, iterationen=4000, seed=2)
         self.assertTrue(erg.plan.zellen["kurz_c"]["di"].arbeitet)
 
+    def test_kann_arbeiten_gibt_den_tag_frei_ohne_pflicht(self):
+        """'Ich kann diesen Dienstag' aus dem Wandkalender: der Tag steht zur
+        Verfuegung, aber niemand muss dort eingeteilt werden."""
+        self.vorgabe.kann_arbeiten = {"kurz_c": ["di"]}
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        self.assertFalse(plan.zellen["kurz_c"]["di"].fixiert)
+        regeln = {b.regel for b in pruefen(plan, self.stamm, self.vorgabe).befunde}
+        self.assertNotIn("soll_arbeiten", regeln)
+
+    def test_kann_arbeiten_oeffnet_den_tag_fuer_den_planer(self):
+        """Ohne Eintrag ist Dienstag auf 'frei' festgenagelt, mit
+        'kann_arbeiten' darf der Planer ueber den Tag entscheiden."""
+        zu = grundgeruest(self.stamm, self.vorgabe).zellen["kurz_c"]["di"]
+        self.assertTrue(zu.fixiert)
+        self.assertFalse(zu.arbeitet)
+        self.vorgabe.kann_arbeiten = {"kurz_c": ["di"]}
+        offen = grundgeruest(self.stamm, self.vorgabe).zellen["kurz_c"]["di"]
+        self.assertFalse(offen.fixiert)
+
     def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}
         plan = grundgeruest(self.stamm, self.vorgabe)       # Di bleibt leer

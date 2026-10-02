@@ -50,9 +50,13 @@ wunsch_kategorie: {}
 #  menzler_a: {sa: frueh}
 
 # Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
-arbeitet: 
+arbeitet: {}
+
+# Wie 'arbeitet', aber ohne Pflicht: der Tag ist nur freigegeben.
+kann_arbeiten:
   kurz_c: [di]      # Wandkalender 13.10.: sie hat selbst eingetragen, dass sie
-                    # diesen Dienstag kann. Sonst ist Di bei ihr fest frei.
+                    # diesen Dienstag KANN. Sonst ist Di bei ihr fest frei.
+                    # Ihre Stammschicht Mo 8-14 hat trotzdem Vorrang.
 
 # --- Termine: Schicht muss zu dieser Zeit enden ---
 termine: []

@@ -72,8 +72,15 @@ wunsch_schicht: {wunsch_schicht}
 wunsch_kategorie: {{}}
 #  menzler_a: {{sa: frueh}}
 
-# Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
+# Hebt einen festen freien Tag auf UND verpflichtet: der/die MA muss an dem
+# Tag eingeteilt werden, sonst gibt es einen Fehler.
 arbeitet: {arbeitet}
+#  kurz_c: [di]
+
+# Hebt einen festen freien Tag nur auf, ohne Pflicht: der Tag steht zur
+# Verfuegung, der Planer darf ihn nutzen, muss aber nicht. Das ist der
+# Normalfall fuer "ich kann diese Woche auch am ... " aus dem Wandkalender.
+kann_arbeiten: {{}}
 #  kurz_c: [di]
 
 # Nur diese Schichten kommen an dem Tag in Frage (oder frei).

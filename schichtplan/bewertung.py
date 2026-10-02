@@ -95,13 +95,16 @@ class Bewerter:
         Nicht nur Urlaub sperrt einen Tag, auch ein fester freier Tag und ein
         im Kalender zugesagtes 'frei'. Wuerde man die mitzaehlen, stuende die
         Person dauerhaft mit einem Fehltag da, obwohl der Tag abgesprochen ist.
-        `arbeitet` hebt einen festen freien Tag fuer diese Woche wieder auf."""
+        `arbeitet` (Pflicht) und `kann_arbeiten` (nur Angebot) heben einen
+        festen freien Tag fuer diese Woche wieder auf."""
         m = self.stamm.mitarbeiter[mid]
         if tag in self.vorgabe.abwesend.get(mid, {}):
             return False
         if self.vorgabe.fest.get(mid, {}).get(tag) in ("frei", "Frei", False):
             return False
-        if tag in m.feste_freie_tage and tag not in self.vorgabe.arbeitet.get(mid, []):
+        if tag in m.feste_freie_tage \
+                and tag not in self.vorgabe.arbeitet.get(mid, []) \
+                and tag not in self.vorgabe.kann_arbeiten.get(mid, []):
             return False
         return True
 

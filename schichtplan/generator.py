@@ -86,7 +86,9 @@ def grundgeruest(stamm: Stammdaten, vorgabe: Wochenvorgabe) -> Plan:
                 else:
                     reihe[t] = Zelle("schicht", _feste_schicht(stamm, mid, t, wert),
                                      fixiert=True)
-            elif t in m.feste_freie_tage and t not in vorgabe.arbeitet.get(mid, []):
+            elif t in m.feste_freie_tage \
+                    and t not in vorgabe.arbeitet.get(mid, []) \
+                    and t not in vorgabe.kann_arbeiten.get(mid, []):
                 reihe[t] = Zelle("frei", fixiert=True)
             else:
                 reihe[t] = Zelle("frei", fixiert=handplan)
