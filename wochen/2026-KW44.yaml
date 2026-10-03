@@ -30,6 +30,10 @@ fest:
   rohwer_c: {sa: 6-14}
   marino_a: {mo: 6-14, sa: frei}   # Montag ausnahmsweise, nach Ansage
   sannzenbacher_n: {sa: 12-18}
+  # Montags macht U. Kurz die zweite Spaetschicht statt der Palmstrasse -
+  # damit kommt sie auf drei Tage und die Aushilfe auf vier.
+  kurz_u: {mo: 11-20}
+  palmstrasse: {mo: frei}
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
 
