@@ -13,7 +13,7 @@ from schichtplan.generator import erzeuge, grundgeruest
 from schichtplan.historie import kalenderabgleich, lade_historie
 from schichtplan.konfig import (Wochenvorgabe, lade_schulplaene,
                                 lade_stammdaten, lade_wochenvorgabe)
-from schichtplan.modelle import TAGE, TAG_LANG, zu_index, zu_text
+from schichtplan.modelle import TAGE, TAG_LANG, Zelle, zu_index, zu_text
 from schichtplan import export
 
 WURZEL = pathlib.Path(__file__).resolve().parents[1]
@@ -183,6 +183,49 @@ class TestGenerator(unittest.TestCase):
         offen = grundgeruest(self.stamm, self.vorgabe).zellen["kurz_c"]["di"]
         self.assertFalse(offen.fixiert)
 
+    def test_eine_person_allein_im_laden_ist_ein_fehler(self):
+        """Allein im Laden geht nie - dann ist keine Pause moeglich."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for mid, reihe in plan.zellen.items():
+            for tag in reihe:
+                reihe[tag] = Zelle("frei")
+        plan.zellen["kurka_j"]["mo"] = Zelle("schicht",
+                                             self.stamm.schichten["6-14"])
+        befunde = {b.regel: b for b in pruefen(plan, self.stamm,
+                                               self.vorgabe).befunde}
+        self.assertIn("allein", befunde)
+        self.assertEqual(befunde["allein"].schwere, "fehler")
+
+    def test_zu_zweit_im_laden_ist_kein_alleinfehler(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for mid, reihe in plan.zellen.items():
+            for tag in reihe:
+                reihe[tag] = Zelle("frei")
+        for mid in ("kurka_j", "rohwer_c"):
+            plan.zellen[mid]["mo"] = Zelle("schicht",
+                                           self.stamm.schichten["6-14"])
+        regeln = {b.regel for b in pruefen(plan, self.stamm,
+                                           self.vorgabe).befunde}
+        self.assertNotIn("allein", regeln)
+
+    def test_doppelter_schluessel_wird_gemeldet(self):
+        """Zwei gleiche Schluessel in einer Ebene: YAML wuerde den ersten
+        stillschweigend verwerfen, der Lader meldet es stattdessen."""
+        import tempfile
+        from schichtplan.konfig import lade_wochenvorgabe
+        text = ("woche: 2026-KW42\n"
+                "datum_von: 2026-10-12\n"
+                "datum_bis: 2026-10-17\n"
+                "fest:\n"
+                "  kurz_u: {mi: 12-20}\n"
+                "  kurz_u: {di: frei}\n")
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(text)
+            pfad = f.name
+        with self.assertRaises(ValueError) as fehler:
+            lade_wochenvorgabe(pfad)
+        self.assertIn("kurz_u", str(fehler.exception))
+
     def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}
         plan = grundgeruest(self.stamm, self.vorgabe)       # Di bleibt leer
@@ -195,7 +238,11 @@ class TestGenerator(unittest.TestCase):
             m = self.stamm.mitarbeiter[mid]
             for t, z in reihe.items():
                 if z.arbeitet:
-                    self.assertIn(z.schicht.id, m.erlaubte_schichten)
+                    # zusatzschichten gelten nur an den dort genannten Tagen -
+                    # C. Kurz darf 6-14 ausschliesslich samstags.
+                    erlaubt = list(m.erlaubte_schichten) + \
+                        list(m.zusatzschichten.get(t, []))
+                    self.assertIn(z.schicht.id, erlaubt)
                     self.assertIn(t, z.schicht.tage)
 
     def test_nicht_eingeplante_bleiben_leer(self):

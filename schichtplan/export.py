@@ -129,6 +129,13 @@ td.leer { background:repeating-linear-gradient(0deg,#fff,#fff 10px,#f4f4f4 10px,
 """
 
 
+def _schluessel(text: str) -> str:
+    """Zeilenname auf Vergleichbares reduzieren: Palmstrasse == Palmstrasse."""
+    ersetzt = text.lower().replace("\u00df", "ss").replace("\u00e4", "ae") \
+                  .replace("\u00f6", "oe").replace("\u00fc", "ue")
+    return "".join(c for c in ersetzt if c.isalnum())
+
+
 def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
              titel: str | None = None, bewerter=None) -> str:
     e = html.escape
@@ -162,9 +169,13 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
         zeilen.append("<tr>" + "".join(tds) + "</tr>")
 
     # Leerzeilen zum Eintragen von Hand - auf dem Papierplan steht unten die
-    # Zeile fuer die Aushilfe aus der Palmstrasse, die nicht in den Stammdaten
-    # gefuehrt wird.
+    # Zeile fuer die Aushilfe aus der Palmstrasse. Ist die Aushilfe in dieser
+    # Woche schon eingeplant, steht sie oben mit ihren Schichten drin; dann
+    # waere die Leerzeile dieselbe Zeile ein zweites Mal.
+    gesetzt = {_schluessel(stamm.mitarbeiter[mid].name) for mid in plan.zellen}
     for beschriftung in stamm.bedarf.zusatzzeilen:
+        if _schluessel(beschriftung) in gesetzt:
+            continue
         leer = "".join('<td class="leer"></td>' for _ in alle)
         zeilen.append(f'<tr class="zusatz-zeile"><td class="ma">{e(beschriftung)}</td>'
                       f'{leer}<td class="summe leer"></td></tr>')

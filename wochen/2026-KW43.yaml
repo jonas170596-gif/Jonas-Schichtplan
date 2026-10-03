@@ -23,7 +23,10 @@ sonstige: {}
 
 # --- Harte Vorgaben: genau diese Schicht / genau frei ---
 fest: 
-  kurz_u: {di: frei}
+  # Mittwochs geht C. Kurz um 13 und Kohl um 13:30 - mit einer zweiten
+  # Spaetschicht erst ab 14 waere bis dahin einer allein, sobald der
+  # andere Pause macht.
+  kurz_u: {di: frei, mi: 12-20}
   kurz_c: {do: frei}
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}

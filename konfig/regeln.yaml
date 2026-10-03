@@ -47,6 +47,10 @@ gewichte:
   # in gut besetzten Wochen lieber einen ueberzaehligen Kopf in den Laden, als
   # jemanden zu Hause zu lassen.
   kopfzahl_ueber: 900       # je Kopf ueber der Zielkopfzahl
+  allein: 2500             # je Halbstunde, in der nur eine Person im Laden
+                            # steht (praktisch hart). Die Besetzungskurve
+                            # darunter ist weich und verhandelbar, das hier
+                            # nicht - wer allein ist, kann keine Pause machen.
   besetzung_unter: 250      # je fehlender Person und Halbstunde
   besetzung_ueber: 14       # ab der zweiten ueberzaehligen Person je Halbstunde.
                             # Das ist

@@ -659,13 +659,17 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
     from .modelle import TAG_LANG
     tage = plan.offene_tage
     breite = 11
-    kopf = f"{'Mitarbeiter':<18}" + "".join(f"{TAG_LANG[t][:9]:<{breite}}" for t in tage)
+    # Die Namensspalte richtet sich nach dem laengsten Namen - eine Aushilfe
+    # heisst schon mal "Palmstrasse Aushilfe" und sprengt die 18 Zeichen.
+    nb = max(18, 2 + max((len(stamm.mitarbeiter[mid].name) for mid in plan.zellen),
+                         default=0))
+    kopf = f"{'Mitarbeiter':<{nb}}" + "".join(f"{TAG_LANG[t][:9]:<{breite}}" for t in tage)
     zeilen = [f"{plan.woche}  {plan.datum_von} - {plan.datum_bis}  {plan.filiale}",
               kopf, "-" * len(kopf)]
     pause = stamm.bedarf.pause_h
     for mid, reihe in plan.zellen.items():
         m = stamm.mitarbeiter[mid]
-        z = f"{m.name:<18}" + "".join(f"{reihe[t].label():<{breite}}" for t in tage)
+        z = f"{m.name:<{nb}}" + "".join(f"{reihe[t].label():<{breite}}" for t in tage)
         netto = plan.netto_stunden(mid, pause)
         schichten = plan.arbeitstage(mid)
         gezaehlt = tuple(m.abwesenheit_stunden)
@@ -674,7 +678,7 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
                      else f"{praesenz} T ({schichten}+{praesenz - schichten} Schule)")
         zeilen.append(f"{z}  {netto:5.1f} h / {tage_text}")
     zeilen.append("-" * len(kopf))
-    zeilen.append(f"{'Koepfe':<18}" + "".join(f"{plan.koepfe(t):<{breite}}" for t in tage))
+    zeilen.append(f"{'Koepfe':<{nb}}" + "".join(f"{plan.koepfe(t):<{breite}}" for t in tage))
     if bewerter is not None and bewerter.gesamtbudget():
         ist, ziel = bewerter.gesamtstunden(plan), bewerter.gesamtbudget()
         erreichbar = bewerter.erreichbare_stunden()
@@ -688,9 +692,9 @@ def _textplan(plan: Plan, stamm, bewerter=None) -> str:
         umsatz = (f" bei {b.umsatz_erwartet:,.0f} EUR Umsatz und {b.umsatz_je_stunde:.0f} "
                   f"EUR/Std.".replace(",", ".")
                   if b.umsatz_erwartet and b.umsatz_je_stunde else "")
-        zeilen.append(f"{'Arbeitszeit':<18}{ist:.1f} h brutto   "
+        zeilen.append(f"{'Arbeitszeit':<{nb}}{ist:.1f} h brutto   "
                       f"Soll {ziel:.0f} h{umsatz}{zusatz}")
-        zeilen.append(f"{'':<18}{netto:.1f} h bezahlt (abzueglich {n} x {pause} min Pause)")
+        zeilen.append(f"{'':<{nb}}{netto:.1f} h bezahlt (abzueglich {n} x {pause} min Pause)")
     return "\n".join(zeilen)
 
 

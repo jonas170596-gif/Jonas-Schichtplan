@@ -484,6 +484,17 @@ class Bewerter:
                     f"({unter} Personenhalbstunden)", "fehler")
             add("besetzung_ueber", ueber)
 
+            # Niemand steht allein im Laden. Die Besetzungskurve verlangt
+            # ueberall mindestens zwei, aber sie ist weich und laesst sich
+            # gegen andere Regeln eintauschen. Allein im Laden ist dagegen
+            # nie verhandelbar - weder fuer die Kasse noch fuer die Pause.
+            allein = [start + i for i, ist in enumerate(belegt) if ist == 1]
+            if allein:
+                from .modelle import zu_zeit
+                add("allein", len(allein),
+                    f"{TAG_LANG[t]}: ab {zu_zeit(allein[0])} nur eine Person "
+                    f"im Laden ({len(allein)} Halbstunden)", "fehler")
+
     # ---- Team: wer muss da sein, wer nicht zusammen --------------------- #
     def _team(self, plan: Plan, add):
         for regel in self.stamm.gruppenbesetzung:

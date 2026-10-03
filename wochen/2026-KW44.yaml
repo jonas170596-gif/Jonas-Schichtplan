@@ -28,7 +28,7 @@ fest:
   # Marino hat ihren Wunschtag frei, und Sannzenbacher macht spaet und
   # unterstuetzt damit die Aushilfe.
   rohwer_c: {sa: 6-14}
-  marino_a: {sa: frei}
+  marino_a: {mo: 6-14, sa: frei}   # Montag ausnahmsweise, nach Ansage
   sannzenbacher_n: {sa: 12-18}
 #  kurka_j: {sa: 6-14}
 #  marino_a: {mo: frei}
@@ -57,8 +57,8 @@ aushilfe:
   # Offen angesetzt: der Planer nimmt nur so viel davon, wie die eigene
   # Mannschaft nicht hergibt. Ihre Schichten sind damit die Liste dessen,
   # was in der anderen Filiale angefragt werden muss.
-  - id: ersatz
-    name: "Ersatz noetig"
+  - id: palmstrasse
+    name: "Palmstraße Aushilfe"
     faehigkeiten: [f, w, o]
     soll_stunden: 48
     soll_tage: 6

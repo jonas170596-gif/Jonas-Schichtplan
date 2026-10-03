@@ -109,7 +109,11 @@ besetzung_min:                # Mindestbesetzung je Zeitfenster
     - {von: "06:00", bis: "08:00", min: 2}
     - {von: "08:00", bis: "12:00", min: 3}
     - {von: "12:00", bis: "13:00", min: 4}
-    - {von: "13:00", bis: "20:00", min: 2}
+    # Mittwochs geht C. Kurz schon um 13 und Kohl um 13:30. Bei nur zwei
+    # Leuten bis 14 Uhr steht einer allein, sobald der andere Pause macht -
+    # deshalb hier drei und die zweite Spaetschicht spaetestens ab 13.
+    - {von: "13:00", bis: "14:00", min: 3}
+    - {von: "14:00", bis: "20:00", min: 2}
   do:
     - {von: "06:00", bis: "08:00", min: 2}
     - {von: "08:00", bis: "12:00", min: 3}

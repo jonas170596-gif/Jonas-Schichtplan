@@ -226,10 +226,34 @@ class Stammdaten:
         return kat
 
 
+class _StrengerLoader(yaml.SafeLoader):
+    """SafeLoader, der doppelte Schluessel meldet statt sie zu schlucken.
+
+    YAML nimmt bei zwei gleichen Schluesseln stillschweigend den letzten. In
+    einer Wochenvorgabe heisst das, dass eine Vorgabe spurlos verschwindet -
+    zwei Zeilen 'kurz_u:' unter 'fest', und die erste ist weg."""
+
+    def construct_mapping(self, knoten, deep=False):
+        gesehen = set()
+        for schluessel, _ in knoten.value:
+            name = self.construct_object(schluessel, deep=deep)
+            if name in gesehen:
+                zeile = schluessel.start_mark.line + 1
+                raise ValueError(
+                    f"Zeile {zeile}: '{name}' steht zweimal in derselben "
+                    f"Ebene - YAML wuerde den ersten Eintrag verwerfen. "
+                    f"Beide Angaben in eine Zeile zusammenfassen.")
+            gesehen.add(name)
+        return super().construct_mapping(knoten, deep)
+
+
 def _lies(pfad: pathlib.Path) -> dict:
     if not pfad.exists():
         raise FileNotFoundError(f"Konfigurationsdatei fehlt: {pfad}")
-    return yaml.safe_load(pfad.read_text(encoding="utf-8")) or {}
+    try:
+        return yaml.load(pfad.read_text(encoding="utf-8"), _StrengerLoader) or {}
+    except ValueError as f:
+        raise ValueError(f"{pfad}: {f}") from None
 
 
 def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:

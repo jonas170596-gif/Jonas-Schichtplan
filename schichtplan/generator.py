@@ -185,6 +185,83 @@ def _ringtausch(plan, beweglich, stelle, tage, rng, versuche: int = 6):
     return None
 
 
+def _abloesung(plan, beweglich, nach_tag, tage, rng, versuche: int = 6):
+    """B loest A an einem Tag ab und nimmt dafuer die Schicht aus den eigenen
+    Optionen, die A's am naechsten kommt.
+
+    Der gewoehnliche Tausch am selben Tag verlangt, dass B genau A's Schicht
+    darf - daran scheitert er meistens. C. Kurz kann samstags 6-14, 8-14 und
+    8-16, aber kein 10-18; Rohwers freien Samstag findet der Planer deshalb
+    mit dem Tausch nie. Die Kopfzahl bleibt gleich, nur die Kurve verschiebt
+    sich ein wenig - den Rest raeumen die Einzelzuege auf."""
+    for _ in range(versuche):
+        tag = tage[rng.randrange(len(tage))]
+        kand = nach_tag.get(tag)
+        if not kand or len(kand) < 2:
+            continue
+        a, b_ = rng.sample(kand, 2)
+        ma_a = beweglich[a][0]
+        ma_b, _, opt_b = beweglich[b_]
+        s_a = plan.zellen[ma_a][tag].schicht
+        if s_a is None or plan.zellen[ma_b][tag].schicht is not None:
+            continue
+        moeglich = [s for s in opt_b if s is not None]
+        if not moeglich:
+            continue
+        ersatz = min(moeglich,
+                     key=lambda s: (abs(s.von - s_a.von), abs(s.bis - s_a.bis)))
+        _setze(plan, ma_a, tag, None)
+        _setze(plan, ma_b, tag, ersatz)
+        return [(ma_a, tag, s_a), (ma_b, tag, None)]
+    return None
+
+
+def _politur(plan, beweglich, nach_tag, bewerter, wert: float,
+             runden: int = 3) -> float:
+    """Aufraeumen nach dem Abkuehlen: wen kann man aus einem Tag herausnehmen,
+    wenn der Tag danach wieder zurechtgerueckt wird?
+
+    Einen freien Samstag bekommt nur, wer ersetzt wird - und das verlangt
+    meist drei Aenderungen auf einmal: A geht raus, B springt mit einer
+    anderen Schicht ein, C rueckt nach. Jeder einzelne Schritt macht den Plan
+    erst schlechter, deshalb findet ihn das Abkuehlen nicht. Hier wird der
+    ganze Zug am Stueck probiert und nur behalten, wenn er sich lohnt."""
+    for _ in range(runden):
+        verbessert = False
+        for i, (ma_a, tag, _) in enumerate(beweglich):
+            s_a = plan.zellen[ma_a][tag].schicht
+            if s_a is None:
+                continue
+            sicherung = [(beweglich[j][0], plan.zellen[beweglich[j][0]][tag].schicht)
+                         for j in nach_tag.get(tag, [])]
+            _setze(plan, ma_a, tag, None)
+            # Den Tag wieder zurechtruecken: jede andere bewegliche Zelle des
+            # Tages einmal durchprobieren und die beste Variante behalten.
+            for j in nach_tag.get(tag, []):
+                ma_b, _, opt_b = beweglich[j]
+                if ma_b == ma_a:
+                    continue
+                jetzt = plan.zellen[ma_b][tag].schicht
+                bestes, bester = jetzt, bewerter.bewerte(plan).punkte
+                for kand in opt_b:
+                    if kand is jetzt:
+                        continue
+                    _setze(plan, ma_b, tag, kand)
+                    punkte = bewerter.bewerte(plan).punkte
+                    if punkte < bester:
+                        bestes, bester = kand, punkte
+                _setze(plan, ma_b, tag, bestes)
+            neu_wert = bewerter.bewerte(plan).punkte
+            if neu_wert < wert:
+                wert, verbessert = neu_wert, True
+            else:
+                for ma_, s_ in sicherung:
+                    _setze(plan, ma_, tag, s_)
+        if not verbessert:
+            break
+    return wert
+
+
 def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
             vorwochen: list | None = None, *,
             iterationen: int = 40000, neustarts: int = 4,
@@ -224,7 +301,7 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
         for i in range(schritte):
             temp = t0 * (t1 / t0) ** (i / schritte)
             wurf = rng.random()
-            if wurf < 0.45:
+            if wurf < 0.42:
                 mid, tag, opts = beweglich[rng.randrange(len(beweglich))]
                 alt = plan.zellen[mid][tag].schicht
                 neu = opts[rng.randrange(len(opts))]
@@ -232,7 +309,7 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
                     continue
                 _setze(plan, mid, tag, neu)
                 rueck = [(mid, tag, alt)]
-            elif wurf < 0.70:                       # Tausch am selben Tag
+            elif wurf < 0.67:                       # Tausch am selben Tag
                 tag = bewerter.tage[rng.randrange(len(bewerter.tage))]
                 kand = nach_tag.get(tag)
                 if not kand or len(kand) < 2:
@@ -247,13 +324,20 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
                 _setze(plan, ma_a, tag, s_b)
                 _setze(plan, ma_b, tag, s_a)
                 rueck = [(ma_a, tag, s_a), (ma_b, tag, s_b)]
-            elif wurf < 0.85 and len(bewerter.tage) >= 2:
+            elif wurf < 0.82 and len(bewerter.tage) >= 2:
                 # Ringtausch ueber zwei Tage: A arbeitet am Montag und hat am
                 # Mittwoch frei, B umgekehrt - beide tauschen. Die Kopfzahl
                 # bleibt an beiden Tagen gleich, deshalb kommt der Planer so
                 # an der Obergrenze vorbei. Mit Einzelzuegen ginge es nicht:
                 # jeder Zwischenschritt ueber- oder unterbesetzt einen Tag.
                 rueck = _ringtausch(plan, beweglich, stelle, bewerter.tage, rng)
+                if rueck is None:
+                    continue
+            elif wurf < 0.90:
+                # Ablaesung am selben Tag: der freie Samstag einer Person
+                # entsteht nur, wenn jemand anderes einspringt - und zwar mit
+                # einer Schicht, die er auch darf.
+                rueck = _abloesung(plan, beweglich, nach_tag, bewerter.tage, rng)
                 if rueck is None:
                     continue
             elif mit_mehreren:
@@ -282,6 +366,7 @@ def erzeuge(stamm: Stammdaten, vorgabe: Wochenvorgabe,
                 for m_, t_, s_ in rueck:
                     _setze(plan, m_, t_, s_)
 
+        wert = _politur(plan, beweglich, nach_tag, bewerter, wert)
         if wert < bester_wert:
             bester_wert, bester_plan = wert, plan
 
