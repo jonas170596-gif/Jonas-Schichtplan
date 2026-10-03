@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .konfig import Stammdaten, Wochenvorgabe, effektiver_bedarf
-from .modelle import ABWESEND, TAGE, TAG_LANG, Plan
+from .modelle import ABWESEND, TAGE, TAG_LANG, Plan, zu_zeit
 
 
 @dataclass
@@ -403,6 +403,23 @@ class Bewerter:
                     f"{TAG_LANG[t]}: {springt_ein} Platz vom Azubi gefuellt - "
                     f"mit Vertrag waere jemand anderes dran" if springt_ein else "")
                 weg = max(0, ziel - min(ziel, koepfe_max) - b.kopfzahl_toleranz_unter)
+                # Manche Tage duerfen notfalls mit einem Kopf weniger laufen -
+                # dafuer muessen dann aber ein paar Leute frueher anfangen.
+                # Samstags heisst das: statt sieben auch sechs, aber zwei davon
+                # spaetestens um 9 statt erst um 10 oder 11.
+                notfall = b.kopfzahl_notfalls.get(t)
+                if notfall and weg:
+                    weniger, anzahl, start_bis = notfall
+                    erlassen = min(weg, weniger)
+                    weg -= erlassen
+                    frueh_start = sum(1 for z in zellen
+                                      if b.frueh_bis < z.schicht.von <= start_bis)
+                    fehlt = max(0, anzahl - frueh_start)
+                    add("notfall_frueher_start", fehlt,
+                        f"{TAG_LANG[t]}: laeuft mit {koepfe} statt {ziel} "
+                        f"Mitarbeitern - dann muessen {anzahl} spaetestens um "
+                        f"{zu_zeit(start_bis)} anfangen, es sind {frueh_start}"
+                        if fehlt else "", "fehler")
                 regel, wort = "kopfzahl", "nur"
             else:
                 weg = max(0, koepfe - ziel - b.kopfzahl_toleranz_ueber)
@@ -481,7 +498,6 @@ class Bewerter:
                     # Person ist es eine Verkaeuferstunde, die keiner braucht.
                     ueber += ist - soll - 1
             if unter:
-                from .modelle import zu_zeit
                 add("besetzung_unter", unter,
                     f"{TAG_LANG[t]}: Unterbesetzung ab {zu_zeit(luecken[0])} "
                     f"({unter} Personenhalbstunden)", "fehler")
@@ -493,7 +509,6 @@ class Bewerter:
             # nie verhandelbar - weder fuer die Kasse noch fuer die Pause.
             allein = [start + i for i, ist in enumerate(belegt) if ist == 1]
             if allein:
-                from .modelle import zu_zeit
                 add("allein", len(allein),
                     f"{TAG_LANG[t]}: ab {zu_zeit(allein[0])} nur eine Person "
                     f"im Laden ({len(allein)} Halbstunden)", "fehler")
@@ -876,7 +891,6 @@ class Bewerter:
                        if (z := plan.zellen.get(mid, {}).get(tm.tag)) is not None
                        and z.arbeitet and z.schicht.bis == tm.ab]
             if len(passend) < tm.anzahl:
-                from .modelle import zu_zeit
                 add("termin", tm.anzahl - len(passend),
                     f"{TAG_LANG[tm.tag]}: {tm.name} ab {zu_zeit(tm.ab)} - "
                     f"{len(passend)} von {tm.anzahl} Kandidaten enden passend", "fehler")

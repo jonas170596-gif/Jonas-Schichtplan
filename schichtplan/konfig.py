@@ -30,6 +30,12 @@ class Bedarf:
     frueh_bis: int
     schluss_min: dict[str, int]                   # Schichten, die bis Ladenschluss laufen
     besetzung_min: dict[str, list[tuple[int, int, int]]]   # tag -> [(von, bis, min)]
+    kopfzahl_notfalls: dict[str, tuple[int, int, int]] = field(default_factory=dict)
+                                          # tag -> (weniger, anzahl, start_bis):
+                                          # so viele Koepfe darf der Tag unter
+                                          # Ziel bleiben, wenn dafuer 'anzahl'
+                                          # Leute spaetestens um 'start_bis'
+                                          # anfangen statt erst mittags
     kopfzahl_toleranz_unter: int = 0      # wie viele Koepfe unter Ziel straffrei
     kopfzahl_toleranz_ueber: int = 0      # wie viele Koepfe ueber Ziel straffrei
     wochenstunden_gesamt: float = 0.0     # 0 = kein Gesamtbudget. Brutto-
@@ -358,6 +364,10 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             t: [(zu_index(f["von"]), zu_index(f["bis"]), int(f["min"])) for f in fenster]
             for t, fenster in roh_b.get("besetzung_min", {}).items()
         },
+        kopfzahl_notfalls={
+            t_: (int(v.get("weniger", 1)), int(v.get("anzahl", 2)),
+                 zu_index(v.get("start_bis", "09:00")))
+            for t_, v in (roh_b.get("kopfzahl_notfalls") or {}).items()},
         kopfzahl_toleranz_unter=int(roh_b.get("kopfzahl_toleranz_unter", 0)),
         kopfzahl_toleranz_ueber=int(roh_b.get("kopfzahl_toleranz_ueber", 0)),
         wochenstunden_gesamt=float(roh_b.get("wochenstunden_gesamt", 0)),

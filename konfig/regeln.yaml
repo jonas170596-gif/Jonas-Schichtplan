@@ -47,6 +47,10 @@ gewichte:
   # in gut besetzten Wochen lieber einen ueberzaehligen Kopf in den Laden, als
   # jemanden zu Hause zu lassen.
   kopfzahl_ueber: 900       # je Kopf ueber der Zielkopfzahl
+  notfall_frueher_start: 900  # je fehlendem frueheren Start an einem Tag, der
+                            # mit weniger Koepfen laeuft. Muss teurer sein als
+                            # der erlassene Kopf, sonst nimmt der Planer die
+                            # kleinere Besetzung ohne die Gegenleistung.
   allein: 2500             # je Halbstunde, in der nur eine Person im Laden
                             # steht (praktisch hart). Die Besetzungskurve
                             # darunter ist weich und verhandelbar, das hier

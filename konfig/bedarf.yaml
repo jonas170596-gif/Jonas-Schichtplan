@@ -40,6 +40,14 @@ papier_ausrichtung: quer
 zusatzzeilen:
   - "Palmstrasse Aushilfe"
 
+# Tage, die notfalls auch mit weniger Koepfen laufen duerfen - aber nur gegen
+# eine Gegenleistung. Samstags sind sieben das Ziel; wenn sich das nicht ohne
+# Verrenkungen loesen laesst, sind sechs in Ordnung, dann muessen aber zwei
+# Leute spaetestens um 9 anfangen statt erst um 10 oder 11. So sieht es auch
+# in den Altplaenen aus: 6-6-6-9-9-11 statt 6-6-6-8-10-11-12.
+kopfzahl_notfalls:
+  sa: {weniger: 1, anzahl: 2, start_bis: "09:00"}
+
 kopfzahl_toleranz_unter: 0    # unter der Zielkopfzahl wird sofort bestraft
 kopfzahl_toleranz_ueber: 0    # ueberbesetzt wird nicht: wenn die Mannschaft
                               # mehr Tage hergibt als der Tag braucht, bekommt

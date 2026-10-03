@@ -267,6 +267,42 @@ class TestGenerator(unittest.TestCase):
         self.assertEqual(self.stamm.mitarbeiter["rohwer_c"].samstagprioritaet, 0.3)
         self.assertEqual(self.stamm.mitarbeiter["marino_a"].samstagprioritaet, 1.0)
 
+    def _samstag(self, *schichten):
+        """Plan, in dem samstags genau diese Schichten besetzt sind."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for reihe in plan.zellen.values():
+            for tag in reihe:
+                reihe[tag] = Zelle("frei")
+        for mid, sid in zip(("rohwer_c", "marino_a", "sannzenbacher_n", "reich_s",
+                             "nachtrieb_i", "kohl_b", "kurz_u"), schichten):
+            plan.zellen[mid]["sa"] = Zelle("schicht", self.stamm.schichten[sid])
+        return plan
+
+    def _samstagsbefunde(self, plan) -> dict:
+        """Nur die Befunde, die den Samstag betreffen - die uebrigen Tage sind
+        in diesen Plaenen absichtlich leer."""
+        return {b.regel: b for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                if "Samstag" in b.text}
+
+    def test_samstag_mit_sechs_braucht_zwei_starts_bis_neun(self):
+        """Sechs statt sieben ist erlaubt - dann aber zwei Starts bis 9."""
+        knapp = self._samstag("6-14", "6-14", "6-14", "10-18", "11-18", "12-18")
+        befunde = self._samstagsbefunde(knapp)
+        self.assertIn("notfall_frueher_start", befunde)
+        self.assertEqual(befunde["notfall_frueher_start"].schwere, "fehler")
+        # Der erlassene Kopf taucht nicht mehr als Kopfzahlfehler auf.
+        self.assertNotIn("kopfzahl", befunde)
+
+        gut = self._samstag("6-14", "6-14", "6-14", "9-18", "9-18", "12-18")
+        befunde = self._samstagsbefunde(gut)
+        self.assertNotIn("notfall_frueher_start", befunde)
+        self.assertNotIn("kopfzahl", befunde)
+
+    def test_samstag_mit_fuenf_bleibt_ein_kopfzahlfehler(self):
+        """Erlassen wird genau ein Kopf, nicht beliebig viele."""
+        plan = self._samstag("6-14", "6-14", "6-14", "9-18", "9-18")
+        self.assertIn("kopfzahl", self._samstagsbefunde(plan))
+
     def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}
         plan = grundgeruest(self.stamm, self.vorgabe)       # Di bleibt leer
