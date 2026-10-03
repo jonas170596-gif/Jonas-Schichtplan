@@ -17,7 +17,9 @@ min_schicht_h: 5          # absolute Untergrenze. Je Person gilt zusaetzlich 85 
 wechsel_max_pro_woche: 1  # kurze Wechsel (Spaetschicht bis 20 Uhr -> Frueh ab 6 Uhr)
                           # je Mitarbeiter und Woche; jeder weitere wird teuer
 ausgleich_fenster_wochen: 4  # rollierendes Fenster fuer den Frueh/Spaet-Ausgleich
-ausgleich_toleranz: 2     # so viele Schichten Ungleichgewicht bleiben straffrei
+ausgleich_toleranz: 2
+ausgleich_min_schichten: 6   # weniger Schichten im Fenster sagen nichts ueber
+                             # eine Schieflage aus     # so viele Schichten Ungleichgewicht bleiben straffrei
 
 # Freie Samstage sind begehrt und in den Altplaenen sehr ungleich verteilt
 # (Rohwer 0 von 12, C. Kurz 10 von 11). Das Konto vergleicht jeden mit dem

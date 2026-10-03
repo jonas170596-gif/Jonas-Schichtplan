@@ -165,6 +165,8 @@ class Regeln:
     wechsel_max_pro_woche: int = 1      # kurze Wechsel (Spaet -> Frueh) je MA und Woche
     ausgleich_fenster_wochen: int = 4   # Fenster fuer den Frueh/Spaet-Ausgleich
     ausgleich_toleranz: int = 2         # erlaubtes Ungleichgewicht im Fenster
+    ausgleich_min_schichten: int = 6    # darunter ist das Fenster zu duenn
+                                        # fuer eine Aussage ueber Schieflage
 
 
 def effektiver_bedarf(grund: Bedarf, vorgabe) -> Bedarf:
@@ -404,6 +406,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
         wechsel_max_pro_woche=int(roh_r.get("wechsel_max_pro_woche", 1)),
         ausgleich_fenster_wochen=int(roh_r.get("ausgleich_fenster_wochen", 4)),
         ausgleich_toleranz=int(roh_r.get("ausgleich_toleranz", 2)),
+        ausgleich_min_schichten=int(roh_r.get("ausgleich_min_schichten", 6)),
     )
     roh_t = _lies(ordner / "team.yaml") if (ordner / "team.yaml").exists() else {}
 

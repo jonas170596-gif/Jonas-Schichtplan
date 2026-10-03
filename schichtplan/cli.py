@@ -25,7 +25,7 @@ import yaml
 from . import analyse as _analyse
 from . import backtest as _backtest
 from . import export
-from .bewertung import SCHWEREGRADE, Bewerter
+from .bewertung import SCHWEREGRADE, Bewerter, beide_seiten
 from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
 from .feiertage import Kalender, feiertage_bw, sondertage
@@ -523,11 +523,21 @@ def cmd_ausgleich(args) -> int:
         else:
             balken = "F" * f + "S" * s
         marke = ""
-        if m.frueh_spaet_ausgleich and abs(f - s) > stamm.regeln.ausgleich_toleranz:
-            marke = "  <-- schief"
-            schief.append(m.name)
+        if m.spaet_anteil is not None:
+            # Eigener Zielanteil statt 50/50 - beim Azubi rund ein Viertel.
+            ziel = m.spaet_anteil * (f + s)
+            marke = f"  (Ziel {m.spaet_anteil:.0%} spaet)"
+            if abs(s - ziel) > stamm.regeln.ausgleich_toleranz:
+                marke += " <-- schief"
+                schief.append(m.name)
         elif not m.frueh_spaet_ausgleich:
             marke = "  (ausgenommen)"
+        elif not beide_seiten(stamm, mid):
+            # Wer keine Spaetschicht im Katalog hat, kann nichts ausgleichen.
+            marke = "  (keine Spaetschicht moeglich)"
+        elif abs(f - s) > stamm.regeln.ausgleich_toleranz:
+            marke = "  <-- schief"
+            schief.append(m.name)
         print(f"{m.name:<18}{f:>6}{s:>6}{zaehler['mittel']:>9}{f - s:>+11}"
               f"  {balken}{marke}")
     print()

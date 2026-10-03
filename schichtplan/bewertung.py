@@ -40,6 +40,20 @@ class Bewertung:
         return [b for b in self.befunde if b.schwere == "warnung"]
 
 
+def beide_seiten(stamm, mid: str) -> bool:
+    """Hat der/die MA ueberhaupt Schichten auf beiden Seiten?
+
+    Wer keine Spaetschicht im Katalog hat, kann nichts ausgleichen - fuer den
+    ist der Frueh/Spaet-Ausgleich keine Aussage, sondern eine Dauerwarnung.
+    """
+    m = stamm.mitarbeiter[mid]
+    ids = set(m.erlaubte_schichten)
+    for liste in m.zusatzschichten.values():
+        ids.update(liste)
+    kats = {stamm.schichten[s].kategorie for s in ids if s in stamm.schichten}
+    return bool(kats & {"frueh", "mittel"}) and "spaet" in kats
+
+
 class Bewerter:
     """Haelt die vorberechneten Teile, damit der Solver schnell bleibt."""
 
@@ -624,14 +638,7 @@ class Bewerter:
         return frueh, spaet, wochen
 
     def _beide_seiten(self, mid: str) -> bool:
-        """Hat der/die MA ueberhaupt Schichten auf beiden Seiten?"""
-        m = self.stamm.mitarbeiter[mid]
-        ids = set(m.erlaubte_schichten)
-        for liste in m.zusatzschichten.values():
-            ids.update(liste)
-        kats = {self.stamm.schichten[s].kategorie
-                for s in ids if s in self.stamm.schichten}
-        return bool(kats & {"frueh", "mittel"}) and "spaet" in kats
+        return beide_seiten(self.stamm, mid)
 
     def _ausgleich(self, plan: Plan, add):
         if self.stamm.regeln.ausgleich_fenster_wochen <= 1:
@@ -655,6 +662,11 @@ class Bewerter:
                 continue
 
             if not m.frueh_spaet_ausgleich or frueh + spaet == 0:
+                continue
+            if frueh + spaet < self.stamm.regeln.ausgleich_min_schichten:
+                # Aus zwei, drei Schichten laesst sich keine Schieflage
+                # ablesen. In der allerersten Woche einer Historie stuenden
+                # sonst alle schief da.
                 continue
             if not self._beide_seiten(mid):
                 # Wer gar keine Spaetschicht im Katalog hat, kann nichts

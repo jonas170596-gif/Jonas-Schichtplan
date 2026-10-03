@@ -303,6 +303,21 @@ class TestGenerator(unittest.TestCase):
         plan = self._samstag("6-14", "6-14", "6-14", "9-18", "9-18")
         self.assertIn("kopfzahl", self._samstagsbefunde(plan))
 
+    def test_duennes_fenster_meldet_keine_schieflage(self):
+        """Aus drei Schichten laesst sich keine Frueh/Spaet-Schieflage
+        ablesen - sonst steht in der ersten Woche jeder schief da."""
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for reihe in plan.zellen.values():
+            for tag in reihe:
+                reihe[tag] = Zelle("frei")
+        for tag in ("mo", "di", "mi"):
+            plan.zellen["nachtrieb_i"][tag] = Zelle(
+                "schicht", self.stamm.schichten["14-20"])
+        treffer = [b for b in pruefen(plan, self.stamm, self.vorgabe).befunde
+                   if b.regel == "frueh_spaet_ausgleich"
+                   and "Nachtrieb" in b.text]
+        self.assertEqual(treffer, [])
+
     def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}
         plan = grundgeruest(self.stamm, self.vorgabe)       # Di bleibt leer
