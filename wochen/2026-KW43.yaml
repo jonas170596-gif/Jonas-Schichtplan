@@ -42,10 +42,14 @@ wunsch_schicht:
 wunsch_kategorie: {}
 #  menzler_a: {sa: frueh}
 
-# Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
-arbeitet: 
-  kurz_c: [di]
+# Hebt einen festen freien Tag auf UND verpflichtet.
+arbeitet: {}
 #  kurz_c: [di]
+
+# Hebt einen festen freien Tag nur auf, ohne Pflicht.
+kann_arbeiten:
+  kurz_c: [di]      # Wandkalender: Dienstag ist freigegeben. Ihre Struktur
+                    # Mo/Mi/Do hat trotzdem Vorrang.
 
 # Nur diese Schichten kommen an dem Tag in Frage (oder frei).
 # Zusammen mit wunsch_frei bildet das "frueh oder frei" ab.

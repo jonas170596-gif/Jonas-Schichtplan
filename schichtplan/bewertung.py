@@ -689,7 +689,7 @@ class Bewerter:
             # der groesste Rueckstand am schwersten, und jede Angleichung senkt
             # die Summe.
             offen = max(0.0, rueckstand - self.stamm.regeln.samstag_toleranz)
-            add("samstag_konto", offen * offen,
+            add("samstag_konto", offen * offen * m.samstagprioritaet,
                 f"{m.name}: {frei} von {moeglich} Samstagen frei, "
                 f"im Schnitt waeren es {soll:.1f}"
                 if rueckstand > self.stamm.regeln.samstag_toleranz else "",

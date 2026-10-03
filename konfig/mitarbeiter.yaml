@@ -61,8 +61,13 @@ mitarbeiter:
     schichtwunsch: {mo: frueh, di: frueh, mi: frueh, do: frueh}
     frueh_spaet_ausgleich: false  # Mo-Do frueh ist gesetzt, damit ist er frueh-lastig;
                                   # der Ausgleich passiert bei ihm nur ueber Fr/Sa
-    stundenprioritaet: 0.5        # darf eher unter ihren Stunden bleiben - dafuer
-                                  # zaehlt sie beim Samstagsausgleich voll mit
+    stundenprioritaet: 0.5        # darf eher unter ihren Stunden bleiben
+    samstagprioritaet: 0.3        # Der Mittwoch bleibt ihr fester freier Tag.
+                                  # Damit sind Mo/Di/Do/Fr/Sa ihre fuenf
+                                  # Vertragstage und ein freier Samstag geht nur,
+                                  # wenn er im Wandkalender steht oder die
+                                  # Besetzung ihn hergibt. Der Rueckstand bleibt
+                                  # sichtbar, treibt den Plan aber nicht mehr.
     samstag_moeglich: true        # ein freier Fr oder Sa ist zugelassen, auch
                                   # wenn sie dafuer unter ihre fuenf Tage faellt
     schicht_wochenwechsel:
@@ -147,10 +152,11 @@ mitarbeiter:
     soll_stunden: 17               # was ihre feste Struktur hergibt: 6 + 5 + 6 h
     soll_tage: 3
     max_tage: 4
-    feste_freie_tage: [di, sa]        # Samstag nur nach Absprache - dann in
-                                      # der Wochenvorgabe unter 'kann_arbeiten'
-                                      # (oder direkt unter 'fest') eintragen
-    bevorzugte_freie_tage: [fr]       # Freitag nur nach Absprache einsetzen
+    feste_freie_tage: [di, fr, sa]    # Mo/Mi/Do ist ihre Struktur, das sind
+                                      # genau ihre drei Vertragstage. Di, Fr und
+                                      # Sa nur nach Absprache - dann in der
+                                      # Wochenvorgabe unter 'kann_arbeiten'
+                                      # (oder direkt unter 'fest') eintragen.
     schichtwunsch: {mo: 8-14, mi: 8-13, do: 8-14}   # ihre feste Struktur
     erlaubte_schichten: [8-14, 8-13, 8-16]   # unter der Woche nie vor 8
     zusatzschichten: {sa: [6-14]}            # samstags geht 6 Uhr

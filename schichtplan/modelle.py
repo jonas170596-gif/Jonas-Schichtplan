@@ -107,6 +107,11 @@ class Mitarbeiter:
                                         # Frage. C. Kurz faengt samstags um 6
                                         # an, wenn sie denn kommt.
     samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
+    samstagprioritaet: float = 1.0      # <1: der Rueckstand wiegt weniger. Fuer
+                                        # alle, deren fester freier Tag unter der
+                                        # Woche liegt - sie koennen den Samstag
+                                        # nur bekommen, wenn die Besetzung ihn
+                                        # hergibt, nicht weil der Plan ihn will.
     samstag_moeglich: bool = False      # True = ein freier Samstag ist erlaubt,
                                         # auch wenn Solltage und feste freie Tage
                                         # die Woche rechnerisch ausfuellen

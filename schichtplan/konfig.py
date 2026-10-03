@@ -317,6 +317,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             bevorzugte_kategorie=m.get("bevorzugte_kategorie", ""),
             einsatzprioritaet=float(m.get("einsatzprioritaet", 1.0)),
             stundenprioritaet=float(m.get("stundenprioritaet", 1.0)),
+            samstagprioritaet=float(m.get("samstagprioritaet", 1.0)),
             zusatzschichten={t: list(v) for t, v in
                              (m.get("zusatzschichten") or {}).items()},
             nur_schichten={t: list(v) for t, v in

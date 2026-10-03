@@ -139,13 +139,12 @@ class TestGenerator(unittest.TestCase):
     def test_neue_feste_freie_tage_greifen(self):
         erwartet = {"rohwer_c": ["mi"], "marino_a": ["mo"],
                     "reich_s": ["mo", "mi"], "kurz_u": ["di"],
-                    "kurz_c": ["di", "sa"], "kurka_j": []}
+                    "kurz_c": ["di", "fr", "sa"], "kurka_j": []}
         for mid, tage in erwartet.items():
             self.assertEqual(self.stamm.mitarbeiter[mid].feste_freie_tage, tage, mid)
-        # Samstag ist bei C. Kurz fest frei und wird nur nach Absprache
-        # geoeffnet; der Freitag bleibt die weiche Variante.
-        self.assertEqual(self.stamm.mitarbeiter["kurz_c"].bevorzugte_freie_tage,
-                         ["fr"])
+        # Di, Fr und Sa sind bei C. Kurz fest frei und werden nur nach
+        # Absprache geoeffnet - Mo/Mi/Do ist ihre Struktur.
+        self.assertEqual(self.stamm.mitarbeiter["kurz_c"].bevorzugte_freie_tage, [])
         self.assertEqual(self.stamm.mitarbeiter["kurz_c"].nur_schichten,
                          {"sa": ["6-14"]})
         self.assertEqual(self.stamm.mitarbeiter["sannzenbacher_n"].bevorzugte_freie_tage,
@@ -261,6 +260,12 @@ class TestGenerator(unittest.TestCase):
         bewerter = Bewerter(self.stamm, self.vorgabe)
         frueh, spaet, _, _ = bewerter.schichtbilanz(plan, "kohl_b")
         self.assertEqual((frueh, spaet), (1, 0))
+
+    def test_samstagprioritaet_daempft_den_rueckstand(self):
+        """Rohwer behaelt ihren Mittwoch - ihr Samstagsrueckstand soll
+        sichtbar bleiben, den Plan aber nicht mehr treiben."""
+        self.assertEqual(self.stamm.mitarbeiter["rohwer_c"].samstagprioritaet, 0.3)
+        self.assertEqual(self.stamm.mitarbeiter["marino_a"].samstagprioritaet, 1.0)
 
     def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}
@@ -490,11 +495,14 @@ class TestBewertung(unittest.TestCase):
         self.assertIn("vermiedene_schicht", regeln)
 
     def test_bevorzugter_freier_tag_wird_bemaengelt(self):
+        # Menzler haette Mo/Di am liebsten frei - weich, anders als die
+        # festen freien Tage von C. Kurz.
         plan = grundgeruest(self.stamm, self.vorgabe)
-        self._setze(plan, "kurz_c", "fr", "8-14")
+        self._setze(plan, "menzler_a", "mo", "8-16")
         texte = [b.text for b in pruefen(plan, self.stamm, self.vorgabe).befunde
                  if b.regel == "bevorzugter_freier_tag"]
-        self.assertTrue(any("C. Kurz" in x and "Freitag" in x for x in texte), texte)
+        self.assertTrue(any("A. Menzler" in x and "Montag" in x for x in texte),
+                        texte)
 
     def test_rohwer_fr_und_sa_auf_derselben_seite(self):
         """Freitag und Samstag gehoeren zusammen - beide frueh oder beide spaet."""
