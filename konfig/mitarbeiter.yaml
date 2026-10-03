@@ -147,11 +147,14 @@ mitarbeiter:
     soll_stunden: 17               # was ihre feste Struktur hergibt: 6 + 5 + 6 h
     soll_tage: 3
     max_tage: 4
-    feste_freie_tage: [di]
-    bevorzugte_freie_tage: [fr, sa]   # nur nach Absprache einsetzen
+    feste_freie_tage: [di, sa]        # Samstag nur nach Absprache - dann in
+                                      # der Wochenvorgabe unter 'kann_arbeiten'
+                                      # (oder direkt unter 'fest') eintragen
+    bevorzugte_freie_tage: [fr]       # Freitag nur nach Absprache einsetzen
     schichtwunsch: {mo: 8-14, mi: 8-13, do: 8-14}   # ihre feste Struktur
     erlaubte_schichten: [8-14, 8-13, 8-16]   # unter der Woche nie vor 8
     zusatzschichten: {sa: [6-14]}            # samstags geht 6 Uhr
+    nur_schichten: {sa: [6-14]}              # und samstags dann auch nur das
     stamm_schichten: {8-14: 0.64, 8-13: 0.28}
     notiz: "Feste Struktur Mo 8-14 / Mi 8-13 / Do 8-14; auf Nachfrage geht
       anderes. Fr oder Sa nur nach Absprache - dann in der Wochenvorgabe

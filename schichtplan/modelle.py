@@ -102,6 +102,10 @@ class Mitarbeiter:
     zusatzschichten: dict[str, list[str]] = field(default_factory=dict)
                                         # tag -> Schichten, die nur an dem Tag
                                         # zusaetzlich erlaubt sind
+    nur_schichten: dict[str, list[str]] = field(default_factory=dict)
+                                        # tag -> an dem Tag kommen NUR diese in
+                                        # Frage. C. Kurz faengt samstags um 6
+                                        # an, wenn sie denn kommt.
     samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
     samstag_moeglich: bool = False      # True = ein freier Samstag ist erlaubt,
                                         # auch wenn Solltage und feste freie Tage

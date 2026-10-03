@@ -139,11 +139,15 @@ class TestGenerator(unittest.TestCase):
     def test_neue_feste_freie_tage_greifen(self):
         erwartet = {"rohwer_c": ["mi"], "marino_a": ["mo"],
                     "reich_s": ["mo", "mi"], "kurz_u": ["di"],
-                    "kurz_c": ["di"], "kurka_j": []}
+                    "kurz_c": ["di", "sa"], "kurka_j": []}
         for mid, tage in erwartet.items():
             self.assertEqual(self.stamm.mitarbeiter[mid].feste_freie_tage, tage, mid)
+        # Samstag ist bei C. Kurz fest frei und wird nur nach Absprache
+        # geoeffnet; der Freitag bleibt die weiche Variante.
         self.assertEqual(self.stamm.mitarbeiter["kurz_c"].bevorzugte_freie_tage,
-                         ["fr", "sa"])
+                         ["fr"])
+        self.assertEqual(self.stamm.mitarbeiter["kurz_c"].nur_schichten,
+                         {"sa": ["6-14"]})
         self.assertEqual(self.stamm.mitarbeiter["sannzenbacher_n"].bevorzugte_freie_tage,
                          ["mi", "do"])
 
@@ -225,6 +229,38 @@ class TestGenerator(unittest.TestCase):
         with self.assertRaises(ValueError) as fehler:
             lade_wochenvorgabe(pfad)
         self.assertIn("kurz_u", str(fehler.exception))
+
+    def test_nur_schichten_am_tag_engt_die_auswahl_ein(self):
+        """C. Kurz darf unter der Woche 8-14 und 8-16, samstags aber nur
+        6-14 - die Tagesliste sticht die allgemeine Erlaubnis."""
+        from schichtplan.generator import _optionen
+        sa = [s.id for s in _optionen(self.stamm, "kurz_c", "sa") if s]
+        self.assertEqual(sa, ["6-14"])
+        mo = [s.id for s in _optionen(self.stamm, "kurz_c", "mo") if s]
+        self.assertNotIn("6-14", mo)
+        self.assertIn("8-14", mo)
+
+    def test_ohne_spaetschicht_kein_frueh_spaet_ausgleich(self):
+        """C. Kurz hat nur Schichten auf der Fruehseite - fuer sie ist der
+        Ausgleich unerfuellbar und wird deshalb nicht bewertet."""
+        bewerter = Bewerter(self.stamm, self.vorgabe)
+        self.assertFalse(bewerter._beide_seiten("kurz_c"))
+        self.assertTrue(bewerter._beide_seiten("kohl_b"))
+        erg = erzeuge(self.stamm, self.vorgabe, iterationen=4000, seed=3)
+        treffer = [b for b in erg.bewertung.befunde
+                   if b.regel == "frueh_spaet_ausgleich" and "C. Kurz" in b.text]
+        self.assertEqual(treffer, [])
+
+    def test_mittelschicht_zaehlt_als_frueh(self):
+        plan = grundgeruest(self.stamm, self.vorgabe)
+        for reihe in plan.zellen.values():
+            for tag in reihe:
+                reihe[tag] = Zelle("frei")
+        plan.zellen["kohl_b"]["mo"] = Zelle("schicht",
+                                            self.stamm.schichten["8-15:30"])
+        bewerter = Bewerter(self.stamm, self.vorgabe)
+        frueh, spaet, _, _ = bewerter.schichtbilanz(plan, "kohl_b")
+        self.assertEqual((frueh, spaet), (1, 0))
 
     def test_nicht_eingeteilter_pflichttag_ist_ein_fehler(self):
         self.vorgabe.arbeitet = {"kurz_c": ["di"]}

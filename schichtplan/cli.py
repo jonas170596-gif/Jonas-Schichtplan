@@ -501,9 +501,11 @@ def cmd_ausgleich(args) -> int:
     betrachtet = wochen[-fenster:]
     print(f"Frueh/Spaet ueber {len(betrachtet)} Wochen "
           f"({betrachtet[0].woche} bis {betrachtet[-1].woche})\n")
-    print(f"{'Mitarbeiter':<18}{'Frueh':>6}{'Spaet':>6}{'Mittel':>7}"
+    print(f"{'Mitarbeiter':<18}{'Frueh':>6}{'Spaet':>6}{'(Mittel)':>9}"
           f"{'Differenz':>11}  Verteilung")
-    print("-" * 68)
+    print("-" * 70)
+    print("Die Mittelschicht steckt in der Fruehspalte mit drin; die Klammer"
+          " sagt nur, wie viele davon es waren.\n")
     schief = []
     for mid, m in stamm.mitarbeiter.items():
         if not (m.im_plan and m.aktiv):
@@ -513,7 +515,9 @@ def cmd_ausgleich(args) -> int:
             for z in w.plan.get(mid, {}).values():
                 if z.verwertbar:
                     zaehler[stamm.kategorie_von(z.von, z.bis)] += 1
-        f, s = zaehler["frueh"], zaehler["spaet"]
+        # Die Mittelschicht zaehlt auf der Fruehseite - wie im Konto.
+        f = zaehler["frueh"] + zaehler["mittel"]
+        s = zaehler["spaet"]
         if f + s == 0:
             balken = ""
         else:
@@ -524,7 +528,7 @@ def cmd_ausgleich(args) -> int:
             schief.append(m.name)
         elif not m.frueh_spaet_ausgleich:
             marke = "  (ausgenommen)"
-        print(f"{m.name:<18}{f:>6}{s:>6}{zaehler['mittel']:>7}{f - s:>+11}"
+        print(f"{m.name:<18}{f:>6}{s:>6}{zaehler['mittel']:>9}{f - s:>+11}"
               f"  {balken}{marke}")
     print()
     if schief:

@@ -45,7 +45,11 @@ wunsch_kategorie: {}
 #  menzler_a: {sa: frueh}
 
 # Hebt einen festen freien Tag auf - der/die MA arbeitet an dem Tag
-arbeitet: {}
+arbeitet:
+  # Ausnahme nach Ansage: ihr fester freier Montag faellt diese Woche weg,
+  # dafuer arbeitet sie Mo-Fr durch und hat den Samstag frei. Das spart
+  # Schichten bei der Palmstrasse.
+  marino_a: [mo, di, mi, do, fr]
 #  kurz_c: [di]
 
 # Nur diese Schichten kommen an dem Tag in Frage (oder frei).

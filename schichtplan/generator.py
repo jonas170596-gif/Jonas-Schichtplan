@@ -33,6 +33,11 @@ def _optionen(stamm: Stammdaten, mid: str, tag: str,
     # Manche Schichten gelten nur an einem bestimmten Tag: C. Kurz faengt nur
     # samstags um 6 an, unter der Woche nie.
     ids = list(m.erlaubte_schichten) + list(m.zusatzschichten.get(tag, []))
+    # Und manche Tage lassen umgekehrt nur eine bestimmte Auswahl zu: kommt
+    # C. Kurz samstags, dann ab 6 - nicht erst um 8 wie unter der Woche.
+    nur_tag = m.nur_schichten.get(tag)
+    if nur_tag:
+        ids = [s for s in ids if s in nur_tag]
     erlaubt = [stamm.schichten[s] for s in dict.fromkeys(ids)
                if tag in stamm.schichten[s].tage]
     if vorgabe is not None:

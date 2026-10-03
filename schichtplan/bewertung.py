@@ -311,7 +311,10 @@ class Bewerter:
                 for z in w.plan.get(mid, {}).values():
                     if z.verwertbar:
                         kat = self.stamm.kategorie_von(z.von, z.bis)
-                        frueh += kat == "frueh"
+                        # Die Mittelschicht zaehlt auf der Fruehseite mit: wer
+                        # um 8 anfaengt, hat den Abend frei, und genau darum
+                        # geht es beim Ausgleich.
+                        frueh += kat in ("frueh", "mittel")
                         spaet += kat == "spaet"
                         gesamt += 1
             bilanz[mid] = (frueh, spaet, gesamt, len(vor))
@@ -589,11 +592,13 @@ class Bewerter:
         return self.stamm.kategorie_von(von, bis)
 
     def schichtbilanz(self, plan: Plan, mid: str) -> tuple[int, int, int, int]:
-        """(frueh, spaet, Schichten gesamt, Wochen) inklusive der Planwoche."""
+        """(frueh, spaet, Schichten gesamt, Wochen) inklusive der Planwoche.
+
+        Die Mittelschicht zaehlt auf der Fruehseite mit."""
         frueh, spaet, gesamt, wochen = self._hist_bilanz.get(mid, (0, 0, 0, 0))
         for z in plan.zellen.get(mid, {}).values():
             if z.arbeitet:
-                frueh += z.schicht.kategorie == "frueh"
+                frueh += z.schicht.kategorie in ("frueh", "mittel")
                 spaet += z.schicht.kategorie == "spaet"
                 gesamt += 1
         return frueh, spaet, gesamt, wochen + 1
@@ -602,6 +607,16 @@ class Bewerter:
         """(frueh, spaet, Wochen im Fenster) inklusive der geplanten Woche."""
         frueh, spaet, _, wochen = self.schichtbilanz(plan, mid)
         return frueh, spaet, wochen
+
+    def _beide_seiten(self, mid: str) -> bool:
+        """Hat der/die MA ueberhaupt Schichten auf beiden Seiten?"""
+        m = self.stamm.mitarbeiter[mid]
+        ids = set(m.erlaubte_schichten)
+        for liste in m.zusatzschichten.values():
+            ids.update(liste)
+        kats = {self.stamm.schichten[s].kategorie
+                for s in ids if s in self.stamm.schichten}
+        return bool(kats & {"frueh", "mittel"}) and "spaet" in kats
 
     def _ausgleich(self, plan: Plan, add):
         if self.stamm.regeln.ausgleich_fenster_wochen <= 1:
@@ -625,6 +640,12 @@ class Bewerter:
                 continue
 
             if not m.frueh_spaet_ausgleich or frueh + spaet == 0:
+                continue
+            if not self._beide_seiten(mid):
+                # Wer gar keine Spaetschicht im Katalog hat, kann nichts
+                # ausgleichen. Seit die Mittelschicht auf der Fruehseite
+                # mitzaehlt, betrifft das C. Kurz: 8-14, 8-13, 8-16 - alles
+                # frueh, nie spaet. Das waere eine Dauerwarnung ohne Ausweg.
                 continue
             weg = max(0, abs(frueh - spaet) - toleranz)
             add("frueh_spaet_ausgleich", weg,
