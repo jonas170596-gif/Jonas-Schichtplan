@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schichtplan Winterbach</title>
+<link rel="stylesheet" href="/stil.css">
+</head>
+<body>
+<header>
+  <h1>Schichtplan <span class="filiale">Winterbach</span></h1>
+  <nav id="wochenliste"></nav>
+</header>
+
+<main>
+  <section id="leer" class="hinweis">Links eine Woche waehlen.</section>
+
+  <section id="arbeitsflaeche" hidden>
+    <div class="kopf">
+      <h2 id="wochentitel"></h2>
+      <div class="knoepfe">
+        <label>Iterationen <input id="iterationen" type="number" value="120000" step="20000" min="1000"></label>
+        <label>Neustarts <input id="neustarts" type="number" value="6" min="1" max="24"></label>
+        <label>Seed <input id="seed" type="number" value="11"></label>
+        <label class="kasten"><input id="mitpdf" type="checkbox"> PDF</label>
+        <button id="rechnen" class="haupt">Plan rechnen</button>
+      </div>
+    </div>
+
+    <div id="stand" class="stand" hidden></div>
+
+    <div id="plantafel"></div>
+
+    <div id="ausgaben" class="ausgaben" hidden>
+      <h3>Dateien</h3>
+      <div id="dateiliste"></div>
+      <button id="uebernehmen">In die Historie uebernehmen</button>
+      <span id="uebernahme" class="notiz"></span>
+    </div>
+
+    <div id="befunde"></div>
+
+    <details id="rohtext">
+      <summary>Wochenvorgabe als Text bearbeiten</summary>
+      <p class="notiz">Hier geht alles, auch was die Oberflaeche noch nicht als
+        Formular kennt. Gespeichert wird nur, wenn sich die Datei danach laden
+        laesst - sonst bleibt der alte Stand stehen.</p>
+      <textarea id="yaml" spellcheck="false"></textarea>
+      <div class="zeile">
+        <button id="speichern">Speichern</button>
+        <span id="speicherstand" class="notiz"></span>
+      </div>
+    </details>
+  </section>
+
+  <section id="kontenblatt" hidden>
+    <h2>Konten</h2>
+    <div id="kontenhtml"></div>
+  </section>
+</main>
+
+<footer>
+  <button id="zeigekonten" class="leise">Konten</button>
+  <span class="notiz">Aenderungen landen in den YAML-Dateien unter <code>wochen/</code>.</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

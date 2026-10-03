@@ -2,6 +2,7 @@
 import datetime
 import pathlib
 import sys
+import time
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -1797,3 +1798,88 @@ class TestPapierUndUebersicht(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestWeboberflaeche(unittest.TestCase):
+    """Die Oberflaeche arbeitet auf den echten Dateien - geprueft wird gegen
+    eine Kopie im Temporaerordner, damit kein Wochenplan verbogen wird."""
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        from schichtplan import weboberflaeche
+        self.ordner = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.ordner, ignore_errors=True)
+        wochen = self.ordner / "wochen"
+        wochen.mkdir()
+        shutil.copy(WURZEL / "wochen/2026-KW42.yaml", wochen)
+        self.werkstatt = weboberflaeche.Werkstatt(
+            str(WURZEL / "konfig"), str(wochen),
+            str(self.ordner / "ausgabe"), str(WURZEL / "daten/historie"))
+
+    def test_liste_und_woche(self):
+        liste = self.werkstatt.liste()
+        self.assertEqual([e["woche"] for e in liste], ["2026-KW42"])
+        woche = self.werkstatt.woche("2026-KW42")
+        self.assertNotIn("fehler", woche)
+        self.assertIn("woche: 2026-KW42", woche["yaml"])
+        namen = [m["name"] for m in woche["mitarbeiter"]]
+        self.assertIn("C. Rohwer", namen)
+
+    def test_wochenname_darf_nicht_ausbrechen(self):
+        with self.assertRaises(ValueError):
+            self.werkstatt.pfad("../konfig/regeln")
+
+    def test_kaputtes_yaml_wird_zurueckgerollt(self):
+        vorher = self.werkstatt.woche("2026-KW42")["yaml"]
+        with self.assertRaises(ValueError):
+            self.werkstatt.speichern("2026-KW42", "fest: [kaputt\n")
+        self.assertEqual(self.werkstatt.woche("2026-KW42")["yaml"], vorher)
+
+    def test_zelle_setzen_und_loeschen_erhaelt_kommentare(self):
+        vorher = self.werkstatt.woche("2026-KW42")["yaml"]
+        kommentare = [z for z in vorher.splitlines() if z.strip().startswith("#")]
+        nachher = self.werkstatt.zelle(
+            "2026-KW42", "rohwer_c", "mo", "6-14")["yaml"]
+        self.assertIn("  rohwer_c: {mo: 6-14}", nachher)
+        self.assertEqual([z for z in nachher.splitlines()
+                          if z.strip().startswith("#")], kommentare)
+        zurueck = self.werkstatt.zelle(
+            "2026-KW42", "rohwer_c", "mo", "auto")["yaml"]
+        # Nur die echte Zeile verschwindet - die auskommentierten Beispiele
+        # mit demselben Namen bleiben stehen.
+        self.assertEqual([z for z in zurueck.splitlines()
+                          if z.startswith("  rohwer_c:")], [])
+        self.assertEqual([z for z in zurueck.splitlines()
+                          if z.strip().startswith("#")], kommentare)
+
+    def test_zelle_landet_als_harte_vorgabe_im_plan(self):
+        self.werkstatt.zelle("2026-KW42", "kurz_u", "mi", "14-20")
+        vorgabe = lade_wochenvorgabe(self.werkstatt.pfad("2026-KW42"))
+        self.assertEqual(vorgabe.fest["kurz_u"]["mi"], "14-20")
+
+    def test_unbekannter_tag_wird_abgelehnt(self):
+        with self.assertRaises(ValueError):
+            self.werkstatt.zelle("2026-KW42", "kurz_u", "sonntag", "14-20")
+
+    def test_rechnen_schreibt_die_ausgabedateien(self):
+        kennung = self.werkstatt.starte(
+            "2026-KW42", {"iterationen": 2000, "neustarts": 1, "seed": 3})
+        for _ in range(600):
+            auftrag = self.werkstatt.auftraege[kennung]
+            if auftrag["stand"] != "laeuft":
+                break
+            time.sleep(0.1)
+        self.assertEqual(auftrag["stand"], "fertig", auftrag.get("spur"))
+        for name in ("2026-KW42.html", "2026-KW42.json",
+                     "2026-KW42-teamleiter.html"):
+            self.assertIn(name, auftrag["dateien"])
+        self.assertTrue((self.ordner / "ausgabe/2026-KW42.json").exists())
+        # Danach kennt die Woche ihren Plan und ihre Befunde.
+        woche = self.werkstatt.woche("2026-KW42")
+        self.assertIn("plan", woche)
+        self.assertTrue(woche["befunde"])
+
+    def test_uebernehmen_ohne_plan_meldet_sich(self):
+        with self.assertRaises(FileNotFoundError):
+            self.werkstatt.uebernehmen("2026-KW42")

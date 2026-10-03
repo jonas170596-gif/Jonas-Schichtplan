@@ -772,3 +772,32 @@ das Projekt CSV-Dateien im ueblichen Importformat.
 ```bash
 python -m unittest discover -s tests
 ```
+
+## Weboberflaeche
+
+    python -m schichtplan web
+
+Startet einen kleinen Server auf <http://127.0.0.1:8777/> und oeffnet den
+Browser. Nur Standardbibliothek, nichts zu installieren.
+
+Was sie kann:
+
+* **Woche waehlen** - oben die Leiste. Ein voller Punkt heisst "in der
+  Historie", ein leerer "geplant, aber noch nicht uebernommen".
+* **Plan rechnen** - Iterationen, Neustarts und Seed stehen daneben, PDF ist
+  ein Haken. Der Lauf laeuft im Hintergrund, die Seite fragt sekuendlich nach.
+* **Zelle aendern** - jede Schicht im Plan ist ein Auswahlfeld. Was man dort
+  waehlt, landet als harte Vorgabe unter `fest:` in der Wochendatei und bleibt
+  beim naechsten Rechnen stehen. "Planer entscheidet" nimmt den Eintrag wieder
+  heraus. Ein blauer Balken links markiert die festgehaltenen Zellen.
+* **Befunde** - nach Fehler, Warnung und Hinweis getrennt, wie im Papierplan.
+* **Dateien** - Papierplan, Teamleiteruebersicht, Tabelle und die beiden
+  e2n-CSVs; mit Haken auch als PDF.
+* **In die Historie uebernehmen** - dasselbe wie `schichtplan uebernehmen`.
+* **Konten** - die rollierende Tabelle unten ueber den Knopf.
+* **Rohtext** - ganz unten aufklappbar. Dort geht alles, auch was die
+  Oberflaeche noch nicht als Formular kennt. Gespeichert wird nur, wenn sich
+  die Datei danach laden laesst; sonst bleibt der alte Stand stehen.
+
+Optionen: `--port`, `--host`, `--wochen`, `--ausgabe`, `--historie`,
+`--kein-browser`.

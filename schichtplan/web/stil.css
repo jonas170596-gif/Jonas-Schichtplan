@@ -1,0 +1,116 @@
+:root {
+  --papier: #ffffff;
+  --grund: #f4f5f7;
+  --linie: #d8dbe0;
+  --text: #1d2026;
+  --leise: #6b7280;
+  --akzent: #1b5e9b;
+  --fehler: #b00020;
+  --warnung: #c47f00;
+  --hinweis: #6b7280;
+  --frei: #eef0f3;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--text); background: var(--grund);
+  display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh;
+}
+header {
+  background: var(--papier); border-bottom: 1px solid var(--linie);
+  padding: .6rem 1rem; display: flex; align-items: baseline; gap: 1.5rem;
+  flex-wrap: wrap;
+}
+h1 { font-size: 1.1rem; margin: 0; font-weight: 600; }
+h1 .filiale { color: var(--leise); font-weight: 400; }
+h2 { font-size: 1rem; margin: 0; }
+h3 { font-size: .9rem; margin: 0 0 .4rem; }
+nav { display: flex; gap: .3rem; flex-wrap: wrap; }
+nav button {
+  border: 1px solid var(--linie); background: var(--papier); cursor: pointer;
+  padding: .25rem .6rem; border-radius: 4px; font: inherit; font-size: .85rem;
+}
+nav button.aktiv { background: var(--akzent); color: #fff; border-color: var(--akzent); }
+nav button .punkt { font-size: .7em; vertical-align: .25em; margin-left: .3em; }
+main { padding: 1rem; display: grid; gap: 1rem; align-content: start; }
+section { background: var(--papier); border: 1px solid var(--linie);
+          border-radius: 6px; padding: .9rem 1rem; }
+.kopf { display: flex; justify-content: space-between; align-items: center;
+        gap: 1rem; flex-wrap: wrap; margin-bottom: .8rem; }
+.knoepfe { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.knoepfe label { font-size: .8rem; color: var(--leise); }
+.knoepfe input[type=number] { width: 6.5rem; font: inherit; padding: .2rem .3rem;
+  border: 1px solid var(--linie); border-radius: 4px; }
+.knoepfe input#neustarts, .knoepfe input#seed { width: 4rem; }
+.kasten { display: inline-flex; align-items: center; gap: .3rem; }
+button { font: inherit; padding: .35rem .8rem; border-radius: 4px;
+         border: 1px solid var(--linie); background: var(--papier); cursor: pointer; }
+button.haupt { background: var(--akzent); color: #fff; border-color: var(--akzent); }
+button.leise { background: none; border: none; color: var(--akzent); cursor: pointer; }
+button:disabled { opacity: .5; cursor: progress; }
+.notiz { color: var(--leise); font-size: .82rem; }
+.hinweis { color: var(--leise); }
+.stand { padding: .5rem .7rem; border-radius: 4px; background: #eef4fa;
+         border: 1px solid #cfe0ef; margin-bottom: .8rem; font-size: .9rem; }
+.stand.schlecht { background: #fdf2f3; border-color: #f0c8ce; color: var(--fehler); }
+
+table.plan { border-collapse: collapse; width: 100%; font-size: .85rem; }
+table.plan th, table.plan td { border: 1px solid var(--linie); padding: 0; }
+table.plan th { background: var(--grund); padding: .3rem .4rem; font-weight: 600;
+                text-align: left; white-space: nowrap; }
+table.plan td.name { padding: .3rem .4rem; white-space: nowrap; font-weight: 500; }
+table.plan td.summe { padding: .3rem .4rem; white-space: nowrap; color: var(--leise);
+                      text-align: right; }
+table.plan tr.fuss td { background: var(--grund); font-weight: 600; }
+table.plan select {
+  width: 100%; border: 0; background: transparent; font: inherit;
+  padding: .3rem .25rem; cursor: pointer; appearance: none; color: inherit;
+}
+table.plan select:hover { background: #eef4fa; }
+table.plan select:focus { outline: 2px solid var(--akzent); outline-offset: -2px; }
+table.plan td.istfrei select { color: var(--leise); background: var(--frei); }
+table.plan td.istfest { box-shadow: inset 3px 0 0 var(--akzent); }
+table.plan td.abwesend { background: #f7f7f8; color: var(--leise);
+                         padding: .3rem .4rem; text-align: center; }
+
+.grad { border-left: 3px solid; padding: .4rem .7rem; margin: .5rem 0;
+        background: var(--grund); border-radius: 0 4px 4px 0; }
+.grad.fehler { border-color: var(--fehler); background: #fdf2f3; }
+.grad.warnung { border-color: var(--warnung); background: #fdf8ee; }
+.grad.hinweis { border-color: var(--hinweis); }
+.grad h4 { margin: 0 0 .3rem; font-size: .85rem; }
+.grad ul { margin: 0; padding-left: 1.1rem; }
+.grad li { font-size: .84rem; margin: .12rem 0; }
+.grad .pkt { color: var(--leise); }
+
+.ausgaben { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--linie); }
+#dateiliste { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .6rem; }
+#dateiliste a { font-size: .82rem; text-decoration: none; color: var(--akzent);
+  border: 1px solid var(--linie); border-radius: 4px; padding: .2rem .5rem; }
+#dateiliste a:hover { background: var(--grund); }
+
+details#rohtext { margin-top: 1rem; border-top: 1px solid var(--linie); padding-top: .6rem; }
+details#rohtext summary { cursor: pointer; font-size: .88rem; color: var(--akzent); }
+textarea {
+  width: 100%; min-height: 24rem; margin: .5rem 0;
+  font: 13px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  border: 1px solid var(--linie); border-radius: 4px; padding: .6rem;
+  resize: vertical; background: #fcfcfd;
+}
+.zeile { display: flex; gap: .6rem; align-items: center; }
+footer { background: var(--papier); border-top: 1px solid var(--linie);
+         padding: .5rem 1rem; display: flex; gap: 1rem; align-items: center; }
+#kontenhtml table { border-collapse: collapse; font-size: .85rem; }
+#kontenhtml th, #kontenhtml td { border: 1px solid var(--linie); padding: .25rem .5rem; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papier: #1b1d22; --grund: #121419; --linie: #30343c; --text: #e6e8ec;
+    --leise: #9aa1ad; --akzent: #5aa2e0; --frei: #22252b;
+  }
+  :root:not([data-theme="light"]) .stand { background: #16222e; border-color: #27405a; }
+  :root:not([data-theme="light"]) .grad.fehler { background: #2a1619; }
+  :root:not([data-theme="light"]) .grad.warnung { background: #2a2416; }
+  :root:not([data-theme="light"]) textarea { background: #16181d; color: var(--text); }
+  :root:not([data-theme="light"]) table.plan select:hover { background: #22303d; }
+}

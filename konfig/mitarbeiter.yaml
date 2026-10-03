@@ -130,6 +130,10 @@ mitarbeiter:
     soll_tage: 3
     max_tage: 5
     stunden_toleranz_h: 8          # bewusst weit - Ausgleich passiert ueber den Monat
+    spaet_anteil: 0.6              # sie ist eine Spaetschichtkraft: ueber 14 Wochen
+                                   # 19 Frueh gegen 29 Spaet. Der 50/50-Ausgleich
+                                   # haette sie morgens eingeteilt, wo sie real
+                                   # kaum steht.
     erlaubte_schichten: [14-20, 6-14, 11-20, 12-20, 13-20, 8-16, 9-16, 12-18, 11-18, 10-18]
     stamm_schichten: {14-20: 0.35, 6-14: 0.23, 11-20: 0.10, 12-18: 0.08}
 

@@ -25,6 +25,7 @@ import yaml
 from . import analyse as _analyse
 from . import backtest as _backtest
 from . import export
+from . import lauf as _lauf
 from .bewertung import SCHWEREGRADE, Bewerter, beide_seiten
 from .bewertung import pruefen as _pruefen
 from .generator import erzeuge
@@ -403,40 +404,11 @@ def cmd_plan(args) -> int:
     plan, bew = erg.plan, erg.bewertung
 
     bewerter = Bewerter(stamm, vorgabe, vorwochen)
-    ziel = pathlib.Path(args.ausgabe)
-    ziel.mkdir(parents=True, exist_ok=True)
-    basis = ziel / plan.woche
-    dateien = {
-        f"{basis}.html": export.als_html(plan, stamm, bew, bewerter=bewerter),
-        f"{basis}.json": export.als_json(plan, stamm),
-        f"{basis}.csv": export.als_csv(plan, stamm),
-        f"{basis}-e2n-schichten.csv": export.als_e2n_csv(
-            plan, stamm, arbeitsbereich=args.arbeitsbereich, pause_min=args.pause),
-        f"{basis}-e2n-abwesenheiten.csv": export.als_abwesenheits_csv(plan, stamm),
-    }
-    # Teamleiteruebersicht: Befunde, Stunden und Konten auf einer Seite. Die
-    # Konten brauchen die Historie - ohne sie bleibt der Block weg.
-    from . import uebersicht as _uebersicht
-    kontozeilen = None
-    if vorwochen:
-        from . import konten as _konten
-        kontozeilen = _konten.sammle(stamm, vorwochen)
-    dateien[f"{basis}-teamleiter.html"] = _uebersicht.als_html(
-        plan, stamm, bew, bewerter, kontozeilen)
-    for pfad, inhalt in dateien.items():
-        pathlib.Path(pfad).write_text(inhalt, encoding="utf-8")
-
-    if args.pdf:
-        from . import pdf as _pdf
-        for name, quer in ((f"{basis}.html", True),
-                           (f"{basis}-teamleiter.html", False)):
-            try:
-                erzeugt = _pdf.aus_html(pathlib.Path(name).read_text(encoding="utf-8"),
-                                        pathlib.Path(name[:-5] + ".pdf"), quer=quer)
-                dateien[str(erzeugt)] = None
-            except _pdf.KeinBrowser as fehler:
-                print(f"\nPDF nicht erzeugt: {fehler}", file=sys.stderr)
-                break
+    dateien, meldungen = _lauf.schreibe(
+        plan, stamm, bew, bewerter, vorwochen, args.ausgabe, pdf=args.pdf,
+        arbeitsbereich=args.arbeitsbereich, pause=args.pause)
+    for m in meldungen:
+        print(f"\n{m}", file=sys.stderr)
 
     print(_textplan(plan, stamm, bewerter))
     if bewerter.feiertagsumfeld:
@@ -464,6 +436,16 @@ def cmd_backtest(args) -> int:
     if args.woche:
         wochen = [w for w in wochen if w.woche in args.woche]
     print(_backtest.bericht(wochen, stamm, seed=args.seed, iterationen=args.iterationen))
+    return 0
+
+
+def cmd_web(args) -> int:
+    """Weboberflaeche starten - Wochenvorgabe bearbeiten, rechnen, ansehen."""
+    from . import weboberflaeche
+    werkstatt = weboberflaeche.Werkstatt(args.konfig, args.wochen,
+                                         args.ausgabe, args.historie)
+    weboberflaeche.starte(werkstatt, host=args.host, port=args.port,
+                          browser=not args.kein_browser)
     return 0
 
 
@@ -779,6 +761,16 @@ def main(argv=None) -> int:
     bt.add_argument("--iterationen", type=int, default=20000)
     bt.add_argument("--seed", type=int, default=1)
     bt.set_defaults(func=cmd_backtest)
+
+    we = sub.add_parser("web", help="Weboberflaeche starten")
+    we.add_argument("--wochen", default="wochen")
+    we.add_argument("--ausgabe", default="ausgabe")
+    we.add_argument("--historie", default="daten/historie")
+    we.add_argument("--port", type=int, default=8777)
+    we.add_argument("--host", default="127.0.0.1")
+    we.add_argument("--kein-browser", action="store_true",
+                    help="Browser nicht automatisch oeffnen")
+    we.set_defaults(func=cmd_web)
 
     ko = sub.add_parser("konten", help="alle Konten in einer Tabelle")
     ko.add_argument("--historie", default="daten/historie")
