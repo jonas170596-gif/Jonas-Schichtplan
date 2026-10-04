@@ -295,7 +295,14 @@ class Stammdaten:
     _kat_tabelle: dict[tuple[int, int], str] = field(default_factory=dict, repr=False)
 
     def kategorie_von(self, von: int, bis: int) -> str:
-        """Kategorie einer Zeitspanne - aus dem Katalog, sonst nach Startzeit."""
+        """Kategorie einer Zeitspanne - aus dem Katalog, sonst nach Startzeit.
+
+        Der Katalog hat das letzte Wort, und das aus gutem Grund: samstags
+        ist 9-18 eine Spaetschicht, obwohl sie frueher anfaengt als manche
+        Mittelschicht - um 18 Uhr ist der Laden zu, laenger geht nicht. So
+        etwas laesst sich aus den Zeiten allein nicht ablesen, es steht
+        deshalb in konfig/schichten.yaml.
+        """
         if not self._kat_tabelle:
             self._kat_tabelle.update({(s.von, s.bis): s.kategorie
                                       for s in self.schichten.values()})
@@ -305,7 +312,6 @@ class Stammdaten:
                    else "spaet" if von >= zu_index("11:00") else "mittel")
             self._kat_tabelle[(von, bis)] = kat
         return kat
-
 
 class _StrengerLoader(yaml.SafeLoader):
     """SafeLoader, der doppelte Schluessel meldet statt sie zu schlucken.

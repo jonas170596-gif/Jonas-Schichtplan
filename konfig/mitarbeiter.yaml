@@ -46,8 +46,9 @@ mitarbeiter:
     feste_freie_tage: []          # freier Tag variabel, der Planer legt ihn
     vermeiden: [spaet]            # der Frueh-Anker, Spaet nur im Notfall
     frueh_spaet_ausgleich: false  # nimmt am Ausgleich bewusst nicht teil
-    erlaubte_schichten: [6-14, 11-20]
-    stamm_schichten: {6-14: 0.93, 11-20: 0.04}
+    erlaubte_schichten: [6-14, 6-13:30, 11-20]   # 6-13:30 nur zur Auswahl,
+    stamm_schichten: {6-14: 0.93, 11-20: 0.04}   # von sich aus nimmt der
+                                                 # Planer sie nicht
     notiz: "Hauptsaechlicher Frueh-Anker, montags gesetzt (siehe team.yaml).
       Einziger Kandidat fuer die Teamleitersitzung am Dienstag."
 
@@ -74,8 +75,9 @@ mitarbeiter:
       - tage: [fr, sa]            # Freitag und Samstag gehoeren zusammen:
                                   # eine Woche beide frueh, die naechste beide
                                   # spaet, dann wieder frueh
-    erlaubte_schichten: [6-14, 11-20, 9-18, 10-18, 11-18]
-    stamm_schichten: {6-14: 0.56, 11-20: 0.30}
+    erlaubte_schichten: [6-14, 6-13:30, 11-20, 9-18, 10-18, 11-18]
+    stamm_schichten: {6-14: 0.56, 11-20: 0.30}   # 6-13:30 ohne Gewicht:
+                                                 # waehlbar, aber keine Gewohnheit
     notiz: "Mo-Do frueh, Fr/Sa im Wechsel frueh/spaet."
 
   marino_a:
@@ -89,7 +91,7 @@ mitarbeiter:
     einsatzprioritaet: 1.6         # soll seine Tage eher bekommen als Rohwer;
                                    # ein zusaetzlicher freier Tag geht lieber
                                    # an Rohwer
-    erlaubte_schichten: [6-14, 11-20, 9-18, 10-18]
+    erlaubte_schichten: [6-14, 6-13:30, 11-20, 9-18, 10-18]
     stamm_schichten: {11-20: 0.48, 6-14: 0.46, 9-18: 0.06}
 
   # ---------------- Teilzeit ----------------

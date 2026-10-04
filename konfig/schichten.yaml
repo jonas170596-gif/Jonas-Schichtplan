@@ -31,8 +31,10 @@ schichten:
   13-20:     {von: "13:00", bis: "20:00", kategorie: spaet, tage: [mo, di, mi, do, fr]}  #  1x
 
   # --- Samstag (Laden bis 18:00) ---
-  9-18:      {von: "09:00", bis: "18:00", kategorie: mittel, tage: [sa]}   # 10x
-  10-18:     {von: "10:00", bis: "18:00", kategorie: mittel, tage: [sa]}   # 11x
+  # Samstags macht 18 Uhr den Laden zu. Wer bis dahin bleibt, hat die
+  # Spaetschicht - egal, wann er angefangen hat.
+  9-18:      {von: "09:00", bis: "18:00", kategorie: spaet, tage: [sa]}   # 10x
+  10-18:     {von: "10:00", bis: "18:00", kategorie: spaet, tage: [sa]}   # 11x
   11-18:     {von: "11:00", bis: "18:00", kategorie: spaet,  tage: [sa]}   #  8x
   12-18:     {von: "12:00", bis: "18:00", kategorie: spaet,  tage: [sa]}   # 10x
   # 8-18 kam 2x vor, ist mit 10 h aber zu lang - bewusst nicht im Katalog.

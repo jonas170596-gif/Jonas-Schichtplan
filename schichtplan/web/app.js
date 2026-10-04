@@ -82,6 +82,11 @@ async function oeffne(name) {
   history.replaceState(null, "", adresse);
 
   $("kontenblatt").hidden = true;
+  $("befundkarte").hidden = true;
+  $("befunde").replaceChildren();
+  $("ausgaben").hidden = true;
+  $("kacheln").hidden = true;
+  $("plantafel").replaceChildren();
   daten = await hole(`/api/woche/${encodeURIComponent(name)}`);
   $("leer").hidden = true;
   $("arbeitsflaeche").hidden = false;
@@ -121,6 +126,15 @@ function vorhandeneDateien(name) {
 
 // ---- Plantafel -------------------------------------------------------- //
 function zeichnePlan() {
+  try {
+    zeichneTafel();
+  } catch (fehler) {
+    melde(`Die Tafel liess sich nicht zeichnen: ${fehler.message}`, "schlecht");
+    throw fehler;
+  }
+}
+
+function zeichneTafel() {
   const ziel = $("plantafel");
   ziel.replaceChildren();
   $("kacheln").hidden = true;
@@ -206,9 +220,10 @@ function zeichnePlan() {
   fuss.insertCell().textContent = "Köpfe";
   let brutto = 0;
   const ziele = (daten.bedarf || {}).kopfzahl || {};
+  const alleReihen = daten.mitarbeiter.map(
+    (ma) => (geplant ? daten.plan.plan[ma.id] : zellenAusVorgabe(ma.id)) || {});
   for (const t of TAGE) {
-    const besetzt = Object.values(daten.plan.plan)
-      .filter((r) => r[t] && r[t].art === "schicht");
+    const besetzt = alleReihen.filter((r) => r[t] && r[t].art === "schicht");
     for (const r of besetzt) brutto += (min(r[t].bis) - min(r[t].von)) / 60;
     const td = fuss.insertCell();
     td.className = "koepfe";
