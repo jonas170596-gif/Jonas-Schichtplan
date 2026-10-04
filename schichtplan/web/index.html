@@ -4,65 +4,106 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Schichtplan Winterbach</title>
+<link rel="icon" href="/bild/symbol.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/bild/symbol-32.png">
+<link rel="apple-touch-icon" href="/bild/symbol-256.png">
 <link rel="stylesheet" href="/stil.css">
 </head>
 <body>
-<header>
-  <h1>Schichtplan <span class="filiale">Winterbach</span></h1>
-  <nav id="wochenliste"></nav>
+
+<header class="balken">
+  <div class="marke">
+    <img src="/bild/symbol.svg" alt="" width="34" height="34">
+    <div>
+      <strong>Schichtplan</strong>
+      <small>Metzgerei Thomas Kurz &middot; Winterbach</small>
+    </div>
+  </div>
+  <nav id="wochenliste" aria-label="Wochen"></nav>
+  <div class="balken-rechts">
+    <button id="zeigekonten" class="still" title="Rollierende Konten">Konten</button>
+    <button id="farbschema" class="still" title="Hell oder dunkel">&#9681;</button>
+  </div>
 </header>
 
 <main>
-  <section id="leer" class="hinweis">Links eine Woche waehlen.</section>
-
-  <section id="arbeitsflaeche" hidden>
-    <div class="kopf">
-      <h2 id="wochentitel"></h2>
-      <div class="knoepfe">
-        <label>Iterationen <input id="iterationen" type="number" value="120000" step="20000" min="1000"></label>
-        <label>Neustarts <input id="neustarts" type="number" value="6" min="1" max="24"></label>
-        <label>Seed <input id="seed" type="number" value="11"></label>
-        <label class="kasten"><input id="mitpdf" type="checkbox"> PDF</label>
-        <button id="rechnen" class="haupt">Plan rechnen</button>
-      </div>
-    </div>
-
-    <div id="stand" class="stand" hidden></div>
-
-    <div id="plantafel"></div>
-
-    <div id="ausgaben" class="ausgaben" hidden>
-      <h3>Dateien</h3>
-      <div id="dateiliste"></div>
-      <button id="uebernehmen">In die Historie uebernehmen</button>
-      <span id="uebernahme" class="notiz"></span>
-    </div>
-
-    <div id="befunde"></div>
-
-    <details id="rohtext">
-      <summary>Wochenvorgabe als Text bearbeiten</summary>
-      <p class="notiz">Hier geht alles, auch was die Oberflaeche noch nicht als
-        Formular kennt. Gespeichert wird nur, wenn sich die Datei danach laden
-        laesst - sonst bleibt der alte Stand stehen.</p>
-      <textarea id="yaml" spellcheck="false"></textarea>
-      <div class="zeile">
-        <button id="speichern">Speichern</button>
-        <span id="speicherstand" class="notiz"></span>
-      </div>
-    </details>
+  <section id="leer" class="karte mittig">
+    <p>Oben eine Woche wählen.</p>
   </section>
 
-  <section id="kontenblatt" hidden>
-    <h2>Konten</h2>
+  <div id="arbeitsflaeche" hidden>
+
+    <section class="karte kopfkarte">
+      <div class="titelzeile">
+        <div>
+          <h1 id="wochentitel"></h1>
+          <p id="wochenspanne" class="leise"></p>
+        </div>
+        <div class="steuerung">
+          <details class="feineinstellung">
+            <summary title="Iterationen, Neustarts, Seed">Feineinstellung</summary>
+            <div class="regler">
+              <label>Iterationen<input id="iterationen" type="number" value="120000" step="20000" min="1000"></label>
+              <label>Neustarts<input id="neustarts" type="number" value="6" min="1" max="24"></label>
+              <label>Seed<input id="seed" type="number" value="11"></label>
+              <label class="haken"><input id="mitpdf" type="checkbox">PDF gleich mit</label>
+            </div>
+          </details>
+          <button id="rechnen" class="haupt">
+            <span class="punkt-laeuft" hidden></span><span id="rechnen-text">Plan rechnen</span>
+          </button>
+        </div>
+      </div>
+      <div id="stand" class="stand" hidden></div>
+      <div id="kacheln" class="kacheln" hidden></div>
+    </section>
+
+    <section id="plankarte" class="karte">
+      <div id="plantafel"></div>
+      <p class="legende">
+        <span class="chip frueh">Früh</span>
+        <span class="chip mittel">Mittel</span>
+        <span class="chip spaet">Spät</span>
+        <span class="chip frei">Frei</span>
+        <span class="chip abw">Abwesend</span>
+        <span class="leise">&mdash; blauer Rand: von Hand festgehalten</span>
+      </p>
+    </section>
+
+    <section id="ausgaben" class="karte" hidden>
+      <h2>Dateien</h2>
+      <div id="dateiliste" class="dateiliste"></div>
+      <div class="zeile abstand">
+        <button id="uebernehmen">In die Historie übernehmen</button>
+        <span id="uebernahme" class="leise"></span>
+      </div>
+    </section>
+
+    <section id="befundkarte" class="karte" hidden>
+      <h2>Befunde</h2>
+      <div id="befunde"></div>
+    </section>
+
+    <section class="karte">
+      <details id="rohtext">
+        <summary>Wochenvorgabe als Text bearbeiten</summary>
+        <p class="leise">Hier geht alles, auch was die Oberfläche noch nicht
+          als Formular kennt. Gespeichert wird nur, wenn sich die Datei danach
+          laden lässt &ndash; sonst bleibt der alte Stand stehen.</p>
+        <textarea id="yaml" spellcheck="false"></textarea>
+        <div class="zeile">
+          <button id="speichern">Speichern</button>
+          <span id="speicherstand" class="leise"></span>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <section id="kontenblatt" class="karte" hidden>
+    <h2>Rollierende Konten</h2>
     <div id="kontenhtml"></div>
   </section>
 </main>
-
-<footer>
-  <button id="zeigekonten" class="leise">Konten</button>
-  <span class="notiz">Aenderungen landen in den YAML-Dateien unter <code>wochen/</code>.</span>
-</footer>
 
 <script src="/app.js"></script>
 </body>

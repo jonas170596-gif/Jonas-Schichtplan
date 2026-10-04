@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"
+     aria-label="Schichtplan">
+  <defs>
+    <linearGradient id="grund" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9e2b2b"/>
+      <stop offset="1" stop-color="#7a1d1d"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#grund)"/>
+  <!-- Aufhaengung wie beim Wandkalender -->
+  <rect x="146" y="54" width="34" height="74" rx="17" fill="#f3e4d8" opacity=".9"/>
+  <rect x="332" y="54" width="34" height="74" rx="17" fill="#f3e4d8" opacity=".9"/>
+  <!-- Planblatt -->
+  <rect x="78" y="106" width="356" height="330" rx="40" fill="#fbf6f1"/>
+  <rect x="78" y="106" width="356" height="74" rx="40" fill="#e8d5c6"/>
+  <rect x="78" y="150" width="356" height="30" fill="#e8d5c6"/>
+  <!-- Sechs Tagesspalten, die mittlere als belegte Schicht hervorgehoben -->
+  <g fill="#c9b3a2">
+    <rect x="118" y="214" width="42" height="26" rx="8"/>
+    <rect x="178" y="214" width="42" height="26" rx="8"/>
+    <rect x="298" y="214" width="42" height="26" rx="8"/>
+    <rect x="358" y="214" width="42" height="26" rx="8"/>
+    <rect x="118" y="276" width="42" height="26" rx="8"/>
+    <rect x="238" y="276" width="42" height="26" rx="8"/>
+    <rect x="358" y="276" width="42" height="26" rx="8"/>
+    <rect x="178" y="338" width="42" height="26" rx="8"/>
+    <rect x="298" y="338" width="42" height="26" rx="8"/>
+    <rect x="358" y="338" width="42" height="26" rx="8"/>
+  </g>
+  <g fill="#9e2b2b">
+    <rect x="238" y="214" width="42" height="26" rx="8"/>
+    <rect x="178" y="276" width="42" height="26" rx="8"/>
+    <rect x="298" y="276" width="42" height="26" rx="8"/>
+    <rect x="118" y="338" width="42" height="26" rx="8"/>
+    <rect x="238" y="338" width="42" height="26" rx="8"/>
+  </g>
+</svg>

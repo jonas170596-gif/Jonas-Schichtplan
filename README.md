@@ -775,9 +775,14 @@ python -m unittest discover -s tests
 
 ## Weboberflaeche
 
-**Windows:** `start.bat` doppelklicken.
-**macOS/Linux:** `./start.sh` im Terminal.
-**Oder von Hand:** `python -m schichtplan web`
+**Windows:** einmal `einrichten.bat` doppelklicken - das legt die Verknuepfung
+"Schichtplan Winterbach" mit Symbol auf den Desktop. Danach startet alles
+ueber dieses Symbol. Ohne Verknuepfung tut es auch `start.bat` direkt.
+
+**macOS/Linux:** `./einrichten.sh` legt einen Starter auf den Desktop,
+`./start.sh` startet direkt.
+
+**Von Hand:** `python -m schichtplan web`
 
 Startet einen kleinen Server auf <http://127.0.0.1:8777/> und oeffnet den
 Browser. Nur Standardbibliothek, ausser PyYAML nichts zu installieren - das
@@ -799,6 +804,10 @@ Was sie kann:
   e2n-CSVs; mit Haken auch als PDF.
 * **In die Historie uebernehmen** - dasselbe wie `schichtplan uebernehmen`.
 * **Konten** - die rollierende Tabelle unten ueber den Knopf.
+* **Farben** - die Schichtzellen tragen die Farbe ihrer Art: Frueh warm,
+  Mittel gruen, Spaet kuehl, Frei grau, Abwesenheit schraffiert. Ein blauer
+  Balken links markiert, was von Hand festgehalten wurde. Hell und dunkel
+  richten sich nach dem System, der Schalter oben rechts ueberschreibt das.
 * **Rohtext** - ganz unten aufklappbar. Dort geht alles, auch was die
   Oberflaeche noch nicht als Formular kennt. Gespeichert wird nur, wenn sich
   die Datei danach laden laesst; sonst bleibt der alte Stand stehen.
@@ -818,3 +827,10 @@ Liegt der Browser woanders, hilft die Umgebungsvariable
 `SCHICHTPLAN_BROWSER` mit dem vollen Pfad zur exe. Ohne Browser bleiben die
 HTML-Dateien - im Browser oeffnen und mit Strg+P als PDF speichern, das
 Layout ist dafuer gebaut.
+
+### Symbol
+
+`schichtplan/web/bild/symbol.ico` und die PNGs daneben erzeugt
+`python werkzeug/symbol_bauen.py` - ohne Fremdpakete, die Formen werden
+direkt gezeichnet. Wer das Symbol aendert, laesst das Werkzeug neu laufen;
+ein Test vergleicht die abgelegte Datei mit dem, was dabei herauskommt.

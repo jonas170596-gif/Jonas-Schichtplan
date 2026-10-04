@@ -148,37 +148,55 @@ class Werkstatt:
                            "pause_h": stamm.bedarf.pause_h,
                            "budget": round(bewerter.gesamtbudget())}
         antwort["mitarbeiter"] = [
-            {"id": mid, "name": m.name,
-             "schichten": {t: [s.id for s in _optionen(stamm, mid, t, vorgabe) if s]
-                           for t in TAGE}}
+            {"id": mid, "name": m.name, "soll_h": m.soll_stunden,
+             "soll_tage": m.soll_tage, "aushilfe": bool(vorgabe.aushilfe) and any(
+                 a.get("id") == mid for a in vorgabe.aushilfe),
+             "schichten": [{"id": s.id, "kategorie": s.kategorie}
+                           for t in TAGE
+                           for s in _optionen(stamm, mid, t, vorgabe) if s]
+             and {t: [{"id": s.id, "kategorie": s.kategorie}
+                      for s in _optionen(stamm, mid, t, vorgabe) if s]
+                  for t in TAGE}}
             for mid, m in stamm.mitarbeiter.items() if m.im_plan]
+        antwort["bedarf"] = {
+            "kopfzahl": dict(stamm.bedarf.kopfzahl),
+            "offene_tage": list(stamm.bedarf.offene_tage),
+        }
         plan = self.ausgabe / f"{name}.json"
         if plan.exists():
             antwort["plan"] = json.loads(plan.read_text(encoding="utf-8"))
-            antwort["befunde"] = self._befunde(name)
+            antwort["befunde"], antwort["punkte"] = self._bewertung(name)
+            antwort["kategorien"] = {
+                s.id: s.kategorie for s in stamm.schichten.values()}
         return antwort
 
-    def _befunde(self, name: str) -> list[dict] | None:
-        """Befunde zum gespeicherten Plan.
+    def _bewertung(self, name: str) -> tuple[list[dict] | None, float | None]:
+        """(Befunde, Gesamtpunkte) zum gespeicherten Plan.
 
-        Der Lauf aus der Oberflaeche legt sie als Datei ab; stammt der Plan
-        aus der Kommandozeile, werden sie hier nachgerechnet - sonst stuende
-        ein fremder Plan ohne Bewertung da.
+        Der Lauf aus der Oberflaeche legt beides als Datei ab; stammt der Plan
+        aus der Kommandozeile, wird hier nachgerechnet - sonst stuende ein
+        fremder Plan ohne Bewertung da. Die Gesamtpunkte sind mehr als die
+        Summe der angezeigten Befunde: vieles kostet Punkte, ohne dass es
+        einen Satz wert waere.
         """
         datei = self.ausgabe / f"{name}-befunde.json"
         if datei.exists():
-            return json.loads(datei.read_text(encoding="utf-8"))
+            roh = json.loads(datei.read_text(encoding="utf-8"))
+            if isinstance(roh, dict):
+                return roh.get("befunde"), roh.get("punkte")
+            return roh, None                      # Datei aus einer alten Fassung
         from .cli import _plan_aus_json
         from .bewertung import pruefen
         quelle = self.ausgabe / f"{name}.json"
         if not quelle.exists():
-            return None
+            return None, None
         vorgabe = lade_wochenvorgabe(self.pfad(name))
         stamm = mit_aushilfen(self.stammdaten(), vorgabe)
         bew = pruefen(_plan_aus_json(quelle, stamm), stamm, vorgabe,
                       self.vorwochen(bis=name))
-        return [{"regel": b.regel, "punkte": round(b.punkte), "text": b.text,
-                 "schwere": b.schwere} for b in bew.befunde if b.text]
+        return ([{"regel": b.regel, "punkte": round(b.punkte), "text": b.text,
+                  "schwere": b.schwere} for b in bew.befunde if b.text],
+                round(bew.punkte))
 
     def speichern(self, name: str, text: str) -> dict:
         """Rohtext schreiben - aber erst, wenn er sich laden laesst."""
@@ -235,7 +253,9 @@ class Werkstatt:
                         "text": b.text, "schwere": b.schwere}
                        for b in erg.bewertung.befunde if b.text]
             (self.ausgabe / f"{name}-befunde.json").write_text(
-                json.dumps(befunde, ensure_ascii=False, indent=2), encoding="utf-8")
+                json.dumps({"punkte": round(erg.bewertung.punkte),
+                            "befunde": befunde}, ensure_ascii=False, indent=2),
+                encoding="utf-8")
             auftrag.update(stand="fertig", punkte=round(erg.bewertung.punkte),
                            start=round(erg.startpunkte), befunde=befunde,
                            dateien=[pathlib.Path(d).name for d in dateien],
@@ -298,7 +318,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                  ".js": "text/javascript; charset=utf-8",
                  ".json": "application/json; charset=utf-8",
                  ".csv": "text/csv; charset=utf-8",
-                 ".pdf": "application/pdf"}
+                 ".pdf": "application/pdf",
+                 ".svg": "image/svg+xml",
+                 ".png": "image/png",
+                 ".ico": "image/x-icon"}
         if not pfad.exists() or not pfad.is_file():
             self._json({"fehler": f"{pfad.name} gibt es nicht"}, 404)
             return
@@ -320,6 +343,13 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._datei(HIER / "index.html")
             elif pfad in ("/app.js", "/stil.css"):
                 self._datei(HIER / pfad.lstrip("/"))
+            elif pfad.startswith("/bild/"):
+                name = urllib.parse.unquote(pfad.split("/", 2)[2])
+                ziel = (HIER / "bild" / name).resolve()
+                if ziel.parent != (HIER / "bild").resolve():
+                    self._json({"fehler": "unzulaessiger Pfad"}, 400)
+                else:
+                    self._datei(ziel)
             elif pfad == "/api/wochen":
                 self._json(w.liste())
             elif pfad.startswith("/api/woche/"):

@@ -1883,3 +1883,57 @@ class TestWeboberflaeche(unittest.TestCase):
     def test_uebernehmen_ohne_plan_meldet_sich(self):
         with self.assertRaises(FileNotFoundError):
             self.werkstatt.uebernehmen("2026-KW42")
+
+    def test_mitarbeiter_kennen_die_schichtart(self):
+        """Die Oberflaeche faerbt die Zellen danach ein."""
+        woche = self.werkstatt.woche("2026-KW42")
+        rohwer = [m for m in woche["mitarbeiter"] if m["id"] == "rohwer_c"][0]
+        arten = {s["kategorie"] for s in rohwer["schichten"]["mo"]}
+        self.assertEqual(arten, {"frueh", "spaet"})
+        self.assertIn("kopfzahl", woche["bedarf"])
+
+    def test_bewertung_nennt_auch_die_gesamtpunkte(self):
+        """Die Summe der angezeigten Befunde ist nicht der ganze Wert -
+        vieles kostet Punkte, ohne einen Satz wert zu sein."""
+        kennung = self.werkstatt.starte(
+            "2026-KW42", {"iterationen": 2000, "neustarts": 1, "seed": 3})
+        for _ in range(600):
+            if self.werkstatt.auftraege[kennung]["stand"] != "laeuft":
+                break
+            time.sleep(0.1)
+        woche = self.werkstatt.woche("2026-KW42")
+        self.assertIsInstance(woche["punkte"], (int, float))
+        sichtbar = sum(b["punkte"] for b in woche["befunde"])
+        self.assertGreaterEqual(woche["punkte"], sichtbar)
+
+
+class TestSymbol(unittest.TestCase):
+    """Das Programmsymbol wird aus dem Werkzeug erzeugt - geprueft wird, dass
+    die mitgelieferten Dateien noch dazu passen."""
+
+    def test_ico_enthaelt_alle_groessen(self):
+        import struct
+        pfad = WURZEL / "schichtplan/web/bild/symbol.ico"
+        roh = pfad.read_bytes()
+        _, typ, anzahl = struct.unpack("<HHH", roh[:6])
+        self.assertEqual(typ, 1)
+        self.assertEqual(anzahl, 7)
+        for i in range(anzahl):
+            b, h, _, _, _, _, laenge, versatz = struct.unpack(
+                "<BBBBHHII", roh[6 + 16 * i: 22 + 16 * i])
+            self.assertEqual(roh[versatz:versatz + 8], b"\x89PNG\r\n\x1a\n")
+            png_b, png_h = struct.unpack(">II", roh[versatz + 16: versatz + 24])
+            self.assertEqual((png_b, png_h), (b or 256, h or 256))
+            self.assertLessEqual(versatz + laenge, len(roh))
+
+    def test_symbol_laesst_sich_neu_bauen(self):
+        import importlib.util
+        pfad = WURZEL / "werkzeug/symbol_bauen.py"
+        spec = importlib.util.spec_from_file_location("symbol_bauen", pfad)
+        modul = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modul)
+        frisch = modul.zeichne(32)
+        alt = (WURZEL / "schichtplan/web/bild/symbol-32.png").read_bytes()
+        self.assertEqual(frisch, alt,
+                         "symbol-32.png passt nicht mehr zum Werkzeug - "
+                         "python werkzeug/symbol_bauen.py neu laufen lassen")

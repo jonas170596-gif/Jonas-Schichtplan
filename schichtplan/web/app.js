@@ -3,12 +3,26 @@
 const TAGE = ["mo", "di", "mi", "do", "fr", "sa"];
 const TAG_LANG = { mo: "Montag", di: "Dienstag", mi: "Mittwoch",
                    do: "Donnerstag", fr: "Freitag", sa: "Samstag" };
-const SCHWERE = [["fehler", "Fehler", "so nicht aushaengen"],
-                 ["warnung", "Warnung", "geht, ist aber ein Zugestaendnis"],
-                 ["hinweis", "Hinweis", "nur zur Kenntnis"]];
+const SCHWERE = [
+  ["fehler", "Fehler", "so nicht aushängen"],
+  ["warnung", "Warnung", "geht, ist aber ein Zugeständnis"],
+  ["hinweis", "Hinweis", "nur zur Kenntnis"],
+];
+const ABWESEND = { urlaub: "Urlaub", krank: "Krank", schule: "Schule",
+                   feiertag: "zu", sonstige: "abwesend" };
+const DATEITITEL = [
+  [".html", "Papierplan", "HTML"],
+  ["-teamleiter.html", "Teamleiterübersicht", "HTML"],
+  [".pdf", "Papierplan", "PDF"],
+  ["-teamleiter.pdf", "Teamleiterübersicht", "PDF"],
+  [".csv", "Tabelle", "CSV"],
+  ["-e2n-schichten.csv", "e2n Schichten", "CSV"],
+  ["-e2n-abwesenheiten.csv", "e2n Abwesenheiten", "CSV"],
+  [".json", "Rohdaten", "JSON"],
+];
 
-let aktuelle = null;     // Name der offenen Woche
-let daten = null;        // Antwort von /api/woche/<name>
+let aktuelle = null;
+let daten = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -22,63 +36,75 @@ async function hole(pfad, optionen) {
   return inhalt;
 }
 
-async function sende(pfad, koerper) {
-  return hole(pfad, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(koerper || {}),
-  });
-}
+const sende = (pfad, koerper) => hole(pfad, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(koerper || {}),
+});
 
-// ---- Wochenliste ------------------------------------------------------ //
+// ---- Wochenleiste ----------------------------------------------------- //
 async function ladeListe() {
   const wochen = await hole("/api/wochen");
   const nav = $("wochenliste");
   nav.replaceChildren();
   for (const w of wochen) {
     const knopf = document.createElement("button");
-    knopf.textContent = w.woche.replace("2026-", "");
-    knopf.title = `zuletzt geaendert ${w.geaendert}`;
-    if (w.uebernommen) knopf.insertAdjacentHTML("beforeend",
-      ' <span class="punkt" title="in der Historie">●</span>');
-    else if (w.geplant) knopf.insertAdjacentHTML("beforeend",
-      ' <span class="punkt" title="geplant, noch nicht uebernommen">○</span>');
+    knopf.append(w.woche.replace(/^\d{4}-/, ""));
+    if (w.uebernommen || w.geplant) {
+      const marker = document.createElement("span");
+      marker.className = `marker ${w.uebernommen ? "fertig" : "entwurf"}`;
+      marker.title = w.uebernommen ? "in der Historie" : "geplant, noch offen";
+      knopf.append(marker);
+    }
+    knopf.title = `zuletzt geändert ${w.geaendert}`;
     if (w.woche === aktuelle) knopf.classList.add("aktiv");
     knopf.onclick = () => oeffne(w.woche);
     nav.append(knopf);
   }
+  return wochen;
 }
 
-// ---- Eine Woche ------------------------------------------------------- //
+// ---- Woche oeffnen ---------------------------------------------------- //
 async function oeffne(name) {
   aktuelle = name;
   const adresse = new URL(location);
   adresse.searchParams.set("woche", name);
   history.replaceState(null, "", adresse);
+
   $("kontenblatt").hidden = true;
   daten = await hole(`/api/woche/${encodeURIComponent(name)}`);
   $("leer").hidden = true;
   $("arbeitsflaeche").hidden = false;
+
   const k = daten.kopf;
-  $("wochentitel").textContent = k
-    ? `${name}   ${k.von} bis ${k.bis}${k.modus === "manuell" ? "   (Handplan)" : ""}`
-    : name;
+  $("wochentitel").textContent = name.replace("-", " ");
+  $("wochenspanne").textContent = k
+    ? `${datum(k.von)} bis ${datum(k.bis)}` +
+      (k.modus === "manuell" ? "  ·  Handplan, wird nur geprueft" : "")
+    : "";
   $("yaml").value = daten.yaml;
   $("speicherstand").textContent = "";
   $("uebernahme").textContent = "";
+
   if (daten.fehler) {
-    melde(`Die Wochendatei laesst sich nicht laden: ${daten.fehler}`, true);
+    melde(`Die Wochendatei lässt sich nicht laden: ${daten.fehler}`, "schlecht");
     $("rohtext").open = true;
   } else {
     $("stand").hidden = true;
   }
   zeichnePlan();
   zeichneBefunde(daten.befunde);
-  zeigeDateien(daten.plan ? standardDateien(name) : null);
+  zeigeDateien(daten.plan ? vorhandeneDateien(name) : null);
   await ladeListe();
 }
 
-function standardDateien(name) {
+function datum(iso) {
+  if (!iso) return "";
+  const [j, m, t] = iso.split("-");
+  return `${t}.${m}.${j}`;
+}
+
+function vorhandeneDateien(name) {
   return [`${name}.html`, `${name}-teamleiter.html`, `${name}.csv`,
           `${name}-e2n-schichten.csv`, `${name}-e2n-abwesenheiten.csv`];
 }
@@ -87,93 +113,121 @@ function standardDateien(name) {
 function zeichnePlan() {
   const ziel = $("plantafel");
   ziel.replaceChildren();
+  $("kacheln").hidden = true;
   if (!daten.plan) {
-    ziel.innerHTML = '<p class="hinweis">Fuer diese Woche gibt es noch keinen ' +
-      'Plan. Oben rechts auf <em>Plan rechnen</em>.</p>';
+    const hinweis = document.createElement("p");
+    hinweis.className = "leise";
+    hinweis.textContent = "Fuer diese Woche gibt es noch keinen Plan. " +
+      "Oben rechts auf „Plan rechnen“.";
+    ziel.append(hinweis);
     return;
   }
-  const tabelle = document.createElement("table");
-  tabelle.className = "plan";
-  const kopf = tabelle.insertRow();
-  kopf.insertCell().outerHTML = "<th>Mitarbeiter</th>";
-  for (const t of TAGE) kopf.insertCell().outerHTML = `<th>${TAG_LANG[t]}</th>`;
-  kopf.insertCell().outerHTML = "<th>Summe</th>";
 
   const fest = festeZellen();
+  const tabelle = document.createElement("table");
+  tabelle.className = "plan";
+
+  const kopf = tabelle.createTHead().insertRow();
+  kopf.insertCell().outerHTML = "<th>Mitarbeiter</th>";
+  const montag = daten.kopf && daten.kopf.von ? new Date(daten.kopf.von) : null;
+  TAGE.forEach((t, i) => {
+    let tagdatum = "";
+    if (montag) {
+      const d = new Date(montag);
+      d.setDate(d.getDate() + i);
+      tagdatum = `${d.getDate()}.${d.getMonth() + 1}.`;
+    }
+    kopf.insertCell().outerHTML =
+      `<th class="tag">${TAG_LANG[t]}<span>${tagdatum}</span></th>`;
+  });
+  kopf.insertCell().outerHTML = "<th>Bezahlt</th>";
+
+  const koerper = tabelle.createTBody();
   for (const ma of daten.mitarbeiter) {
     const reihe = daten.plan.plan[ma.id];
     if (!reihe) continue;
-    const zeile = tabelle.insertRow();
+    const zeile = koerper.insertRow();
     const name = zeile.insertCell();
     name.className = "name";
-    name.textContent = ma.name;
+    name.append(ma.name);
+    if (ma.aushilfe) {
+      const rolle = document.createElement("span");
+      rolle.className = "rolle";
+      rolle.textContent = "Aushilfe";
+      name.append(rolle);
+    }
+
     let stunden = 0, tage = 0;
     for (const t of TAGE) {
       const zelle = reihe[t] || { art: "frei" };
       const td = zeile.insertCell();
       if (zelle.art !== "frei" && zelle.art !== "schicht") {
         td.className = "abwesend";
-        td.textContent = beschriftung(zelle);
+        td.textContent = ABWESEND[zelle.art] || zelle.art;
         continue;
       }
       if (zelle.art === "schicht") {
-        // Wie in der Papierausgabe: bezahlte Zeit, also abzueglich Pause.
-        stunden += (zu(zelle.bis) - zu(zelle.von)) / 60 - pause();
+        stunden += (min(zelle.bis) - min(zelle.von)) / 60 - pause();
         tage += 1;
       }
-      td.className = zelle.art === "frei" ? "istfrei" : "";
-      if (fest[ma.id] && fest[ma.id].has(t)) td.classList.add("istfest");
+      td.className = "zelle " + kategorie(ma, t, zelle);
+      if (fest[ma.id] && fest[ma.id].has(t)) td.classList.add("fest");
       td.append(auswahl(ma, t, zelle));
     }
     const summe = zeile.insertCell();
     summe.className = "summe";
-    summe.textContent = `${stunden.toFixed(1)} h / ${tage} T`;
+    summe.innerHTML = `<b>${stunden.toFixed(1)} h</b> / ${tage} T`;
+    if (ma.soll_h && !ma.aushilfe && stunden < ma.soll_h - 4) {
+      summe.classList.add("knapp");
+      summe.title = `Soll ${ma.soll_h} h`;
+    }
   }
-  const fuss = tabelle.insertRow();
-  fuss.className = "fuss";
-  fuss.insertCell().textContent = "Koepfe";
+
+  const fuss = tabelle.createTFoot().insertRow();
+  fuss.className = "fusszeile";
+  fuss.insertCell().textContent = "Köpfe";
   let brutto = 0;
+  const ziele = (daten.bedarf || {}).kopfzahl || {};
   for (const t of TAGE) {
     const besetzt = Object.values(daten.plan.plan)
       .filter((r) => r[t] && r[t].art === "schicht");
-    for (const r of besetzt) brutto += (zu(r[t].bis) - zu(r[t].von)) / 60;
-    fuss.insertCell().textContent = besetzt.length;
+    for (const r of besetzt) brutto += (min(r[t].bis) - min(r[t].von)) / 60;
+    const td = fuss.insertCell();
+    td.className = "koepfe";
+    td.textContent = ziele[t] ? `${besetzt.length} / ${ziele[t]}` : besetzt.length;
+    if (ziele[t] && besetzt.length < ziele[t]) {
+      td.classList.add("daneben");
+      td.title = `Ziel sind ${ziele[t]} Köpfe`;
+    }
   }
   fuss.insertCell();
   ziel.append(tabelle);
-
-  const soll = (daten.kopf || {}).budget;
-  if (soll) {
-    const zeile = document.createElement("p");
-    zeile.className = "notiz";
-    const weg = brutto - soll;
-    zeile.textContent =
-      `${brutto.toFixed(1)} h brutto gegen ein Budget von ${soll} h ` +
-      `(${weg >= 0 ? "+" : ""}${weg.toFixed(1)} h). ` +
-      `Die Summenspalte rechts ist die bezahlte Zeit, also ohne Pausen.`;
-    ziel.append(zeile);
-  }
+  zeigeKacheln(brutto);
 }
 
-function pause() {
-  return ((daten.kopf || {}).pause_h) || 0;
+function kategorie(ma, tag, zelle) {
+  if (zelle.art !== "schicht") return "";
+  const eigen = `${kurz(zelle.von)}-${kurz(zelle.bis)}`;
+  const liste = (ma.schichten || {})[tag] || [];
+  const treffer = liste.find((s) => s.id === eigen);
+  if (treffer) return treffer.kategorie;
+  return (daten.kategorien || {})[eigen] || "";
 }
 
-function beschriftung(zelle) {
-  return { urlaub: "Urlaub", krank: "Krank", schule: "Schule",
-           feiertag: "zu", sonstige: "abw." }[zelle.art] || zelle.art;
-}
-
-function zu(hhmm) {
+function min(hhmm) {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 }
+function kurz(hhmm) {
+  const [h, m] = hhmm.split(":");
+  return m === "00" ? String(Number(h)) : `${Number(h)}:${m}`;
+}
+const pause = () => ((daten.kopf || {}).pause_h) || 0;
 
 function festeZellen() {
-  // Aus dem Rohtext lesen, damit die Markierung auch ohne Neuladen stimmt.
+  // Aus dem Rohtext gelesen, damit die Markierung ohne Neuladen stimmt.
   const karte = {};
-  const text = $("yaml").value;
-  const zeilen = text.split("\n");
+  const zeilen = $("yaml").value.split("\n");
   const anfang = zeilen.findIndex((z) => z.startsWith("fest:"));
   if (anfang < 0) return karte;
   for (let i = anfang + 1; i < zeilen.length; i++) {
@@ -189,33 +243,23 @@ function festeZellen() {
 
 function auswahl(ma, tag, zelle) {
   const feld = document.createElement("select");
-  const jetzt = zelle.art === "schicht" ? `${zelle.von}-${zelle.bis}` : "";
-  const moeglich = ma.schichten[tag] || [];
+  feld.title = `${ma.name}, ${TAG_LANG[tag]}`;
+  const moeglich = (ma.schichten || {})[tag] || [];
   feld.append(new Option("Frei", "frei", false, zelle.art === "frei"));
   let getroffen = zelle.art === "frei";
-  for (const sid of moeglich) {
-    const passt = zelle.art === "schicht" && gleich(sid, jetzt);
+  const eigen = zelle.art === "schicht"
+    ? `${kurz(zelle.von)}-${kurz(zelle.bis)}` : "";
+  for (const s of moeglich) {
+    const passt = s.id === eigen;
     if (passt) getroffen = true;
-    feld.append(new Option(sid, sid, false, passt));
+    feld.append(new Option(s.id, s.id, false, passt));
   }
-  if (!getroffen && zelle.art === "schicht") {
-    // Schicht, die der Katalog an dem Tag nicht kennt - trotzdem anzeigen.
-    const eigen = `${kurz(zelle.von)}-${kurz(zelle.bis)}`;
-    feld.append(new Option(eigen + " (fest)", eigen, false, true));
+  if (!getroffen && eigen) {
+    feld.append(new Option(eigen, eigen, false, true));
   }
   feld.append(new Option("— Planer entscheidet", "auto"));
   feld.onchange = () => setzeZelle(ma.id, tag, feld.value);
   return feld;
-}
-
-function kurz(hhmm) {
-  const [h, m] = hhmm.split(":");
-  return m === "00" ? String(Number(h)) : `${Number(h)}:${m}`;
-}
-
-function gleich(sid, zeiten) {
-  const [a, b] = zeiten.split("-");
-  return sid === `${kurz(a)}-${kurz(b)}`;
 }
 
 async function setzeZelle(mid, tag, wert) {
@@ -224,19 +268,61 @@ async function setzeZelle(mid, tag, wert) {
       `/api/woche/${encodeURIComponent(aktuelle)}/zelle`,
       { mitarbeiter: mid, tag, wert });
     $("yaml").value = antwort.yaml;
-    melde(`${TAG_LANG[tag]} festgehalten. Der Eintrag steht jetzt unter ` +
-          `'fest:' und bleibt beim naechsten Rechnen stehen.`);
+    melde(wert === "auto"
+      ? `${TAG_LANG[tag]} wieder freigegeben – der Planer entscheidet.`
+      : `${TAG_LANG[tag]} festgehalten. Steht jetzt unter „fest:“ und ` +
+        `bleibt beim naechsten Rechnen stehen.`);
     zeichnePlan();
   } catch (fehler) {
-    melde(`Nicht uebernommen: ${fehler.message}`, true);
+    melde(`Nicht übernommen: ${fehler.message}`, "schlecht");
   }
+}
+
+// ---- Kacheln ---------------------------------------------------------- //
+function zeigeKacheln(brutto) {
+  const kasten = $("kacheln");
+  const soll = (daten.kopf || {}).budget;
+  const befunde = daten.befunde || [];
+  const zaehler = {};
+  for (const [s] of SCHWERE) {
+    zaehler[s] = befunde.filter((b) => b.schwere === s).length;
+  }
+  // Die Gesamtpunkte kommen vom Server; die Summe der angezeigten Befunde
+  // waere kleiner, weil vieles Punkte kostet, ohne einen Satz wert zu sein.
+  const punkte = daten.punkte != null
+    ? daten.punkte : befunde.reduce((a, b) => a + b.punkte, 0);
+  const weg = soll ? brutto - soll : 0;
+
+  const kacheln = [
+    { titel: "Arbeitszeit", wert: `${brutto.toFixed(1)} h`,
+      zusatz: soll ? `Budget ${soll} h (${weg >= 0 ? "+" : ""}${weg.toFixed(1)})` : "",
+      ton: !soll ? "" : Math.abs(weg) <= 5 ? "gut" : weg > 0 ? "warn" : "" },
+    { titel: "Befunde", wert: String(befunde.length),
+      zusatz: `${zaehler.fehler} Fehler, ${zaehler.warnung} Warnung, ` +
+              `${zaehler.hinweis} Hinweis`,
+      ton: zaehler.fehler ? "schlecht" : zaehler.warnung ? "warn" : "gut" },
+    { titel: "Strafpunkte", wert: String(Math.round(punkte)),
+      zusatz: "je niedriger, desto regelkonformer" },
+  ];
+  kasten.replaceChildren();
+  for (const k of kacheln) {
+    const d = document.createElement("div");
+    d.className = `kachel ${k.ton || ""}`;
+    d.innerHTML = `<span class="titel">${k.titel}</span>` +
+      `<span class="wert">${k.wert}</span>` +
+      (k.zusatz ? `<span class="zusatz">${k.zusatz}</span>` : "");
+    kasten.append(d);
+  }
+  kasten.hidden = false;
 }
 
 // ---- Rechnen ---------------------------------------------------------- //
 async function rechne() {
   const knopf = $("rechnen");
   knopf.disabled = true;
-  melde("Rechnet … das dauert je nach Iterationen eine knappe Minute.");
+  knopf.querySelector(".punkt-laeuft").hidden = false;
+  $("rechnen-text").textContent = "Rechnet …";
+  melde("Rechnet – je nach Iterationen eine knappe Minute.");
   try {
     const { auftrag } = await sende(
       `/api/woche/${encodeURIComponent(aktuelle)}/plan`, {
@@ -247,7 +333,7 @@ async function rechne() {
       });
     const ergebnis = await warte(auftrag);
     if (ergebnis.stand === "fehler") {
-      melde(`Abgebrochen: ${ergebnis.fehler}`, true);
+      melde(`Abgebrochen: ${ergebnis.fehler}`, "schlecht");
       return;
     }
     daten = await hole(`/api/woche/${encodeURIComponent(aktuelle)}`);
@@ -256,15 +342,18 @@ async function rechne() {
     zeichneBefunde(ergebnis.befunde);
     zeigeDateien(ergebnis.dateien);
     const schlimm = ergebnis.befunde.some((b) => b.schwere === "fehler");
-    melde(`${ergebnis.punkte} Strafpunkte (Greedy-Start ${ergebnis.start}). ` +
-          (schlimm ? "Es gibt Fehler – so nicht aushaengen."
-                   : "Kein Fehler.") +
-          (ergebnis.meldungen.length ? "  " + ergebnis.meldungen.join("  ") : ""),
-          schlimm);
+    melde(
+      `${ergebnis.punkte} Strafpunkte, aus einem Greedy-Start von ${ergebnis.start}. ` +
+      (schlimm ? "Es gibt Fehler – so nicht aushaengen."
+               : "Kein Fehler – der Plan kann so raus.") +
+      (ergebnis.meldungen.length ? "  " + ergebnis.meldungen.join("  ") : ""),
+      schlimm ? "schlecht" : "gut");
   } catch (fehler) {
-    melde(`Abgebrochen: ${fehler.message}`, true);
+    melde(`Abgebrochen: ${fehler.message}`, "schlecht");
   } finally {
     knopf.disabled = false;
+    knopf.querySelector(".punkt-laeuft").hidden = true;
+    $("rechnen-text").textContent = "Plan rechnen";
     ladeListe();
   }
 }
@@ -282,32 +371,39 @@ function warte(auftrag) {
   });
 }
 
-function melde(text, schlecht) {
+function melde(text, ton) {
   const kasten = $("stand");
   kasten.hidden = false;
   kasten.textContent = text;
-  kasten.classList.toggle("schlecht", Boolean(schlecht));
+  kasten.className = `stand ${ton || ""}`;
 }
 
 // ---- Befunde ---------------------------------------------------------- //
 function zeichneBefunde(befunde) {
   const ziel = $("befunde");
   ziel.replaceChildren();
+  $("befundkarte").hidden = !befunde || !befunde.length;
   if (!befunde || !befunde.length) return;
   for (const [schluessel, titel, erklaerung] of SCHWERE) {
     const treffer = befunde.filter((b) => b.schwere === schluessel);
     if (!treffer.length) continue;
-    const summe = treffer.reduce((a, b) => a + b.punkte, 0);
+    const summe = Math.round(treffer.reduce((a, b) => a + b.punkte, 0));
     const block = document.createElement("div");
     block.className = `grad ${schluessel}`;
-    block.innerHTML =
-      `<h4>${titel} (${treffer.length}, ${summe} Punkte) – ${erklaerung}</h4>`;
+    const kopf = document.createElement("h3");
+    kopf.append(`${titel} (${treffer.length}, ${summe} Punkte) `);
+    const em = document.createElement("em");
+    em.textContent = `– ${erklaerung}`;
+    kopf.append(em);
+    block.append(kopf);
     const liste = document.createElement("ul");
     for (const b of treffer) {
       const punkt = document.createElement("li");
-      punkt.textContent = b.text;
-      punkt.insertAdjacentHTML("beforeend",
-        ` <span class="pkt">(${b.regel}, ${b.punkte})</span>`);
+      punkt.append(b.text + " ");
+      const quelle = document.createElement("span");
+      quelle.className = "pkt";
+      quelle.textContent = `(${b.regel}, ${b.punkte})`;
+      punkt.append(quelle);
       liste.append(punkt);
     }
     block.append(liste);
@@ -322,24 +418,25 @@ function zeigeDateien(dateien) {
   kasten.hidden = false;
   const liste = $("dateiliste");
   liste.replaceChildren();
-  const titel = {
-    ".html": "Papierplan", "-teamleiter.html": "Teamleiteruebersicht",
-    ".pdf": "Papierplan PDF", "-teamleiter.pdf": "Teamleiteruebersicht PDF",
-    ".csv": "Tabelle", "-e2n-schichten.csv": "e2n Schichten",
-    "-e2n-abwesenheiten.csv": "e2n Abwesenheiten", ".json": "Rohdaten",
-  };
   for (const name of dateien) {
     const rest = name.slice(aktuelle.length);
+    const eintrag = DATEITITEL.find(([endung]) => endung === rest);
     const a = document.createElement("a");
     a.href = `/ausgabe/${encodeURIComponent(name)}`;
     a.target = "_blank";
     a.rel = "noopener";
-    a.textContent = titel[rest] || name;
+    a.append(eintrag ? eintrag[1] : name);
+    if (eintrag) {
+      const art = document.createElement("span");
+      art.className = "art";
+      art.textContent = eintrag[2];
+      a.append(art);
+    }
     liste.append(a);
   }
 }
 
-// ---- Rohtext und Historie --------------------------------------------- //
+// ---- Rohtext, Historie, Konten ---------------------------------------- //
 async function speichere() {
   try {
     await sende(`/api/woche/${encodeURIComponent(aktuelle)}/speichern`,
@@ -367,19 +464,38 @@ async function zeigeKonten() {
   const antwort = await fetch("/api/konten");
   $("kontenhtml").innerHTML = await antwort.text();
   $("kontenblatt").hidden = false;
-  $("kontenblatt").scrollIntoView({ behavior: "smooth" });
+  $("kontenblatt").scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+// ---- Farbschema ------------------------------------------------------- //
+function schemaUmschalten() {
+  const jetzt = document.documentElement.dataset.schema;
+  const dunkel = jetzt
+    ? jetzt === "dunkel"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  const neu = dunkel ? "hell" : "dunkel";
+  document.documentElement.dataset.schema = neu;
+  try { localStorage.setItem("schema", neu); } catch { /* egal */ }
+}
+// Gemerkte Einstellung, sonst das Systemschema. ?schema=dunkel geht auch -
+// praktisch, um die Darstellung ohne Klick zu pruefen.
+try {
+  const ausAdresse = new URLSearchParams(location.search).get("schema");
+  const gemerkt = ausAdresse || localStorage.getItem("schema");
+  if (gemerkt === "hell" || gemerkt === "dunkel") {
+    document.documentElement.dataset.schema = gemerkt;
+  }
+} catch { /* privates Fenster: dann eben das Systemschema */ }
 
 $("rechnen").onclick = rechne;
 $("speichern").onclick = speichere;
 $("uebernehmen").onclick = uebernimm;
 $("zeigekonten").onclick = zeigeKonten;
+$("farbschema").onclick = schemaUmschalten;
 
-// Beim Start die Woche aus der Adresse oeffnen, sonst die, an der gerade
-// gearbeitet wird: die erste geplante, die noch nicht in der Historie steht.
+// Beim Start die Woche aus der Adresse, sonst die, an der gearbeitet wird.
 (async () => {
-  const wochen = await hole("/api/wochen");
-  await ladeListe();
+  const wochen = await ladeListe();
   const gewuenscht = new URLSearchParams(location.search).get("woche");
   const offen = wochen.find((w) => w.geplant && !w.uebernommen);
   const start = (gewuenscht && wochen.some((w) => w.woche === gewuenscht))
