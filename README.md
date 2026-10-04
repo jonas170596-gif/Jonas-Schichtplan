@@ -795,10 +795,20 @@ Was sie kann:
   Historie", ein leerer "geplant, aber noch nicht uebernommen".
 * **Plan rechnen** - Iterationen, Neustarts und Seed stehen daneben, PDF ist
   ein Haken. Der Lauf laeuft im Hintergrund, die Seite fragt sekuendlich nach.
-* **Zelle aendern** - jede Schicht im Plan ist ein Auswahlfeld. Was man dort
-  waehlt, landet als harte Vorgabe unter `fest:` in der Wochendatei und bleibt
-  beim naechsten Rechnen stehen. "Planer entscheidet" nimmt den Eintrag wieder
-  heraus. Ein blauer Balken links markiert die festgehaltenen Zellen.
+* **Zelle aendern** - jede Zelle ist ein Auswahlfeld mit zwei Gruppen:
+  unter *Vorgabe* stehen Frei (fest), Wunsch frei, Urlaub, Krank, Schule und
+  Sonstige, unter *Schicht* die Schichten, die diese Person an dem Tag
+  ueberhaupt arbeiten darf. Urlaub und Wunschfrei lassen sich damit vor dem
+  Rechnen direkt in der Tafel eintragen - der Rohtext ist dafuer nicht mehr
+  noetig. Alles landet im passenden Block der Wochendatei und bleibt beim
+  naechsten Rechnen stehen; "Frei" ganz oben gibt die Zelle wieder frei.
+  Ein blauer Balken links markiert, was festgehalten ist.
+  Gibt es schon einen gerechneten Plan, wird die Aenderung sofort in ihn
+  uebernommen, die Woche neu bewertet und Papierplan samt Exporten neu
+  geschrieben - die Zelle springt also nicht mehr auf den gerechneten Wert
+  zurueck. Gerechnet wird dabei nichts; das macht erst "Plan rechnen" wieder.
+* **Woche vorbereiten** - die Tafel steht auch dann schon da, wenn die Woche
+  noch nie gerechnet wurde. Erst Urlaub und Wuensche eintragen, dann rechnen.
 * **Befunde** - nach Fehler, Warnung und Hinweis getrennt, wie im Papierplan.
 * **Dateien** - Papierplan, Teamleiteruebersicht, Tabelle und die beiden
   e2n-CSVs; mit Haken auch als PDF.

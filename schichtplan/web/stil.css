@@ -235,6 +235,13 @@ td.zelle.frueh  select { background: var(--frueh-g);  border-color: var(--frueh-
 td.zelle.mittel select { background: var(--mittel-g); border-color: var(--mittel-r); color: var(--mittel-t); font-weight: 600; }
 td.zelle.spaet  select { background: var(--spaet-g);  border-color: var(--spaet-r);  color: var(--spaet-t);  font-weight: 600; }
 td.zelle.fest select { box-shadow: inset 3px 0 0 var(--blau); }
+td.zelle.abw select {
+  background: repeating-linear-gradient(
+      -45deg, var(--frei-g), var(--frei-g) 5px,
+      color-mix(in srgb, var(--leise) 12%, var(--frei-g)) 5px,
+      color-mix(in srgb, var(--leise) 12%, var(--frei-g)) 10px);
+  color: var(--leise); border-color: var(--linie); font-style: italic;
+}
 td.abwesend { padding: .3rem .4rem; text-align: center; font-size: .8rem;
               color: var(--leise); background: repeating-linear-gradient(
                 -45deg, transparent, transparent 5px,

@@ -1884,6 +1884,67 @@ class TestWeboberflaeche(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.werkstatt.uebernehmen("2026-KW42")
 
+    def test_urlaub_laesst_sich_aus_der_tafel_eintragen(self):
+        """Urlaub, Wunschfrei und Co. gehen jetzt ueber dieselbe Zelle wie
+        die Schicht - nicht mehr nur ueber den Rohtext."""
+        antwort = self.werkstatt.zelle("2026-KW42", "rohwer_c", "mo", "urlaub")
+        vorgabe = lade_wochenvorgabe(self.werkstatt.pfad("2026-KW42"))
+        self.assertEqual(vorgabe.abwesend["rohwer_c"]["mo"], "urlaub")
+        self.assertIn("urlaub", antwort["yaml"])
+
+        self.werkstatt.zelle("2026-KW42", "rohwer_c", "mo", "wunsch_frei")
+        vorgabe = lade_wochenvorgabe(self.werkstatt.pfad("2026-KW42"))
+        # Beim Wechsel darf der alte Eintrag nicht stehen bleiben.
+        self.assertNotIn("mo", vorgabe.abwesend.get("rohwer_c", {}))
+        self.assertIn("mo", vorgabe.wunsch_frei["rohwer_c"])
+
+        self.werkstatt.zelle("2026-KW42", "rohwer_c", "mo", "6-14")
+        vorgabe = lade_wochenvorgabe(self.werkstatt.pfad("2026-KW42"))
+        self.assertEqual(vorgabe.fest["rohwer_c"]["mo"], "6-14")
+        self.assertNotIn("rohwer_c", vorgabe.wunsch_frei)
+
+        self.werkstatt.zelle("2026-KW42", "rohwer_c", "mo", "auto")
+        vorgabe = lade_wochenvorgabe(self.werkstatt.pfad("2026-KW42"))
+        self.assertNotIn("mo", vorgabe.fest.get("rohwer_c", {}))
+
+    def test_vorgabe_steht_in_der_antwort(self):
+        """Damit die Tafel die Woche auch ohne gerechneten Plan zeigen kann."""
+        self.werkstatt.zelle("2026-KW42", "marino_a", "do", "krank")
+        woche = self.werkstatt.woche("2026-KW42")
+        self.assertEqual(woche["vorgabe"]["marino_a"]["do"], "krank")
+        self.assertEqual(woche["vorgabe"]["kurka_j"]["fr"], "frei")
+
+    def test_handkorrektur_bleibt_im_plan_stehen(self):
+        """Der eigentliche Punkt: die Zelle darf nicht auf den gerechneten
+        Wert zurueckspringen."""
+        kennung = self.werkstatt.starte(
+            "2026-KW42", {"iterationen": 2000, "neustarts": 1, "seed": 3})
+        for _ in range(600):
+            if self.werkstatt.auftraege[kennung]["stand"] != "laeuft":
+                break
+            time.sleep(0.1)
+        antwort = self.werkstatt.zelle("2026-KW42", "kurz_u", "mi", "14-20")
+        self.assertEqual(antwort["plan"]["plan"]["kurz_u"]["mi"],
+                         {"art": "schicht", "von": "14:00", "bis": "20:00",
+                          "zusatz": []})
+        # Und nach einem Neuladen immer noch.
+        woche = self.werkstatt.woche("2026-KW42")
+        self.assertEqual(woche["plan"]["plan"]["kurz_u"]["mi"]["von"], "14:00")
+        # Die Bewertung ist mitgelaufen.
+        self.assertIsInstance(antwort["punkte"], (int, float))
+
+    def test_handkorrektur_schreibt_den_papierplan_neu(self):
+        kennung = self.werkstatt.starte(
+            "2026-KW42", {"iterationen": 2000, "neustarts": 1, "seed": 3})
+        for _ in range(600):
+            if self.werkstatt.auftraege[kennung]["stand"] != "laeuft":
+                break
+            time.sleep(0.1)
+        self.werkstatt.zelle("2026-KW42", "kurz_u", "mi", "14-20")
+        papier = (self.ordner / "ausgabe/2026-KW42.html").read_text(
+            encoding="utf-8")
+        self.assertIn("14-20", papier)
+
     def test_mitarbeiter_kennen_die_schichtart(self):
         """Die Oberflaeche faerbt die Zellen danach ein."""
         woche = self.werkstatt.woche("2026-KW42")

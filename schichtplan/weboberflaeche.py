@@ -27,9 +27,64 @@ from .bewertung import SCHWEREGRADE, Bewerter
 from .generator import _optionen
 from .historie import lade_historie
 from .konfig import lade_stammdaten, lade_wochenvorgabe, mit_aushilfen
-from .modelle import TAGE, TAG_LANG
+from .modelle import TAGE, TAG_LANG, schicht_aus_text, zu_zeit
 
 HIER = pathlib.Path(__file__).parent / "web"
+
+
+ZUSTAENDE = {
+    # Wert in der Oberflaeche -> (Block in der Wochendatei, Beschriftung)
+    "urlaub":     ("urlaub", "Urlaub"),
+    "krank":      ("krank", "Krank"),
+    "schule":     ("schule", "Schule"),
+    "sonstige":   ("sonstige", "Sonstige"),
+    "wunsch_frei": ("wunsch_frei", "Wunsch frei"),
+}
+TAGESLISTEN = tuple(block for block, _ in ZUSTAENDE.values())
+
+
+def _blockgrenzen(zeilen: list[str], block: str) -> tuple[int, int]:
+    """(Zeile mit 'block:', erste Zeile danach, die nicht mehr dazugehoert).
+
+    Fehlt der Block, wird er am Ende angelegt - so laesst sich auch eine
+    Wochendatei bearbeiten, in der 'krank:' noch gar nicht vorkommt.
+    """
+    anfang = next((i for i, z in enumerate(zeilen)
+                   if z.rstrip().startswith(f"{block}:")), None)
+    if anfang is None:
+        while zeilen and not zeilen[-1].strip():
+            zeilen.pop()
+        zeilen.extend(["", f"{block}:"])
+        return len(zeilen) - 1, len(zeilen)
+    ende = len(zeilen)
+    for i in range(anfang + 1, len(zeilen)):
+        if zeilen[i] and not zeilen[i][0].isspace() and not zeilen[i].startswith("#"):
+            ende = i
+            break
+    while ende > anfang + 1 and not zeilen[ende - 1].strip():
+        ende -= 1
+    return anfang, ende
+
+
+def _eintrag(zeilen: list[str], anfang: int, ende: int, mid: str) -> int | None:
+    marke = f"  {mid}:"
+    return next((i for i in range(anfang + 1, ende)
+                 if zeilen[i].startswith(marke)), None)
+
+
+def _einfuegen(zeilen: list[str], anfang: int, ende: int, zeile: str) -> None:
+    """Hinter den letzten echten Eintrag des Blocks, sonst gleich darunter."""
+    nach = anfang
+    for i in range(anfang + 1, ende):
+        if zeilen[i].startswith("  ") and not zeilen[i].lstrip().startswith("#"):
+            nach = i
+    zeilen.insert(nach + 1, zeile)
+
+
+def _leerer_block(zeilen: list[str], anfang: int) -> None:
+    """'block:' ohne Eintraege braucht ein {} - sonst ist der Wert None."""
+    kopf = zeilen[anfang].split(":", 1)[0]
+    zeilen[anfang] = f"{kopf}: {{}}"
 
 
 def _fest_setzen(text: str, mid: str, tag: str, wert: str) -> str:
@@ -40,25 +95,12 @@ def _fest_setzen(text: str, mid: str, tag: str, wert: str) -> str:
     der Oberflaeche heraus ueberleben.
     """
     zeilen = text.splitlines()
-    anfang = next((i for i, z in enumerate(zeilen)
-                   if z.rstrip().startswith("fest:")), None)
-    if anfang is None:
-        raise ValueError("Die Wochendatei hat keinen Block 'fest:'")
-    ende = len(zeilen)
-    for i in range(anfang + 1, len(zeilen)):
-        if zeilen[i] and not zeilen[i][0].isspace() and not zeilen[i].startswith("#"):
-            ende = i
-            break
-    # Leerzeilen am Blockende gehoeren nicht mehr dazu.
-    while ende > anfang + 1 and not zeilen[ende - 1].strip():
-        ende -= 1
+    anfang, ende = _blockgrenzen(zeilen, "fest")
+    stelle = _eintrag(zeilen, anfang, ende, mid)
 
-    marke = f"  {mid}:"
-    stelle = next((i for i in range(anfang + 1, ende)
-                   if zeilen[i].startswith(marke)), None)
     eintrag, kommentar = {}, ""
     if stelle is not None:
-        roh = zeilen[stelle][len(marke):]
+        roh = zeilen[stelle][len(f"  {mid}:"):]
         if " #" in roh:
             roh, kommentar = roh.split(" #", 1)
             kommentar = "  #" + kommentar
@@ -71,19 +113,69 @@ def _fest_setzen(text: str, mid: str, tag: str, wert: str) -> str:
     if not eintrag:
         if stelle is not None:
             del zeilen[stelle]
+            if not any(zeilen[i].startswith("  ") and
+                       not zeilen[i].lstrip().startswith("#")
+                       for i in range(anfang + 1, ende - 1)):
+                _leerer_block(zeilen, anfang)
         return "\n".join(zeilen) + "\n"
 
     geordnet = {t: eintrag[t] for t in TAGE if t in eintrag}
     geordnet.update({k: v for k, v in eintrag.items() if k not in TAGE})
     inhalt = ", ".join(f"{k}: {v}" for k, v in geordnet.items())
-    zeile = f"{marke} {{{inhalt}}}{kommentar}"
+    zeile = f"  {mid}: {{{inhalt}}}{kommentar}"
     if stelle is None:
-        # Hinter den letzten echten Eintrag, sonst gleich unter 'fest:'.
-        nach = anfang
-        for i in range(anfang + 1, ende):
-            if zeilen[i].startswith("  ") and not zeilen[i].lstrip().startswith("#"):
-                nach = i
-        zeilen.insert(nach + 1, zeile)
+        zeilen[anfang] = zeilen[anfang].split(":", 1)[0] + ":"
+        _einfuegen(zeilen, anfang, ende, zeile)
+    else:
+        zeilen[stelle] = zeile
+    return "\n".join(zeilen) + "\n"
+
+
+def _tage_setzen(text: str, block: str, mid: str, tag: str, an: bool) -> str:
+    """Einen Tag in einem Block mit Tageslisten setzen oder streichen.
+
+    Das sind 'urlaub', 'krank', 'schule', 'sonstige' und 'wunsch_frei' - dort
+    steht je Person eine Liste von Tagen. 'alle' wird dabei zur vollen Woche
+    aufgeloest, sobald ein einzelner Tag daraus verschwindet.
+    """
+    zeilen = text.splitlines()
+    anfang, ende = _blockgrenzen(zeilen, block)
+    stelle = _eintrag(zeilen, anfang, ende, mid)
+
+    tage, kommentar = [], ""
+    if stelle is not None:
+        roh = zeilen[stelle][len(f"  {mid}:"):]
+        if " #" in roh:
+            roh, kommentar = roh.split(" #", 1)
+            kommentar = "  #" + kommentar
+        wert = yaml.safe_load(roh)
+        if wert in ("alle", "Alle"):
+            tage = list(TAGE)
+        elif isinstance(wert, str):
+            tage = [wert]
+        elif wert:
+            tage = list(wert)
+    tage = [t for t in TAGE if t in tage]
+    if an and tag not in tage:
+        tage.append(tag)
+    elif not an and tag in tage:
+        tage.remove(tag)
+    tage = [t for t in TAGE if t in tage]
+
+    if not tage:
+        if stelle is not None:
+            del zeilen[stelle]
+            if not any(zeilen[i].startswith("  ") and
+                       not zeilen[i].lstrip().startswith("#")
+                       for i in range(anfang + 1, ende - 1)):
+                _leerer_block(zeilen, anfang)
+        return "\n".join(zeilen) + "\n"
+
+    wert = "alle" if len(tage) == len(TAGE) else "[" + ", ".join(tage) + "]"
+    zeile = f"  {mid}: {wert}{kommentar}"
+    if stelle is None:
+        zeilen[anfang] = zeilen[anfang].split(":", 1)[0] + ":"
+        _einfuegen(zeilen, anfang, ende, zeile)
     else:
         zeilen[stelle] = zeile
     return "\n".join(zeilen) + "\n"
@@ -162,6 +254,20 @@ class Werkstatt:
             "kopfzahl": dict(stamm.bedarf.kopfzahl),
             "offene_tage": list(stamm.bedarf.offene_tage),
         }
+        # Was in der Wochendatei vorgegeben ist - die Oberflaeche faerbt die
+        # Zellen danach und kann die Woche auch ohne Plan schon zeigen.
+        gesetzt: dict[str, dict[str, str]] = {}
+        for mid, tage in vorgabe.abwesend.items():
+            for t_, art in tage.items():
+                gesetzt.setdefault(mid, {})[t_] = art
+        for mid, tage in vorgabe.wunsch_frei.items():
+            for t_ in tage:
+                gesetzt.setdefault(mid, {}).setdefault(t_, "wunsch_frei")
+        for mid, tage in vorgabe.fest.items():
+            for t_, schicht in tage.items():
+                gesetzt.setdefault(mid, {})[t_] = (
+                    "frei" if str(schicht).lower() == "frei" else str(schicht))
+        antwort["vorgabe"] = gesetzt
         plan = self.ausgabe / f"{name}.json"
         if plan.exists():
             antwort["plan"] = json.loads(plan.read_text(encoding="utf-8"))
@@ -212,17 +318,76 @@ class Werkstatt:
         return {"ok": True}
 
     def zelle(self, name: str, mid: str, tag: str, wert: str) -> dict:
-        """Eine Zelle unter 'fest' eintragen oder den Eintrag loeschen.
+        """Eine Zelle setzen - Schicht, frei, Urlaub, Wunschfrei, was auch immer.
 
-        Das ist die Handkorrektur aus dem Plan heraus: was hier landet, steht
-        anschliessend als harte Vorgabe in der Wochendatei und bleibt beim
-        naechsten Rechnen stehen.
+        Alles landet in der Wochendatei: Schichten und ein festes "frei"
+        unter 'fest', Abwesenheiten und Wuensche in ihrem eigenen Block. Was
+        hier steht, ist eine Vorgabe und bleibt beim naechsten Rechnen stehen.
+
+        Gibt es schon einen gerechneten Plan, wird die Aenderung gleich in
+        ihn uebernommen und die Woche neu bewertet - sonst sprae'nge die Zelle
+        beim naechsten Zeichnen auf den alten Wert zurueck.
         """
         if tag not in TAGE:
             raise ValueError(f"unbekannter Tag: {tag}")
         pfad = self.pfad(name)
-        neu = _fest_setzen(pfad.read_text(encoding="utf-8"), mid, tag, wert)
-        return self.speichern(name, neu) | {"yaml": neu}
+        text = pfad.read_text(encoding="utf-8")
+
+        # Erst raeumen: dieselbe Zelle darf nicht in zwei Bloecken stehen.
+        for block in TAGESLISTEN:
+            text = _tage_setzen(text, block, mid, tag, False)
+        zustand = ZUSTAENDE.get(wert)
+        if zustand:
+            text = _fest_setzen(text, mid, tag, "auto")
+            text = _tage_setzen(text, zustand[0], mid, tag, True)
+        else:
+            text = _fest_setzen(text, mid, tag, wert)
+
+        antwort = self.speichern(name, text) | {"yaml": text}
+        antwort.update(self._plan_nachziehen(name, mid, tag, wert))
+        return antwort
+
+    def _plan_nachziehen(self, name: str, mid: str, tag: str, wert: str) -> dict:
+        """Die Handkorrektur in den gespeicherten Plan uebernehmen.
+
+        Der Plan wird dabei nicht neu gerechnet - nur diese eine Zelle
+        geaendert, neu bewertet und die Ausgabedateien neu geschrieben. Wer
+        die Woche danach rechnen laesst, bekommt die Zelle als Vorgabe
+        wieder, weil sie in der Wochendatei steht.
+        """
+        quelle = self.ausgabe / f"{name}.json"
+        if not quelle.exists():
+            return {}
+        roh = json.loads(quelle.read_text(encoding="utf-8"))
+        reihe = roh.get("plan", {}).get(mid)
+        if reihe is None:
+            return {}
+        if wert in ("", "auto", "frei"):
+            reihe[tag] = {"art": "frei", "zusatz": []}
+        elif wert in ZUSTAENDE:
+            reihe[tag] = {"art": ZUSTAENDE[wert][0], "zusatz": []}
+        else:
+            von, bis = schicht_aus_text(str(wert)).von, schicht_aus_text(str(wert)).bis
+            reihe[tag] = {"art": "schicht", "von": zu_zeit(von),
+                          "bis": zu_zeit(bis), "zusatz": []}
+        quelle.write_text(json.dumps(roh, ensure_ascii=False, indent=2) + "\n",
+                          encoding="utf-8")
+        (self.ausgabe / f"{name}-befunde.json").unlink(missing_ok=True)
+        self._neu_schreiben(name)
+        befunde, punkte = self._bewertung(name)
+        return {"plan": roh, "befunde": befunde, "punkte": punkte}
+
+    def _neu_schreiben(self, name: str) -> None:
+        """Papierplan und Exporte aus dem gespeicherten Plan neu erzeugen."""
+        from .cli import _plan_aus_json
+        from .bewertung import pruefen
+        vorgabe = lade_wochenvorgabe(self.pfad(name))
+        stamm = mit_aushilfen(self.stammdaten(), vorgabe)
+        vorwochen = self.vorwochen(bis=name)
+        plan = _plan_aus_json(self.ausgabe / f"{name}.json", stamm)
+        bew = pruefen(plan, stamm, vorgabe, vorwochen)
+        _lauf.schreibe(plan, stamm, bew, Bewerter(stamm, vorgabe, vorwochen),
+                       vorwochen, self.ausgabe)
 
     # ---- Rechnen ------------------------------------------------------- #
     def starte(self, name: str, einstellungen: dict) -> str:

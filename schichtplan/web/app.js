@@ -9,7 +9,17 @@ const SCHWERE = [
   ["hinweis", "Hinweis", "nur zur Kenntnis"],
 ];
 const ABWESEND = { urlaub: "Urlaub", krank: "Krank", schule: "Schule",
-                   feiertag: "zu", sonstige: "abwesend" };
+                   feiertag: "zu", sonstige: "Sonstige" };
+// Vorgaben, die statt einer Schicht in der Zelle stehen koennen. Die
+// Reihenfolge ist die im Auswahlfeld.
+const ZUSTAENDE = [
+  ["frei", "Frei (fest)"],
+  ["wunsch_frei", "Wunsch frei"],
+  ["urlaub", "Urlaub"],
+  ["krank", "Krank"],
+  ["schule", "Schule"],
+  ["sonstige", "Sonstige"],
+];
 const DATEITITEL = [
   [".html", "Papierplan", "HTML"],
   ["-teamleiter.html", "Teamleiterübersicht", "HTML"],
@@ -114,16 +124,18 @@ function zeichnePlan() {
   const ziel = $("plantafel");
   ziel.replaceChildren();
   $("kacheln").hidden = true;
-  if (!daten.plan) {
+  if (!daten.mitarbeiter) return;
+  const geplant = Boolean(daten.plan);
+  if (!geplant) {
     const hinweis = document.createElement("p");
-    hinweis.className = "leise";
-    hinweis.textContent = "Fuer diese Woche gibt es noch keinen Plan. " +
-      "Oben rechts auf „Plan rechnen“.";
+    hinweis.className = "leise hinweiszeile";
+    hinweis.textContent = "Noch kein Plan gerechnet. Urlaub, Wunschfrei und " +
+      "feste Schichten lassen sich hier schon eintragen – dann oben auf " +
+      "„Plan rechnen“.";
     ziel.append(hinweis);
-    return;
   }
 
-  const fest = festeZellen();
+  const vorgabe = daten.vorgabe || {};
   const tabelle = document.createElement("table");
   tabelle.className = "plan";
 
@@ -144,7 +156,7 @@ function zeichnePlan() {
 
   const koerper = tabelle.createTBody();
   for (const ma of daten.mitarbeiter) {
-    const reihe = daten.plan.plan[ma.id];
+    const reihe = geplant ? daten.plan.plan[ma.id] : zellenAusVorgabe(ma.id);
     if (!reihe) continue;
     const zeile = koerper.insertRow();
     const name = zeile.insertCell();
@@ -158,20 +170,26 @@ function zeichnePlan() {
     }
 
     let stunden = 0, tage = 0;
+    const gesetzt = vorgabe[ma.id] || {};
     for (const t of TAGE) {
       const zelle = reihe[t] || { art: "frei" };
       const td = zeile.insertCell();
-      if (zelle.art !== "frei" && zelle.art !== "schicht") {
+      if (zelle.art === "feiertag") {
         td.className = "abwesend";
-        td.textContent = ABWESEND[zelle.art] || zelle.art;
+        td.textContent = "zu";
         continue;
       }
       if (zelle.art === "schicht") {
         stunden += (min(zelle.bis) - min(zelle.von)) / 60 - pause();
         tage += 1;
       }
-      td.className = "zelle " + kategorie(ma, t, zelle);
-      if (fest[ma.id] && fest[ma.id].has(t)) td.classList.add("fest");
+      td.className = "zelle " + (zelle.art === "schicht"
+        ? kategorie(ma, t, zelle) : zelle.art === "frei" ? "" : "abw");
+      // Der blaue Balken meint "von Hand festgehalten". Abwesenheiten
+      // tragen ihn nicht - die sieht man ohnehin.
+      if (gesetzt[t] !== undefined && !(gesetzt[t] in ABWESEND)) {
+        td.classList.add("fest");
+      }
       td.append(auswahl(ma, t, zelle));
     }
     const summe = zeile.insertCell();
@@ -202,7 +220,29 @@ function zeichnePlan() {
   }
   fuss.insertCell();
   ziel.append(tabelle);
-  zeigeKacheln(brutto);
+  if (geplant) zeigeKacheln(brutto);
+}
+
+function zellenAusVorgabe(mid) {
+  const gesetzt = (daten.vorgabe || {})[mid] || {};
+  const reihe = {};
+  for (const t of TAGE) {
+    const wert = gesetzt[t];
+    if (wert === undefined || wert === "frei") {
+      reihe[t] = { art: "frei" };
+    } else if (ZUSTAENDE.some(([schluessel]) => schluessel === wert)) {
+      reihe[t] = { art: wert };
+    } else {
+      const [von, bis] = String(wert).split("-");
+      reihe[t] = { art: "schicht", von: lang(von), bis: lang(bis) };
+    }
+  }
+  return reihe;
+}
+
+function lang(teil) {
+  const [h, m] = String(teil).split(":");
+  return `${String(Number(h)).padStart(2, "0")}:${m || "00"}`;
 }
 
 function kategorie(ma, tag, zelle) {
@@ -224,40 +264,46 @@ function kurz(hhmm) {
 }
 const pause = () => ((daten.kopf || {}).pause_h) || 0;
 
-function festeZellen() {
-  // Aus dem Rohtext gelesen, damit die Markierung ohne Neuladen stimmt.
-  const karte = {};
-  const zeilen = $("yaml").value.split("\n");
-  const anfang = zeilen.findIndex((z) => z.startsWith("fest:"));
-  if (anfang < 0) return karte;
-  for (let i = anfang + 1; i < zeilen.length; i++) {
-    const z = zeilen[i];
-    if (z && !/^\s/.test(z)) break;
-    const treffer = z.match(/^ {2}([a-z_]+):\s*\{(.*?)\}/);
-    if (!treffer) continue;
-    karte[treffer[1]] = new Set(
-      [...treffer[2].matchAll(/\b(mo|di|mi|do|fr|sa)\s*:/g)].map((m) => m[1]));
-  }
-  return karte;
-}
 
 function auswahl(ma, tag, zelle) {
   const feld = document.createElement("select");
   feld.title = `${ma.name}, ${TAG_LANG[tag]}`;
-  const moeglich = (ma.schichten || {})[tag] || [];
-  feld.append(new Option("Frei", "frei", false, zelle.art === "frei"));
-  let getroffen = zelle.art === "frei";
+  const gesetzt = ((daten.vorgabe || {})[ma.id] || {})[tag];
   const eigen = zelle.art === "schicht"
     ? `${kurz(zelle.von)}-${kurz(zelle.bis)}` : "";
-  for (const s of moeglich) {
-    const passt = s.id === eigen;
-    if (passt) getroffen = true;
-    feld.append(new Option(s.id, s.id, false, passt));
+
+  // Oben die Vorgaben, darunter die Schichten, die diese Person an diesem
+  // Tag ueberhaupt arbeiten darf.
+  // Der Normalfall heisst schlicht "Frei": die Zelle ist offen, der Planer
+  // darf sie belegen. "Frei (fest)" unten haelt sie dagegen frei.
+  feld.append(new Option("Frei", "auto", false,
+                         gesetzt === undefined && zelle.art === "frei"));
+  const vorgaben = document.createElement("optgroup");
+  vorgaben.label = "Vorgabe";
+  for (const [schluessel, beschriftung] of ZUSTAENDE) {
+    const gewaehlt = schluessel === "frei"
+      ? gesetzt === "frei"
+      : (gesetzt === schluessel || zelle.art === schluessel);
+    vorgaben.append(new Option(beschriftung, schluessel, false, gewaehlt));
   }
-  if (!getroffen && eigen) {
-    feld.append(new Option(eigen, eigen, false, true));
+  feld.append(vorgaben);
+
+  const moeglich = (ma.schichten || {})[tag] || [];
+  if (moeglich.length) {
+    const schichten = document.createElement("optgroup");
+    schichten.label = "Schicht";
+    for (const s of moeglich) {
+      schichten.append(new Option(s.id, s.id, false, s.id === eigen));
+    }
+    feld.append(schichten);
   }
-  feld.append(new Option("— Planer entscheidet", "auto"));
+  if (eigen && !moeglich.some((s) => s.id === eigen)) {
+    // Schicht, die der Katalog an dem Tag nicht vorsieht - trotzdem zeigen.
+    const ausnahme = document.createElement("optgroup");
+    ausnahme.label = "Ausnahme";
+    ausnahme.append(new Option(eigen, eigen, false, true));
+    feld.append(ausnahme);
+  }
   feld.onchange = () => setzeZelle(ma.id, tag, feld.value);
   return feld;
 }
@@ -268,6 +314,11 @@ async function setzeZelle(mid, tag, wert) {
       `/api/woche/${encodeURIComponent(aktuelle)}/zelle`,
       { mitarbeiter: mid, tag, wert });
     $("yaml").value = antwort.yaml;
+    // Der Server zieht die Aenderung im gespeicherten Plan nach und schickt
+    // ihn zurueck - ohne ihn spraenge die Zelle beim Neuzeichnen wieder auf
+    // den gerechneten Wert.
+    daten = await hole(`/api/woche/${encodeURIComponent(aktuelle)}`);
+    zeichneBefunde(daten.befunde);
     melde(wert === "auto"
       ? `${TAG_LANG[tag]} wieder freigegeben – der Planer entscheidet.`
       : `${TAG_LANG[tag]} festgehalten. Steht jetzt unter „fest:“ und ` +
