@@ -775,10 +775,14 @@ python -m unittest discover -s tests
 
 ## Weboberflaeche
 
-    python -m schichtplan web
+**Windows:** `start.bat` doppelklicken.
+**macOS/Linux:** `./start.sh` im Terminal.
+**Oder von Hand:** `python -m schichtplan web`
 
 Startet einen kleinen Server auf <http://127.0.0.1:8777/> und oeffnet den
-Browser. Nur Standardbibliothek, nichts zu installieren.
+Browser. Nur Standardbibliothek, ausser PyYAML nichts zu installieren - das
+holen die Startdateien bei Bedarf selbst nach. Das Fenster mit dem laufenden
+Befehl muss offen bleiben; Strg+C beendet den Server.
 
 Was sie kann:
 
@@ -800,4 +804,17 @@ Was sie kann:
   die Datei danach laden laesst; sonst bleibt der alte Stand stehen.
 
 Optionen: `--port`, `--host`, `--wochen`, `--ausgabe`, `--historie`,
-`--kein-browser`.
+`--kein-browser`. Die Startdateien reichen alles weiter, also geht auch
+`start.bat --port 9000`.
+
+`127.0.0.1` heisst: nur der eigene Rechner kommt dran. Fuer das Tablet im
+Laden `--host 0.0.0.0` - dann aber nur im eigenen WLAN, es gibt kein Passwort.
+
+### PDF
+
+Fuer den PDF-Haken braucht es Chrome, Chromium oder Edge auf dem Rechner;
+unter Windows und macOS werden die ueblichen Installationspfade abgesucht.
+Liegt der Browser woanders, hilft die Umgebungsvariable
+`SCHICHTPLAN_BROWSER` mit dem vollen Pfad zur exe. Ohne Browser bleiben die
+HTML-Dateien - im Browser oeffnen und mit Strg+P als PDF speichern, das
+Layout ist dafuer gebaut.

@@ -10,25 +10,67 @@ Strg+P, "Als PDF speichern". Das Layout ist dafuer vorbereitet.
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import tempfile
 
-# Erst die ueblichen Namen im PATH, dann die Pfade, unter denen Playwright
-# seine Browser ablegt.
-_KANDIDATEN = ("chromium", "chromium-browser", "google-chrome", "chrome")
-_PFADE = ("/opt/pw-browsers/chromium-*/chrome-linux/chrome",
-          "/opt/pw-browsers/chromium/chrome-linux/chrome",
-          "/usr/lib/chromium/chromium")
+# Erst die ueblichen Namen im PATH - damit ist Linux meist erledigt.
+_KANDIDATEN = ("chromium", "chromium-browser", "google-chrome",
+               "google-chrome-stable", "chrome", "msedge")
+
+# Danach die Stellen, an denen die Browser je System tatsaechlich liegen.
+# Unter Windows und macOS steht Chrome nicht im PATH, dort findet ihn nur der
+# feste Pfad.
+_PFADE_LINUX = ("/opt/pw-browsers/chromium-*/chrome-linux/chrome",
+                "/opt/pw-browsers/chromium/chrome-linux/chrome",
+                "/usr/lib/chromium/chromium")
+_PFADE_MAC = (
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+)
+_PFADE_WINDOWS = (
+    r"{ProgramFiles}\Google\Chrome\Application\chrome.exe",
+    r"{ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+    r"{LocalAppData}\Google\Chrome\Application\chrome.exe",
+    r"{ProgramFiles}\Microsoft\Edge\Application\msedge.exe",
+    r"{ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+    r"{ProgramFiles}\Chromium\Application\chrome.exe",
+)
 
 
 def browser() -> str | None:
-    """Pfad zu einem Chromium, oder None."""
+    """Pfad zu einem Chromium oder Chrome, oder None.
+
+    Eine eigene Umgebungsvariable SCHICHTPLAN_BROWSER sticht alles - damit
+    laesst sich ein Browser an einer ungewoehnlichen Stelle nachreichen,
+    ohne am Code zu drehen.
+    """
+    if eigener := os.environ.get("SCHICHTPLAN_BROWSER"):
+        if pathlib.Path(eigener).exists():
+            return eigener
     for name in _KANDIDATEN:
         if gefunden := shutil.which(name):
             return gefunden
-    for muster in _PFADE:
+    if sys.platform == "win32":
+        for muster in _PFADE_WINDOWS:
+            pfad = muster
+            for schluessel in ("ProgramFiles", "ProgramFiles(x86)", "LocalAppData"):
+                wert = os.environ.get(schluessel)
+                if wert:
+                    pfad = pfad.replace("{" + schluessel + "}", wert)
+            if "{" not in pfad and pathlib.Path(pfad).exists():
+                return pfad
+        return None
+    if sys.platform == "darwin":
+        for pfad in _PFADE_MAC:
+            if pathlib.Path(pfad).exists():
+                return pfad
+        return None
+    for muster in _PFADE_LINUX:
         treffer = sorted(pathlib.Path("/").glob(muster.lstrip("/")))
         if treffer:
             return str(treffer[-1])
