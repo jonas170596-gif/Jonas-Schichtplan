@@ -1998,3 +1998,94 @@ class TestSymbol(unittest.TestCase):
         self.assertEqual(frisch, alt,
                          "symbol-32.png passt nicht mehr zum Werkzeug - "
                          "python werkzeug/symbol_bauen.py neu laufen lassen")
+
+
+class TestE2nVorlage(unittest.TestCase):
+    """Die Spaltennamen von e2n sind nicht bekannt - das Werkzeug soll sie
+    aus einer echten Datei uebernehmen koennen."""
+
+    def _kopf(self, zeile: str, name: str = "vorlage.csv") -> pathlib.Path:
+        import tempfile
+        ordner = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, ordner, ignore_errors=True)
+        pfad = ordner / name
+        pfad.write_text(zeile, encoding="utf-8")
+        return pfad
+
+    def test_deutsche_schichtvorlage(self):
+        from schichtplan import e2n
+        pfad = self._kopf("Pers.-Nr.;Nachname;Vorname;Datum;Beginn (Uhrzeit);"
+                          "Ende (Uhrzeit);Pausendauer in Minuten;Abteilung\n")
+        spalten, trenn, satz = e2n.lies_kopf(pfad)
+        self.assertEqual(trenn, ";")
+        gefunden, offen, welche = e2n.zuordnung(spalten)
+        self.assertEqual(welche, "schichten")
+        self.assertEqual(offen, [])
+        self.assertEqual(gefunden["personalnummer"], "Pers.-Nr.")
+        self.assertEqual(gefunden["beginn"], "Beginn (Uhrzeit)")
+        self.assertEqual(gefunden["arbeitsbereich"], "Abteilung")
+
+    def test_abwesenheitsvorlage_wird_erkannt(self):
+        from schichtplan import e2n
+        pfad = self._kopf("﻿Mitarbeiternummer,Mitarbeiter,Datum,"
+                          "Abwesenheitsart,Kostenstelle\n")
+        spalten, trenn, satz = e2n.lies_kopf(pfad)
+        self.assertEqual((trenn, satz), (",", "utf-8-sig"))
+        gefunden, offen, welche = e2n.zuordnung(spalten)
+        self.assertEqual(welche, "abwesenheiten")
+        self.assertEqual(gefunden["art"], "Abwesenheitsart")
+        self.assertEqual(offen, ["Kostenstelle"])
+
+    def test_leere_und_sinnlose_dateien_melden_sich(self):
+        from schichtplan import e2n
+        with self.assertRaises(ValueError):
+            e2n.lies_kopf(self._kopf("\n"))
+        with self.assertRaises(ValueError):
+            e2n.lies_kopf(self._kopf("nur eine Spalte ohne Trenner\n"))
+
+    def test_uebernahme_laesst_sich_wieder_laden(self):
+        """Was das Werkzeug schreibt, muss der Lader auch lesen koennen."""
+        import shutil
+        import tempfile
+        from schichtplan import e2n
+        from schichtplan.konfig import lade_e2n
+        pfad = self._kopf("Pers.-Nr.;Nachname;Vorname;Datum;Beginn;Ende;"
+                          "Pause;Abteilung\n")
+        neu, bericht = e2n.uebernehmen(pfad, lade_e2n(WURZEL / "konfig"))
+        self.assertEqual(bericht["fehlend"], [])
+        ordner = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, ordner, ignore_errors=True)
+        shutil.copytree(WURZEL / "konfig", ordner / "konfig")
+        (ordner / "konfig/e2n.yaml").write_text(
+            e2n.als_yaml(neu, "Test"), encoding="utf-8")
+        zurueck = lade_e2n(ordner / "konfig")
+        self.assertEqual(zurueck.schicht_spalten, neu.schicht_spalten)
+        self.assertEqual(zurueck.kopf("schichten")[0], "Pers.-Nr.")
+
+    def test_export_folgt_der_vorlage(self):
+        from schichtplan import e2n, export
+        from schichtplan.konfig import lade_e2n
+        pfad = self._kopf("Pers.-Nr.;Nachname;Vorname;Datum;Beginn;Ende;"
+                          "Pause;Abteilung\n")
+        format, _ = e2n.uebernehmen(pfad, lade_e2n(WURZEL / "konfig"))
+        stamm = lade_stammdaten(WURZEL / "konfig")
+        vorgabe = woche("2026-KW42")
+        plan = grundgeruest(stamm, vorgabe)
+        plan.zellen["rohwer_c"]["mo"] = Zelle("schicht", stamm.schichten["6-14"])
+        text = export.als_e2n_csv(plan, stamm, arbeitsbereich="Theke",
+                                  pause_min=30, format=format)
+        zeilen = text.splitlines()
+        self.assertEqual(zeilen[0].split(";")[0], "Pers.-Nr.")
+        treffer = [z for z in zeilen if "Rohwer" in z]
+        self.assertTrue(treffer)
+        felder = treffer[0].split(";")
+        self.assertEqual(felder[1], "Rohwer")
+        self.assertEqual(felder[2], "Carmen")
+        self.assertEqual(felder[4:7], ["06:00", "14:00", "30"])
+
+    def test_fehlende_pflichtspalten_werden_gemeldet(self):
+        from schichtplan import e2n
+        from schichtplan.konfig import lade_e2n
+        pfad = self._kopf("Mitarbeiter;Abteilung\n")
+        _, bericht = e2n.uebernehmen(pfad, lade_e2n(WURZEL / "konfig"))
+        self.assertEqual(set(bericht["fehlend"]), {"datum", "beginn", "ende"})

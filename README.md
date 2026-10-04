@@ -838,6 +838,32 @@ Liegt der Browser woanders, hilft die Umgebungsvariable
 HTML-Dateien - im Browser oeffnen und mit Strg+P als PDF speichern, das
 Layout ist dafuer gebaut.
 
+### e2n
+
+Die beiden Dateien `<woche>-e2n-schichten.csv` und
+`<woche>-e2n-abwesenheiten.csv` sind fuer den Import in e2n gedacht. Welche
+Spalten e2n genau erwartet, steht nicht in diesem Projekt - die Namen in
+`konfig/e2n.yaml` sind ein Vorschlag, kein Wissen.
+
+Sobald eine Importvorlage oder ein Export aus e2n vorliegt, muss nichts
+abgetippt werden:
+
+```bash
+python -m schichtplan e2n-vorlage vorlage.csv              # zeigt nur
+python -m schichtplan e2n-vorlage vorlage.csv --schreiben  # uebernimmt
+```
+
+Das liest die Kopfzeile, erkennt Trennzeichen und Zeichensatz, ordnet die
+Spalten den eigenen Feldern zu und schreibt `konfig/e2n.yaml`. Ob es um
+Schichten oder Abwesenheiten geht, erkennt es an den Spalten selbst. Was
+sich nicht zuordnen laesst, wird gemeldet; fehlen Pflichtspalten wie Datum
+oder Beginn, sagt es das ebenfalls.
+
+Zuordenbare Felder: `mitarbeiter`, `nachname`, `vorname`, `personalnummer`,
+`datum`, `beginn`, `ende`, `pause`, `dauer`, `arbeitsbereich`, `notiz`,
+`art`. Die Personalnummer kommt aus `konfig/mitarbeiter.yaml`
+(`personalnummer:` je Person) - e2n ordnet lieber danach zu als nach Namen.
+
 ### Symbol
 
 `schichtplan/web/bild/symbol.ico` und die PNGs daneben erzeugt

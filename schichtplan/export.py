@@ -54,37 +54,71 @@ def als_csv(plan: Plan, stamm: Stammdaten) -> str:
     return puffer.getvalue()
 
 
-def als_e2n_csv(plan: Plan, stamm: Stammdaten, *,
-                arbeitsbereich: str = "", pause_min: int = 0) -> str:
-    """Eine Zeile je Schicht - das Format, das Dienstplan-Importe erwarten.
-    Spaltennamen ggf. an die eigene e2n-Importvorlage anpassen."""
+def als_e2n_csv(plan: Plan, stamm: Stammdaten, *, arbeitsbereich: str = "",
+                pause_min: int = 0, format=None) -> str:
+    """Eine Zeile je Schicht, im Format aus konfig/e2n.yaml."""
+    from .konfig import E2N_STANDARD
+    f = format or E2N_STANDARD
     puffer = io.StringIO()
-    w = csv.writer(puffer, delimiter=";")
-    w.writerow(["Mitarbeiter", "Personalnummer", "Datum", "Beginn", "Ende",
-                "Pause_Minuten", "Arbeitsbereich", "Notiz"])
+    w = csv.writer(puffer, delimiter=f.trennzeichen)
+    w.writerow(f.kopf("schichten"))
+    felder = f.felder("schichten")
     for mid, reihe in plan.zellen.items():
         m = stamm.mitarbeiter[mid]
         for t in plan.offene_tage:
             z = reihe[t]
             if not z.arbeitet:
                 continue
-            w.writerow([m.name, "", _datum(plan, t).strftime("%d.%m.%Y"),
-                        zu_zeit(z.schicht.von), zu_zeit(z.schicht.bis),
-                        pause_min, arbeitsbereich, ", ".join(z.zusatz)])
+            werte = {
+                "mitarbeiter": m.name,
+                "nachname": m.name.split(". ")[-1],
+                "vorname": m.vorname,
+                "personalnummer": m.personalnummer,
+                "datum": _datum(plan, t).strftime(f.datumsformat),
+                "beginn": _zeit(z.schicht.von, f),
+                "ende": _zeit(z.schicht.bis, f),
+                "pause": pause_min,
+                "dauer": f"{z.schicht.dauer_h:.2f}".replace(".", ","),
+                "arbeitsbereich": arbeitsbereich,
+                "notiz": ", ".join(z.zusatz),
+            }
+            w.writerow([werte.get(feld, "") for feld in felder])
     return puffer.getvalue()
 
 
-def als_abwesenheits_csv(plan: Plan, stamm: Stammdaten) -> str:
-    """Urlaub/Schule/Krank getrennt - in e2n eigene Datensatzart."""
+def als_abwesenheits_csv(plan: Plan, stamm: Stammdaten, *, format=None) -> str:
+    """Urlaub, Krankheit und Berufsschule - in e2n eine eigene Datensatzart."""
+    from .konfig import E2N_STANDARD
+    f = format or E2N_STANDARD
     puffer = io.StringIO()
-    w = csv.writer(puffer, delimiter=";")
-    w.writerow(["Mitarbeiter", "Datum", "Art"])
+    w = csv.writer(puffer, delimiter=f.trennzeichen)
+    w.writerow(f.kopf("abwesenheiten"))
+    felder = f.felder("abwesenheiten")
     for mid, reihe in plan.zellen.items():
         m = stamm.mitarbeiter[mid]
         for t in plan.offene_tage:
-            if reihe[t].art in ("urlaub", "schule", "krank", "sonstige"):
-                w.writerow([m.name, _datum(plan, t).strftime("%d.%m.%Y"), reihe[t].art])
+            art = reihe[t].art
+            if art not in ("urlaub", "schule", "krank", "sonstige"):
+                continue
+            werte = {
+                "mitarbeiter": m.name,
+                "nachname": m.name.split(". ")[-1],
+                "vorname": m.vorname,
+                "personalnummer": m.personalnummer,
+                "datum": _datum(plan, t).strftime(f.datumsformat),
+                "art": f.arten.get(art, art),
+            }
+            w.writerow([werte.get(feld, "") for feld in felder])
     return puffer.getvalue()
+
+
+def _zeit(slot: int, f) -> str:
+    """Slotindex als Uhrzeit im eingestellten Format."""
+    text = zu_zeit(slot)
+    if f.zeitformat == "%H:%M":
+        return text
+    stunde, minute = (int(x) for x in text.split(":"))
+    return dt.time(stunde % 24, minute).strftime(f.zeitformat)
 
 
 # --------------------------------------------------------------------- #

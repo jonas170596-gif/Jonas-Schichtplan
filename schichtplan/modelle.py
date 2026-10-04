@@ -106,6 +106,8 @@ class Mitarbeiter:
                                         # tag -> an dem Tag kommen NUR diese in
                                         # Frage. C. Kurz faengt samstags um 6
                                         # an, wenn sie denn kommt.
+    personalnummer: str = ""            # fuer den e2n-Export: dort wird nach
+                                        # Nummer zugeordnet, nicht nach Namen
     samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
     samstagprioritaet: float = 1.0      # <1: der Rueckstand wiegt weniger. Fuer
                                         # alle, deren fester freier Tag unter der

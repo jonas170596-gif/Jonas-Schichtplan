@@ -22,6 +22,79 @@ class Feiertagsregeln:
 
 
 @dataclass
+class E2nFormat:
+    """Wie die e2n-CSVs aussehen - Spaltennamen, Trennzeichen, Formate.
+
+    Steht in konfig/e2n.yaml und laesst sich mit 'e2n-vorlage' aus einer
+    echten Importdatei erzeugen, statt es zu raten.
+    """
+    trennzeichen: str = ";"
+    zeichensatz: str = "utf-8-sig"
+    datumsformat: str = "%d.%m.%Y"
+    zeitformat: str = "%H:%M"
+    schicht_spalten: dict[str, str] = field(default_factory=dict)
+    schicht_reihenfolge: list[str] = field(default_factory=list)
+    abwesend_spalten: dict[str, str] = field(default_factory=dict)
+    abwesend_reihenfolge: list[str] = field(default_factory=list)
+    arten: dict[str, str] = field(default_factory=dict)
+
+    def kopf(self, welche: str) -> list[str]:
+        spalten, reihenfolge = ((self.schicht_spalten, self.schicht_reihenfolge)
+                                if welche == "schichten"
+                                else (self.abwesend_spalten,
+                                      self.abwesend_reihenfolge))
+        return [spalten[f] for f in reihenfolge if f in spalten]
+
+    def felder(self, welche: str) -> list[str]:
+        spalten, reihenfolge = ((self.schicht_spalten, self.schicht_reihenfolge)
+                                if welche == "schichten"
+                                else (self.abwesend_spalten,
+                                      self.abwesend_reihenfolge))
+        return [f for f in reihenfolge if f in spalten]
+
+
+E2N_STANDARD = E2nFormat(
+    schicht_spalten={"mitarbeiter": "Mitarbeiter",
+                     "personalnummer": "Personalnummer", "datum": "Datum",
+                     "beginn": "Beginn", "ende": "Ende",
+                     "pause": "Pause_Minuten",
+                     "arbeitsbereich": "Arbeitsbereich", "notiz": "Notiz"},
+    schicht_reihenfolge=["mitarbeiter", "personalnummer", "datum", "beginn",
+                         "ende", "pause", "arbeitsbereich", "notiz"],
+    abwesend_spalten={"mitarbeiter": "Mitarbeiter",
+                      "personalnummer": "Personalnummer",
+                      "datum": "Datum", "art": "Art"},
+    abwesend_reihenfolge=["mitarbeiter", "personalnummer", "datum", "art"],
+    arten={"urlaub": "Urlaub", "krank": "Krank", "schule": "Berufsschule",
+           "sonstige": "Sonstige"},
+)
+
+
+def lade_e2n(pfad: pathlib.Path | str = KONFIG_DIR) -> E2nFormat:
+    """konfig/e2n.yaml lesen - fehlt sie, gilt das eingebaute Format."""
+    datei = pathlib.Path(pfad)
+    if datei.is_dir():
+        datei = datei / "e2n.yaml"
+    if not datei.exists():
+        return E2N_STANDARD
+    roh = _lies(datei)
+    s, a = roh.get("schichten") or {}, roh.get("abwesenheiten") or {}
+    return E2nFormat(
+        trennzeichen=str(roh.get("trennzeichen", ";")),
+        zeichensatz=str(roh.get("zeichensatz", "utf-8-sig")),
+        datumsformat=str(roh.get("datumsformat", "%d.%m.%Y")),
+        zeitformat=str(roh.get("zeitformat", "%H:%M")),
+        schicht_spalten=dict(s.get("spalten") or E2N_STANDARD.schicht_spalten),
+        schicht_reihenfolge=list(
+            s.get("reihenfolge") or E2N_STANDARD.schicht_reihenfolge),
+        abwesend_spalten=dict(a.get("spalten") or E2N_STANDARD.abwesend_spalten),
+        abwesend_reihenfolge=list(
+            a.get("reihenfolge") or E2N_STANDARD.abwesend_reihenfolge),
+        arten=dict(a.get("arten") or E2N_STANDARD.arten),
+    )
+
+
+@dataclass
 class Bedarf:
     offene_tage: list[str]
     oeffnung: dict[str, tuple[int, int]]          # tag -> (von, bis) als Slotindex
@@ -326,6 +399,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             einsatzprioritaet=float(m.get("einsatzprioritaet", 1.0)),
             stundenprioritaet=float(m.get("stundenprioritaet", 1.0)),
             samstagprioritaet=float(m.get("samstagprioritaet", 1.0)),
+            personalnummer=str(m.get("personalnummer", "")),
             zusatzschichten={t: list(v) for t, v in
                              (m.get("zusatzschichten") or {}).items()},
             nur_schichten={t: list(v) for t, v in

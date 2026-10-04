@@ -11,7 +11,7 @@ import pathlib
 from . import export
 from .bewertung import Bewerter
 from .generator import erzeuge
-from .konfig import Stammdaten, Wochenvorgabe
+from .konfig import Stammdaten, Wochenvorgabe, lade_e2n
 from .modelle import Plan
 
 
@@ -25,12 +25,13 @@ def plane(stamm: Stammdaten, vorgabe: Wochenvorgabe, vorwochen: list, *,
 def schreibe(plan: Plan, stamm: Stammdaten, bewertung, bewerter: Bewerter,
              vorwochen: list, ziel: pathlib.Path | str, *,
              pdf: bool = False, arbeitsbereich: str = "", pause: int = 30,
-             ) -> tuple[list[str], list[str]]:
+             konfig=None) -> tuple[list[str], list[str]]:
     """Schreibt Papierplan, Teamleiteruebersicht und die Exporte.
 
     Gibt (geschriebene Dateien, Meldungen) zurueck. Eine Meldung gibt es nur,
     wenn das PDF nicht erzeugt werden konnte - der Rest ist dann trotzdem da.
     """
+    e2n = lade_e2n(konfig) if konfig else lade_e2n()
     ziel = pathlib.Path(ziel)
     ziel.mkdir(parents=True, exist_ok=True)
     basis = ziel / plan.woche
@@ -39,8 +40,10 @@ def schreibe(plan: Plan, stamm: Stammdaten, bewertung, bewerter: Bewerter,
         f"{basis}.json": export.als_json(plan, stamm),
         f"{basis}.csv": export.als_csv(plan, stamm),
         f"{basis}-e2n-schichten.csv": export.als_e2n_csv(
-            plan, stamm, arbeitsbereich=arbeitsbereich, pause_min=pause),
-        f"{basis}-e2n-abwesenheiten.csv": export.als_abwesenheits_csv(plan, stamm),
+            plan, stamm, arbeitsbereich=arbeitsbereich, pause_min=pause,
+            format=e2n),
+        f"{basis}-e2n-abwesenheiten.csv": export.als_abwesenheits_csv(
+            plan, stamm, format=e2n),
     }
     # Teamleiteruebersicht: Befunde, Stunden und Konten auf einer Seite. Die
     # Konten brauchen die Historie - ohne sie bleibt der Block weg.
@@ -52,7 +55,8 @@ def schreibe(plan: Plan, stamm: Stammdaten, bewertung, bewerter: Bewerter,
     dateien[f"{basis}-teamleiter.html"] = _uebersicht.als_html(
         plan, stamm, bewertung, bewerter, kontozeilen)
     for pfad, inhalt in dateien.items():
-        pathlib.Path(pfad).write_text(inhalt, encoding="utf-8")
+        kodierung = e2n.zeichensatz if "-e2n-" in pfad else "utf-8"
+        pathlib.Path(pfad).write_text(inhalt, encoding=kodierung)
 
     geschrieben, meldungen = list(dateien), []
     if pdf:

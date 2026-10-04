@@ -1,0 +1,43 @@
+# Wie der e2n-Export aussieht.
+#
+# Die Spaltennamen hier sind geraten - e2n war beim Bauen nicht erreichbar.
+# Sobald eine Importvorlage aus e2n vorliegt, muss hier nichts von Hand
+# abgetippt werden:
+#
+#     python -m schichtplan e2n-vorlage <datei-aus-e2n.csv>
+#
+# liest deren Kopfzeile, ordnet die Spalten zu und schreibt diese Datei neu.
+# Was sich nicht zuordnen laesst, wird gemeldet statt still verschluckt.
+
+trennzeichen: ";"            # ; ist in deutschen Excel-Importen ueblich
+zeichensatz: utf-8-sig       # mit BOM, sonst macht Excel aus "Palmstrasse" Matsch
+datumsformat: "%d.%m.%Y"
+zeitformat: "%H:%M"
+
+# Eine Zeile je Schicht.
+schichten:
+  spalten:
+    mitarbeiter:     Mitarbeiter
+    personalnummer:  Personalnummer
+    datum:           Datum
+    beginn:          Beginn
+    ende:            Ende
+    pause:           Pause_Minuten
+    arbeitsbereich:  Arbeitsbereich
+    notiz:           Notiz
+  reihenfolge: [mitarbeiter, personalnummer, datum, beginn, ende, pause,
+                arbeitsbereich, notiz]
+
+# Urlaub, Krankheit und Berufsschule sind in e2n eine eigene Datensatzart.
+abwesenheiten:
+  spalten:
+    mitarbeiter: Mitarbeiter
+    personalnummer: Personalnummer
+    datum: Datum
+    art: Art
+  reihenfolge: [mitarbeiter, personalnummer, datum, art]
+  arten:
+    urlaub:   Urlaub
+    krank:    Krank
+    schule:   Berufsschule
+    sonstige: Sonstige

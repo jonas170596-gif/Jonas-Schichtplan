@@ -439,6 +439,54 @@ def cmd_backtest(args) -> int:
     return 0
 
 
+def cmd_e2n_vorlage(args) -> int:
+    """Spaltennamen aus einer echten e2n-Datei uebernehmen.
+
+    Ohne --schreiben wird nur gezeigt, was dabei herauskaeme - erst damit
+    wird konfig/e2n.yaml ersetzt.
+    """
+    from . import e2n as _e2n
+    from .konfig import lade_e2n
+    vorlage = pathlib.Path(args.datei)
+    if not vorlage.exists():
+        print(f"{vorlage} gibt es nicht", file=sys.stderr)
+        return 1
+    try:
+        neu, bericht = _e2n.uebernehmen(vorlage, lade_e2n(args.konfig))
+    except ValueError as fehler:
+        print(fehler, file=sys.stderr)
+        return 1
+
+    welche = ("Schichten" if bericht["welche"] == "schichten"
+              else "Abwesenheiten")
+    print(f"{vorlage.name}: sieht nach {welche} aus, "
+          f"{bericht['trennzeichen']!r} getrennt, {bericht['zeichensatz']}\n")
+    breite = max(len(s) for s in bericht["spalten"])
+    for spalte in bericht["spalten"]:
+        feld = next((f for f, s in bericht["gefunden"].items() if s == spalte),
+                    None)
+        print(f"  {spalte:<{breite}}  ->  {feld or '(nicht zugeordnet)'}")
+    if bericht["fehlend"]:
+        print("\nACHTUNG, in der Vorlage fehlt: "
+              + ", ".join(bericht["fehlend"])
+              + "\nOhne diese Spalten laesst sich die Datei nicht fuellen.")
+    if bericht["offen"]:
+        print("\nNicht zugeordnet: " + ", ".join(bericht["offen"])
+              + "\nDie bleiben leer. Passen sie doch zu einem Feld, in "
+                "konfig/e2n.yaml von Hand eintragen.")
+
+    ziel = pathlib.Path(args.konfig) / "e2n.yaml"
+    text = _e2n.als_yaml(neu, f"Aus {vorlage.name} uebernommen.")
+    if not args.schreiben:
+        print(f"\n--- so saehe {ziel} aus ---\n")
+        print(text)
+        print("Mit --schreiben wird die Datei ersetzt.")
+        return 0
+    ziel.write_text(text, encoding="utf-8")
+    print(f"\n{ziel} geschrieben.")
+    return 0 if not bericht["fehlend"] else 1
+
+
 def cmd_web(args) -> int:
     """Weboberflaeche starten - Wochenvorgabe bearbeiten, rechnen, ansehen."""
     from . import weboberflaeche
@@ -761,6 +809,13 @@ def main(argv=None) -> int:
     bt.add_argument("--iterationen", type=int, default=20000)
     bt.add_argument("--seed", type=int, default=1)
     bt.set_defaults(func=cmd_backtest)
+
+    ev = sub.add_parser("e2n-vorlage",
+                        help="Spalten aus einer e2n-Datei uebernehmen")
+    ev.add_argument("datei", help="Importvorlage oder Export aus e2n (CSV)")
+    ev.add_argument("--schreiben", action="store_true",
+                    help="konfig/e2n.yaml wirklich ueberschreiben")
+    ev.set_defaults(func=cmd_e2n_vorlage)
 
     we = sub.add_parser("web", help="Weboberflaeche starten")
     we.add_argument("--wochen", default="wochen")
