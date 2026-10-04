@@ -106,6 +106,9 @@ class Mitarbeiter:
                                         # tag -> an dem Tag kommen NUR diese in
                                         # Frage. C. Kurz faengt samstags um 6
                                         # an, wenn sie denn kommt.
+    einsatzkosten: float = 1.0          # Faktor auf 'sparsam_einsetzen'. >1 fuer
+                                        # Aushilfen, die wirklich nur im Notfall
+                                        # kommen; die hauseigene Reserve bleibt 1
     personalnummer: str = ""            # fuer den e2n-Export: dort wird nach
                                         # Nummer zugeordnet, nicht nach Namen
     samstag_konto: bool = True          # nimmt am Ausgleich freier Samstage teil
@@ -189,6 +192,7 @@ class Plan:
     zellen: dict[str, dict[str, Zelle]]        # ma_id -> tag -> Zelle
     filiale: str = ""
     offene_tage: list[str] = field(default_factory=lambda: list(TAGE))
+    notiz: str = ""                 # freie Bemerkung, steht auf dem Papierplan
 
     def zelle(self, ma: str, tag: str) -> Zelle:
         return self.zellen[ma][tag]

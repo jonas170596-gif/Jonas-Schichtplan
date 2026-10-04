@@ -87,6 +87,38 @@ def _leerer_block(zeilen: list[str], anfang: int) -> None:
     zeilen[anfang] = f"{kopf}: {{}}"
 
 
+def _notiz_setzen(text: str, inhalt: str) -> str:
+    """Die Zeile 'notiz:' ersetzen - mehrzeilig als YAML-Block."""
+    zeilen = [z for z in text.splitlines()]
+    anfang = next((i for i, z in enumerate(zeilen)
+                   if z.rstrip().startswith("notiz:")), None)
+    if anfang is None:
+        while zeilen and not zeilen[-1].strip():
+            zeilen.pop()
+        zeilen.append("")
+        anfang = len(zeilen)
+        zeilen.append('notiz: ""')
+    ende = anfang + 1
+    while ende < len(zeilen) and (not zeilen[ende].strip()
+                                  or zeilen[ende].startswith("  ")):
+        if zeilen[ende].strip() and not zeilen[ende].startswith("  "):
+            break
+        if not zeilen[ende].strip() and ende + 1 < len(zeilen) \
+                and not zeilen[ende + 1].startswith("  "):
+            break
+        ende += 1
+    sauber = inhalt.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not sauber:
+        neu = ['notiz: ""']
+    elif "\n" in sauber:
+        neu = ["notiz: |-"] + [f"  {z}" for z in sauber.split("\n")]
+    else:
+        neu = ["notiz: " + yaml.safe_dump(sauber, allow_unicode=True,
+                                          default_flow_style=True).strip()
+               .removesuffix("\n...").strip()]
+    return "\n".join(zeilen[:anfang] + neu + zeilen[ende:]) + "\n"
+
+
 def _fest_setzen(text: str, mid: str, tag: str, wert: str) -> str:
     """Einen Eintrag im Block 'fest:' setzen oder entfernen.
 
@@ -215,6 +247,29 @@ class Werkstatt:
             })
         return eintraege
 
+    def vorwoche_fehlt(self, name: str) -> str | None:
+        """Steht die Woche davor schon in der Historie?
+
+        Frueh/Spaet-Ausgleich, Samstagskonto und Stundenkonto rechnen ueber
+        das rollierende Fenster. Fehlt die Vorwoche, plant der Planer blind
+        und verteilt die Fairness gegen einen veralteten Stand. Das ist kein
+        Fehler, aber man sollte es wissen.
+        """
+        try:
+            jahr, kw = name.split("-KW")
+            montag = _dt.date.fromisocalendar(int(jahr), int(kw), 1)
+        except ValueError:
+            return None
+        vorher = montag - _dt.timedelta(days=7)
+        j, w, _ = vorher.isocalendar()
+        davor = f"{j}-KW{w:02d}"
+        if (self.historie / f"{davor}.json").exists():
+            return None
+        geplant = (self.ausgabe / f"{davor}.json").exists()
+        if not self.pfad(davor).exists() and not geplant:
+            return None          # die Woche gibt es gar nicht, also kein Thema
+        return davor
+
     def pfad(self, woche: str) -> pathlib.Path:
         """Pfad zur Wochendatei - mit Schutz gegen Ausbrueche aus dem Ordner."""
         ziel = (self.wochen / f"{woche}.yaml").resolve()
@@ -235,6 +290,7 @@ class Werkstatt:
             antwort["fehler"] = str(fehler)  # ganze Seite lahmlegen
             return antwort
         bewerter = Bewerter(stamm, vorgabe, self.vorwochen(bis=vorgabe.woche))
+        antwort["notiz"] = vorgabe.notiz
         antwort["kopf"] = {"von": vorgabe.datum_von, "bis": vorgabe.datum_bis,
                            "filiale": vorgabe.filiale, "modus": vorgabe.modus,
                            "pause_h": stamm.bedarf.pause_h,
@@ -268,6 +324,7 @@ class Werkstatt:
                 gesetzt.setdefault(mid, {})[t_] = (
                     "frei" if str(schicht).lower() == "frei" else str(schicht))
         antwort["vorgabe"] = gesetzt
+        antwort["vorwoche_fehlt"] = self.vorwoche_fehlt(name)
         plan = self.ausgabe / f"{name}.json"
         if plan.exists():
             antwort["plan"] = json.loads(plan.read_text(encoding="utf-8"))
@@ -347,6 +404,20 @@ class Werkstatt:
         antwort.update(self._plan_nachziehen(name, mid, tag, wert))
         return antwort
 
+    def notiz(self, name: str, text: str) -> dict:
+        """Die freie Bemerkung der Woche setzen.
+
+        Sie steht unter 'notiz:' in der Wochendatei und landet unten auf dem
+        Papierplan - fuer alles, was sich nicht in Schichten ausdruecken
+        laesst: "Mittwoch Lieferung 7 Uhr", "Samstag Grossputz".
+        """
+        pfad = self.pfad(name)
+        neu = _notiz_setzen(pfad.read_text(encoding="utf-8"), text)
+        antwort = self.speichern(name, neu) | {"yaml": neu, "notiz": text}
+        if (self.ausgabe / f"{name}.json").exists():
+            self._neu_schreiben(name)       # die Notiz steht im Papierplan
+        return antwort
+
     def _plan_nachziehen(self, name: str, mid: str, tag: str, wert: str) -> dict:
         """Die Handkorrektur in den gespeicherten Plan uebernehmen.
 
@@ -385,6 +456,9 @@ class Werkstatt:
         stamm = mit_aushilfen(self.stammdaten(), vorgabe)
         vorwochen = self.vorwochen(bis=name)
         plan = _plan_aus_json(self.ausgabe / f"{name}.json", stamm)
+        # Die Notiz steht in der Wochenvorgabe, nicht in der Planjson - sonst
+        # faende sie den Weg auf den Papierplan erst beim naechsten Rechnen.
+        plan.notiz = vorgabe.notiz
         bew = pruefen(plan, stamm, vorgabe, vorwochen)
         _lauf.schreibe(plan, stamm, bew, Bewerter(stamm, vorgabe, vorwochen),
                        vorwochen, self.ausgabe)
@@ -421,6 +495,10 @@ class Werkstatt:
                 json.dumps({"punkte": round(erg.bewertung.punkte),
                             "befunde": befunde}, ensure_ascii=False, indent=2),
                 encoding="utf-8")
+            if (davor := self.vorwoche_fehlt(name)):
+                meldungen.append(
+                    f"{davor} steht noch nicht in der Historie - Konten und "
+                    f"Ausgleich rechnen deshalb gegen einen alten Stand.")
             auftrag.update(stand="fertig", punkte=round(erg.bewertung.punkte),
                            start=round(erg.startpunkte), befunde=befunde,
                            dateien=[pathlib.Path(d).name for d in dateien],
@@ -552,6 +630,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                                        koerper["tag"], koerper.get("wert", "")))
                 elif was == "plan":
                     self._json({"auftrag": w.starte(name, koerper)})
+                elif was == "notiz":
+                    self._json(w.notiz(name, koerper.get("text", "")))
                 elif was == "uebernehmen":
                     self._json(w.uebernehmen(name))
                 else:

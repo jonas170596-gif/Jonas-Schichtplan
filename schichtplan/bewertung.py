@@ -967,8 +967,6 @@ class Bewerter:
             tage = min(tage, sum(1 for t in self.tage if m.zaehlt_am(t)))
             if tage <= 0:
                 continue
-            if tage <= 0:
-                continue
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
                         else self.stamm.regeln.stunden_toleranz_h)
             deckel = self.laengste_schicht.get(mid) or 0.0
@@ -1047,15 +1045,23 @@ class Bewerter:
         for mid, m in self.stamm.mitarbeiter.items():
             if not m.im_plan or not m.aktiv:
                 continue
-            reihe = plan.zellen[mid]
+            # Ein Plan aus der Historie kennt niemanden, der erst spaeter in
+            # die Stammdaten gekommen ist - fuer den gibt es nichts zu pruefen.
+            reihe = plan.zellen.get(mid)
+            if reihe is None:
+                continue
             stunden = sum(z.stunden for z in reihe.values())
             tage = sum(1 for z in reihe.values() if z.arbeitet)
             if self.verfuegbare_tage[mid] == 0:
                 continue
             if m.moeglichst_wenig:
-                # Leichter Gegendruck ohne Meldung: die Reserve wird nur
-                # eingesetzt, wenn die Besetzung es rechtfertigt.
-                add("sparsam_einsetzen", stunden)
+                # Gegendruck ohne Meldung: die Reserve wird nur eingesetzt,
+                # wenn die Besetzung es rechtfertigt. Wie stark der Druck
+                # ist, sagt 'einsatzkosten' - bei der hauseigenen Reserve
+                # leicht, bei einer Aushilfe aus einer anderen Filiale so
+                # schwer, dass der Planer es erst versucht, wenn sonst
+                # jemand fehlen wuerde.
+                add("sparsam_einsetzen", stunden * m.einsatzkosten)
 
             soll_h, soll_t = self._ziel(mid)
             toleranz = (m.stunden_toleranz_h if m.stunden_toleranz_h is not None
@@ -1157,7 +1163,9 @@ class Bewerter:
         for mid, m in self.stamm.mitarbeiter.items():
             if not m.im_plan:
                 continue
-            reihe = plan.zellen[mid]
+            reihe = plan.zellen.get(mid)
+            if reihe is None:
+                continue      # Plan aus der Historie, Person neu
             wechsel = []
             for a, b_ in zip(self.tage, self.tage[1:]):
                 za, zb = reihe[a], reihe[b_]

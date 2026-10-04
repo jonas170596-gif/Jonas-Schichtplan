@@ -36,7 +36,7 @@ Ergebnis in `ausgabe/`:
 
 | Datei | wofuer |
 |---|---|
-| `<woche>.html` | Druckansicht im Layout des Papierplans (A4 quer) |
+| `<woche>.html` | Druckansicht im Layout des Papierplans (A4 quer), ohne Befunde |
 | `<woche>.csv` | dasselbe Raster fuer Excel |
 | `<woche>.json` | maschinenlesbar, Eingabe fuer `pruefen` |
 | `<woche>-e2n-schichten.csv` | eine Zeile je Schicht fuer e2n |
@@ -809,6 +809,12 @@ Was sie kann:
   zurueck. Gerechnet wird dabei nichts; das macht erst "Plan rechnen" wieder.
 * **Woche vorbereiten** - die Tafel steht auch dann schon da, wenn die Woche
   noch nie gerechnet wurde. Erst Urlaub und Wuensche eintragen, dann rechnen.
+* **Notiz** - ein freies Textfeld je Woche. Es steht unten auf dem
+  Papierplan, fuer alles, was keine Schicht ist: "Mittwoch Lieferung 7 Uhr",
+  "Samstag Grossputz".
+* **Warnung bei fehlender Vorwoche** - steht die Woche davor noch nicht in
+  der Historie, sagt die Oberflaeche das oben an. Gerechnet wird trotzdem,
+  aber Konten und Ausgleich arbeiten dann gegen einen alten Stand.
 * **Befunde** - nach Fehler, Warnung und Hinweis getrennt, wie im Papierplan.
 * **Dateien** - Papierplan, Teamleiteruebersicht, Tabelle und die beiden
   e2n-CSVs; mit Haken auch als PDF.

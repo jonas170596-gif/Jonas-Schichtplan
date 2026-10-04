@@ -405,6 +405,7 @@ def lade_stammdaten(ordner: pathlib.Path | str = KONFIG_DIR) -> Stammdaten:
             einsatzprioritaet=float(m.get("einsatzprioritaet", 1.0)),
             stundenprioritaet=float(m.get("stundenprioritaet", 1.0)),
             samstagprioritaet=float(m.get("samstagprioritaet", 1.0)),
+            einsatzkosten=float(m.get("einsatzkosten", 1.0)),
             personalnummer=str(m.get("personalnummer", "")),
             zusatzschichten={t: list(v) for t, v in
                              (m.get("zusatzschichten") or {}).items()},

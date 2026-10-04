@@ -387,6 +387,22 @@ def cmd_plan(args) -> int:
                   f"nur bis {sp.gilt_bis}. Fuer {vorgabe.woche} sind keine "
                   f"Berufsschultage hinterlegt.\n")
 
+    if args.historie:
+        try:
+            jahr, kw = vorgabe.woche.split("-KW")
+            montag_vor = (dt.date.fromisocalendar(int(jahr), int(kw), 1)
+                          - dt.timedelta(days=7))
+            j, w, _ = montag_vor.isocalendar()
+            davor = f"{j}-KW{w:02d}"
+            if not (pathlib.Path(args.historie) / f"{davor}.json").exists() \
+                    and any(h.woche > davor for h in vorwochen) is False \
+                    and vorwochen:
+                print(f"ACHTUNG: {davor} steht noch nicht in der Historie. "
+                      f"Konten und Ausgleich rechnen gegen einen alten Stand "
+                      f"- erst 'uebernehmen', dann rechnen.\n")
+        except ValueError:
+            pass
+
     handplan = vorgabe.modus == "manuell"
     if montag and (sonder := kalender.weihnachtswoche(montag)) and not handplan:
         print(f"ACHTUNG Sonderwoche: {sonder}")
@@ -696,7 +712,8 @@ def _plan_aus_json(pfad: pathlib.Path, stamm) -> Plan:
                 reihe[t] = Zelle(c["art"], zusatz=list(c.get("zusatz", [])))
         zellen[mid] = reihe
     return Plan(roh["woche"], roh["datum_von"], roh.get("datum_bis", ""), zellen,
-                roh.get("filiale", ""), roh.get("tage", TAGE))
+                roh.get("filiale", ""), roh.get("tage", TAGE),
+                roh.get("notiz", ""))
 
 
 def _textplan(plan: Plan, stamm, bewerter=None) -> str:

@@ -60,6 +60,10 @@
 }
 
 * { box-sizing: border-box; }
+/* Das hidden-Attribut setzt display:none nur ueber das Browser-Stylesheet -
+   jede eigene display-Regel sticht es. .kacheln hat display:grid, die
+   Kacheln blieben deshalb stehen, obwohl sie versteckt waren. */
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; min-height: 100vh; background: var(--grund); color: var(--text);
@@ -178,6 +182,9 @@ button:disabled { opacity: .55; cursor: progress; }
 }
 .stand.gut   { background: color-mix(in srgb, var(--gut) 10%, var(--papier));
                border-color: color-mix(in srgb, var(--gut) 35%, var(--papier)); }
+.stand.warnung { background: color-mix(in srgb, var(--warnung) 10%, var(--papier));
+                 border-color: color-mix(in srgb, var(--warnung) 35%, var(--papier));
+                 color: var(--warnung); }
 .stand.schlecht { background: color-mix(in srgb, var(--fehler) 9%, var(--papier));
                border-color: color-mix(in srgb, var(--fehler) 32%, var(--papier));
                color: var(--fehler); }
@@ -292,6 +299,7 @@ tr.fusszeile td.koepfe.daneben { color: var(--warnung); }
 
 /* ---- Rohtext ---- */
 #rohtext summary { cursor: pointer; font-size: .88rem; color: var(--blau); }
+#notiz { min-height: 0; font: inherit; font-size: .9rem; }
 textarea {
   width: 100%; min-height: 26rem; margin: .6rem 0;
   font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;

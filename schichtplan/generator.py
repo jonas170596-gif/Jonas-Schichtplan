@@ -102,7 +102,7 @@ def grundgeruest(stamm: Stammdaten, vorgabe: Wochenvorgabe) -> Plan:
         zellen[mid] = reihe
     return Plan(
         woche=vorgabe.woche, datum_von=vorgabe.datum_von, datum_bis=vorgabe.datum_bis,
-        zellen=zellen, filiale=vorgabe.filiale,
+        zellen=zellen, filiale=vorgabe.filiale, notiz=vorgabe.notiz,
         offene_tage=[t for t in tage if t not in vorgabe.geschlossen],
     )
 

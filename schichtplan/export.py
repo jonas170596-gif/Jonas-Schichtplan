@@ -7,7 +7,6 @@ import html
 import io
 import json
 
-from .bewertung import SCHWEREGRADE
 from .konfig import Stammdaten
 from .modelle import TAG_LANG, Plan, zu_zeit
 
@@ -26,6 +25,7 @@ def als_json(plan: Plan, stamm: Stammdaten) -> str:
         "datum_bis": plan.datum_bis,
         "filiale": plan.filiale,
         "status": "generiert",
+        "notiz": plan.notiz,
         "tage": plan.offene_tage,
         "plan": {
             mid: {
@@ -145,22 +145,9 @@ tr.zusatz-zeile td.ma { font-weight:600; color:#555; font-style:italic; }
 td.leer { background:repeating-linear-gradient(0deg,#fff,#fff 10px,#f4f4f4 10px,#f4f4f4 11px); }
 .fuss { margin-top:4mm; font-size:8.5pt; color:#555; display:flex; justify-content:space-between; }
 .budget { margin-top:4mm; font-size:10pt; }
-.hinweise { margin-top:5mm; font-size:9pt; }
-.hinweise ul { margin:1mm 0 0; padding-left:5mm; }
-.hinweise li { margin-bottom:0.8mm; }
-.grad { margin-top:3mm; padding:1.5mm 0 1.5mm 3mm; border-left:1.2mm solid #999; }
-.grad h4 { margin:0; font-size:9pt; letter-spacing:0.3pt; }
-.grad .was { font-weight:400; color:#555; }
-.grad.fehler  { border-color:#b00020; background:#fdf2f3; }
-.grad.fehler h4  { color:#b00020; }
-.grad.warnung { border-color:#c47f00; background:#fdf8ee; }
-.grad.warnung h4 { color:#8a5a00; }
-.grad.hinweis { border-color:#8d9199; background:#f7f8f9; }
-.grad.hinweis h4 { color:#4a4f57; }
-.grad .pkt { color:#777; }
-@media print { .hinweise { page-break-before:avoid; }
-               .grad { break-inside:avoid; } }
-"""
+.notiz { margin-top:4mm; padding:2.5mm 3mm; border:1px solid #bbb;
+         border-radius:1mm; font-size:10pt; line-height:1.5; }
+@media print {                """
 
 
 def _schluessel(text: str) -> str:
@@ -181,6 +168,16 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
     zeilen = []
     for mid, reihe in plan.zellen.items():
         m = stamm.mitarbeiter[mid]
+        # Aushilfen, die diese Woche gar nicht eingeteilt sind, bekommen eine
+        # leere Zeile statt sechsmal "Frei" - so wie frueher die Leerzeile
+        # unten auf dem Formular. Falls doch jemand einspringt, kann man es
+        # von Hand eintragen.
+        if m.moeglichst_wenig and not any(z.arbeitet for z in reihe.values()):
+            leer = "".join('<td class="leer"></td>' for _ in alle)
+            zeilen.append(f'<tr class="zusatz-zeile"><td class="ma">'
+                          f'{e(m.name)}</td>{leer}'
+                          f'<td class="summe leer"></td></tr>')
+            continue
         tds = [f'<td class="ma">{e(m.name)}</td>']
         for t in alle:
             z = reihe.get(t)
@@ -234,28 +231,13 @@ def als_html(plan: Plan, stamm: Stammdaten, bewertung=None,
                   f'{bewerter.schichtzahl(plan, alle=True)} &times; '
                   f'{b.pause_minuten} min Pause</div>')
 
+    # Der Papierplan haengt im Laden aus - dort haben Befunde nichts zu
+    # suchen. Sie stehen in der Teamleiteruebersicht und in der Oberflaeche.
+    # Was hier hingehoert, ist die freie Bemerkung der Woche.
     hinweise = ""
-    if bewertung is not None:
-        if bewertung.befunde:
-            bloecke = []
-            for schwere, titel, erklaerung in SCHWEREGRADE:
-                gruppe = sorted((b for b in bewertung.befunde if b.schwere == schwere),
-                                key=lambda b: -b.punkte)
-                if not gruppe:
-                    continue
-                summe = sum(b.punkte for b in gruppe)
-                eintraege = "".join(
-                    f'<li>{e(b.text)} <span class="pkt">({e(b.regel)}, '
-                    f'{b.punkte:.0f})</span></li>' for b in gruppe)
-                bloecke.append(
-                    f'<div class="grad {schwere}"><h4>{titel} &middot; {len(gruppe)} '
-                    f'&middot; {summe:.0f} Punkte <span class="was">- {erklaerung}'
-                    f'</span></h4><ul>{eintraege}</ul></div>')
-            hinweise = (f'<div class="hinweise"><b>Hinweise des Planers '
-                        f'({bewertung.punkte:.0f} Strafpunkte)</b>'
-                        f'{"".join(bloecke)}</div>')
-        else:
-            hinweise = ('<div class="hinweise"><b>Keine Regelverletzungen.</b></div>')
+    if plan.notiz:
+        zeilen_notiz = "<br>".join(e(z) for z in plan.notiz.splitlines() if z.strip())
+        hinweise = f'<div class="notiz">{zeilen_notiz}</div>'
 
     kopfzeilen = "".join(f"<th>{TAG_LANG[t]}</th>" for t in alle)
     return f"""<!doctype html>

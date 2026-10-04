@@ -35,10 +35,11 @@ wochenstunden_gesamt_toleranz: 5
 # nebeneinander wie auf dem alten Formular) oder hoch. Beides ist DIN A4.
 papier_ausrichtung: quer
 
-# Leerzeilen am Fuss des Papierplans, zum Eintragen von Hand. Auf dem alten
-# Formular steht unten die Zeile fuer die Aushilfe aus der Palmstrasse.
-zusatzzeilen:
-  - "Palmstrasse Aushilfe"
+# Leerzeilen am Fuss des Papierplans, zum Eintragen von Hand. Die Palmstrasse
+# und der Seniorchef stehen inzwischen in den Stammdaten und erscheinen von
+# selbst - in Wochen ohne Einsatz als leere Zeile. Hier kaeme hinein, was es
+# ausser ihnen noch zum Eintragen geben soll.
+zusatzzeilen: []
 
 # Tage, die notfalls auch mit weniger Koepfen laufen duerfen - aber nur gegen
 # eine Gegenleistung. Samstags sind sieben das Ziel; wenn sich das nicht ohne

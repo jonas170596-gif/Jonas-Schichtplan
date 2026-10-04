@@ -98,12 +98,18 @@ async function oeffne(name) {
       (k.modus === "manuell" ? "  ·  Handplan, wird nur geprueft" : "")
     : "";
   $("yaml").value = daten.yaml;
+  $("notiz").value = daten.notiz || "";
+  $("notizstand").textContent = "";
   $("speicherstand").textContent = "";
   $("uebernahme").textContent = "";
 
   if (daten.fehler) {
     melde(`Die Wochendatei lässt sich nicht laden: ${daten.fehler}`, "schlecht");
     $("rohtext").open = true;
+  } else if (daten.vorwoche_fehlt) {
+    melde(`${daten.vorwoche_fehlt} steht noch nicht in der Historie. ` +
+          `Erst die Vorwoche übernehmen, sonst rechnen Konten und Ausgleich ` +
+          `gegen einen alten Stand.`, "warnung");
   } else {
     $("stand").hidden = true;
   }
@@ -514,6 +520,20 @@ async function speichere() {
   }
 }
 
+async function speichereNotiz() {
+  try {
+    const antwort = await sende(
+      `/api/woche/${encodeURIComponent(aktuelle)}/notiz`,
+      { text: $("notiz").value });
+    $("yaml").value = antwort.yaml;
+    $("notizstand").textContent = antwort.notiz
+      ? "gespeichert \u2013 steht jetzt auf dem Papierplan"
+      : "gelöscht";
+  } catch (fehler) {
+    $("notizstand").textContent = fehler.message;
+  }
+}
+
 async function uebernimm() {
   try {
     const antwort = await sende(
@@ -556,6 +576,7 @@ try {
 $("rechnen").onclick = rechne;
 $("speichern").onclick = speichere;
 $("uebernehmen").onclick = uebernimm;
+$("notiz-speichern").onclick = speichereNotiz;
 $("zeigekonten").onclick = zeigeKonten;
 $("farbschema").onclick = schemaUmschalten;
 

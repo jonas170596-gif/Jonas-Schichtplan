@@ -230,8 +230,45 @@ mitarbeiter:
       eintragen. Ohne Schultag arbeitet er fuenf Schichten, mit einem vier -
       dadurch ist er auch bei Vollbesetzung dabei.
 
+  # ---------------- Aushilfen ----------------
+  # Beide stehen in jeder Woche in der Tafel, damit sie sich von Hand
+  # eintragen lassen. Eingeplant werden sie von sich aus nicht:
+  # moeglichst_wenig und nur_obergrenze machen jede ihrer Schichten teuer,
+  # der Planer greift also erst danach, wenn die eigene Mannschaft nicht
+  # reicht. Ihre Schichten sind damit genau die Liste dessen, was angefragt
+  # werden muss.
   kurz_t:
-    name: "T. Kurz"
+    name: "T. Kurz (Senior)"
     vorname: Thomas
-    im_plan: false
-    notiz: "In der Historie nie in Winterbach eingeplant."
+    faehigkeiten: [f]              # nur Fleisch
+    soll_stunden: 15
+    soll_tage: 3
+    max_tage: 3
+    moeglichst_wenig: true
+    nur_obergrenze: true
+    einsatzkosten: 8              # nur, wenn sonst jemand fehlen wuerde
+    samstag_konto: false           # kein Konto, er ist keine Vertragskraft
+    frueh_spaet_ausgleich: false
+    erlaubte_schichten: [6-11]     # er arbeitet nur vormittags
+    notiz: "Seniorchef, springt gelegentlich ein."
+
+  palmstrasse:
+    name: "Palmstraße Aushilfe"
+    faehigkeiten: [f, w, o]
+    soll_stunden: 48
+    soll_tage: 6
+    moeglichst_wenig: true
+    nur_obergrenze: true
+    einsatzkosten: 8              # nur, wenn sonst jemand fehlen wuerde
+    samstag_konto: false
+    frueh_spaet_ausgleich: false
+    # Keine Fruehschicht und kein spaeter Start: sie kommt aus einer anderen
+    # Filiale, kennt sich nicht aus und braucht jemanden, der ihr etwas
+    # zeigt. Um 11 ist der Laden besetzt, um 6 waere sie mit zweien allein.
+    erlaubte_schichten: [11-20, 8-16, 9-18, 10-18, 11-18]
+    # Solange unklar ist, wie erfahren die Person ist: Spaetschicht nur,
+    # wenn eine der drei Erfahrenen ebenfalls spaet arbeitet.
+    begleitung:
+      kategorie: spaet
+      gruppe: [rohwer_c, marino_a, sannzenbacher_n]
+    notiz: "Aushilfe aus der Palmstrasse, auf Anfrage."
